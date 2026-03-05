@@ -14,7 +14,11 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
 
   // Start the mathematical CRDT sync engine!
-  const { connectedPeers, connectionStatus } = useSyncBridge(ctx, wsUrl);
+  const { connectedPeers, connectionStatus } = useSyncBridge(
+    ctx,
+    wsUrl,
+    isTauri,
+  );
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -76,8 +80,8 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
 
       {/* Optional: A debug list of the actual IPs */}
       <ul style={{ fontSize: "0.8rem", color: "gray", marginBottom: "2rem" }}>
-        {connectedPeers.map((ip: string) => (
-          <li key={ip}>{ip}</li>
+        {connectedPeers.map((ip: string, i: number) => (
+          <li key={`${ip}-${i}`}>{ip}</li>
         ))}
       </ul>
 

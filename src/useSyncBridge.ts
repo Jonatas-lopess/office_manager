@@ -41,7 +41,11 @@ export type ConnectionStatus =
   | "connected"
   | "reconnecting";
 
-export function useSyncBridge(ctx: DB, initialHubUrl: string) {
+export function useSyncBridge(
+  ctx: DB,
+  initialHubUrl: string,
+  isTauri: boolean,
+) {
   const wsRef = useRef<WebSocket | null>(null);
   const lastVersionRef = useRef(0n);
   const reconnectAttemptsRef = useRef(0);
@@ -79,8 +83,11 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
     } else {
       // On subsequent attempts (failover), scan the network for a new Hub.
       try {
-        console.log(`❌ [Failover] Scanning for a new Hub...`);
-        const hubIp = await invoke<string | null>("find_hub_ip");
+        let hubIp: string | null = null;
+        if (isTauri) {
+          console.log(`❌ [Failover] Scanning for a new Hub...`);
+          hubIp = await invoke<string | null>("find_hub_ip");
+        }
         if (hubIp) {
           console.log(`✅ [Failover] Found new Hub at ${hubIp}`);
           targetUrl = `ws://${hubIp}:1234/ws`;
@@ -203,7 +210,7 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
         stmt.finalize(null);
       }
     };
-  }, [initialHubUrl, ctx]);
+  }, [initialHubUrl, ctx, isTauri]);
 
   useEffect(() => {
     isUnmountingRef.current = false;
