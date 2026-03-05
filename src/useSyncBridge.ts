@@ -35,6 +35,18 @@ const deserializeMsg = (str: any) => {
   });
 };
 
+/**
+ * Compares two Uint8Arrays for equality.
+ * Returns true if they are identical, false otherwise.
+ */
+function compareUint8Arrays(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export type ConnectionStatus =
   | "disconnected"
   | "connecting"
@@ -166,9 +178,9 @@ export function useSyncBridge(
         return;
       }
 
-      const mySiteIdStr = (
-        await ctx.execA("SELECT crsql_site_id()")
-      )[0][0].join(",");
+      const mySiteId = new Uint8Array(
+        (await ctx.execA("SELECT crsql_site_id()"))[0][0],
+      );
 
       if (message.type === "sync" && message.payload.length > 0) {
         console.log(
@@ -187,27 +199,27 @@ export function useSyncBridge(
         ctx
           .tx(async (tx) => {
             for (const row of message.payload) {
-              const incomingSiteIdStr = row[6].join(","); // site_id is index 6
-              if (incomingSiteIdStr === mySiteIdStr) {
+              if (compareUint8Arrays(row[6], mySiteId)) {
                 console.warn(`⚠️ [Inbound] Skipping change from self`);
-                continue; // Skip changes originating from this site
+                continue;
               }
 
-              await stmt.run(tx, row).catch((err) => {
+              await stmt.run(tx, ...row).catch((err) => {
                 console.error(`❌ [Inbound SQL Error]:`, err);
                 console.error(`Failing Row Data:`, row);
-                throw err; // Abort transaction
+                throw err;
               });
             }
 
-            if (message.payload[0][6].join(",") !== mySiteIdStr)
+            if (!compareUint8Arrays(message.payload[0][6], mySiteId))
               console.log(`✅ [Inbound] Merged remote changes!`);
           })
           .catch((err) => {
             console.error(`❌ [Transaction Error]:`, err);
+          })
+          .finally(() => {
+            stmt.finalize(null);
           });
-
-        stmt.finalize(null);
       }
     };
   }, [initialHubUrl, ctx, isTauri]);
