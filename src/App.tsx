@@ -14,7 +14,7 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
 
   // Start the mathematical CRDT sync engine!
-  const { connectedPeers } = useSyncBridge(ctx, wsUrl);
+  const { connectedPeers, connectionStatus } = useSyncBridge(ctx, wsUrl);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -39,6 +39,34 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
               ? "Operating as the Local Hub (Broadcasting on port 1234)"
               : "Connected to Local Hub (Browser Testing)"}
         </p>
+        <div>
+          <p style={{ margin: 0, color: "gray", fontSize: "0.9rem" }}>
+            <strong>Status: </strong>
+            <span
+              style={{
+                fontWeight: "bold",
+                color:
+                  connectionStatus === "connected"
+                    ? "green"
+                    : connectionStatus === "reconnecting"
+                      ? "orange"
+                      : "red",
+                textTransform: "capitalize",
+              }}
+            >
+              {connectionStatus}
+            </span>
+          </p>
+          <p
+            style={{
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.8rem",
+              color: "#666",
+            }}
+          >
+            {hubIp ? `Initial Hub: ${hubIp}` : "Local / Failover Mode"}
+          </p>
+        </div>
 
         {/* 2. Render the Live Counter! */}
         <p style={{ margin: 0, color: "green", fontWeight: "bold" }}>
@@ -47,8 +75,8 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
       </div>
 
       {/* Optional: A debug list of the actual IPs */}
-      <ul style={{ fontSize: "0.8rem", color: "gray" }}>
-        {connectedPeers.map((ip) => (
+      <ul style={{ fontSize: "0.8rem", color: "gray", marginBottom: "2rem" }}>
+        {connectedPeers.map((ip: string) => (
           <li key={ip}>{ip}</li>
         ))}
       </ul>
