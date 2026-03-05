@@ -33,11 +33,10 @@ Actual Code Structure
 State Management: Holds an AppState with a tokio::sync::broadcast channel (transmitting tuples of (Sender_UUID, JSON_String)) and a Mutex<HashSet<String>> for tracking connected UUIDs.
 
 Key Logic:
-{ Lacking Implementation
+
 Assigns a uuid::Uuid::new_v4() to every incoming WebSocket connection.
 
 Implements Server-Side Echo Cancellation: Drops outgoing messages if the destination UUID matches the sender UUID.
-}
 
 Broadcasts "presence" payloads whenever a device connects or disconnects.
 
