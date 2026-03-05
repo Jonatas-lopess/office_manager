@@ -163,6 +163,9 @@ async fn ws_handler(
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, client_uuid: Uuid) {
     println!("🟢 Client connected from IP: {}, UUID: {}", ip, client_uuid);
 
+    // Subscribe EARLY so we don't miss the initial presence broadcast!
+    let mut rx = state.tx.subscribe();
+
     // --- CONNECTION EVENT: Add to roster and broadcast ---
     {
         // Add the new client to our map.
@@ -180,7 +183,6 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, clie
     }
 
     let (mut sender, mut receiver) = socket.split();
-    let mut rx = state.tx.subscribe();
 
     // TASK A: Sending DOWN to the client
     let my_uuid = client_uuid;
