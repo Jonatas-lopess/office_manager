@@ -10,9 +10,9 @@ Conflict-Free Synchronization: Database merges happen automatically using CRDTs 
 
 Smart Network Routing: A local Rust server broadcasts sync payloads with server-side echo cancellation via UUID connection tracking.
 
-Dynamic Failover: If the primary Hub goes offline, Spoke devices utilize random jitter to rescan the network and automatically promote themselves to the new Hub.
-
 Live Presence: Real-time tracking of active devices connected to the local sync mesh.
+
+Dynamic Failover: If the primary Hub goes offline, Spoke devices utilize random jitter to rescan the network and automatically promote themselves to the new Hub. (Lacking implementation)
 
 Stack Used
 Frontend Framework: React with Vite (TypeScript).
@@ -33,10 +33,11 @@ Actual Code Structure
 State Management: Holds an AppState with a tokio::sync::broadcast channel (transmitting tuples of (Sender_UUID, JSON_String)) and a Mutex<HashSet<String>> for tracking connected UUIDs.
 
 Key Logic:
-
+{ Lacking Implementation
 Assigns a uuid::Uuid::new_v4() to every incoming WebSocket connection.
 
 Implements Server-Side Echo Cancellation: Drops outgoing messages if the destination UUID matches the sender UUID.
+}
 
 Broadcasts "presence" payloads whenever a device connects or disconnects.
 
