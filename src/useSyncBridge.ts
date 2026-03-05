@@ -61,6 +61,7 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
     // Clean up any existing connections or timers
     if (wsRef.current) {
       wsRef.current.onclose = null; // Prevent old onclose from firing
+      wsRef.current.onerror = null; // Prevent old onerror from firing
       wsRef.current.close();
     }
     if (reconnectTimeoutRef.current) {
@@ -78,19 +79,19 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
     } else {
       // On subsequent attempts (failover), scan the network for a new Hub.
       try {
-        console.log("[Failover] Scanning for a new Hub...");
+        console.log(`❌ [Failover] Scanning for a new Hub...`);
         const hubIp = await invoke<string | null>("find_hub_ip");
         if (hubIp) {
-          console.log(`[Failover] Found new Hub at ${hubIp}`);
+          console.log(`✅ [Failover] Found new Hub at ${hubIp}`);
           targetUrl = `ws://${hubIp}:1234/ws`;
         } else {
           // If no hub is found, this instance becomes the hub.
-          console.log(`[Failover] No Hub found. Promoting self to Hub.`);
+          console.log(`❌ [Failover] No Hub found. Promoting self to Hub.`);
           targetUrl = `ws://localhost:1234/ws`;
         }
       } catch (e) {
         console.error(
-          "[Failover] Error scanning for Hub, will default to localhost.",
+          "❌ [Failover] Error scanning for Hub, will default to localhost.",
           e,
         );
         targetUrl = `ws://localhost:1234/ws`;
@@ -112,12 +113,12 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
     };
 
     ws.onerror = (err) => {
-      console.error(`🔴 [Network] Socket Error:`, err);
+      console.error(`❌ [Network] Socket Error:`, err);
       // ws.onclose will be called next, which handles reconnection.
     };
 
     ws.onclose = () => {
-      console.log(`🟡 [Network] Disconnected from Hub.`);
+      console.log(`⚠️ [Network] Disconnected from Hub.`);
       wsRef.current = null;
 
       // Do not attempt to reconnect if the component is unmounting.
@@ -150,9 +151,6 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
     };
 
     ws.onmessage = async (event) => {
-      const mySiteIdStr = (
-        await ctx.execA("SELECT crsql_site_id()")
-      )[0][0].join(",");
       const message = deserializeMsg(event.data);
 
       if (message.type === "presence") {
@@ -160,6 +158,10 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
         setConnectedPeers(message.payload);
         return;
       }
+
+      const mySiteIdStr = (
+        await ctx.execA("SELECT crsql_site_id()")
+      )[0][0].join(",");
 
       if (message.type === "sync" && message.payload.length > 0) {
         console.log(
@@ -214,6 +216,7 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
       }
       if (wsRef.current) {
         wsRef.current.onclose = null; // Prevent reconnect on unmount
+        wsRef.current.onerror = null; // Prevent error logs on unmount
         wsRef.current.close();
       }
       setConnectionStatus("disconnected");
@@ -265,7 +268,7 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
   // ==========================================
   useEffect(() => {
     const unlistenPromise = listen<string>("server-error", (event) => {
-      console.error("Server Start Error:", event.payload);
+      console.error("❌ [Server Error] Server Start Error:", event.payload);
     });
     return () => {
       unlistenPromise.then((unlisten) => unlisten());
