@@ -3,9 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const BASE_RECONNECT_DELAY = 1000; // 1 second
-const MAX_RECONNECT_DELAY = 30000; // 30 seconds
-const JITTER_AMOUNT = 500; // 0.5 seconds
+const BASE_RECONNECT_DELAY = 1000;
+const MAX_RECONNECT_DELAY = 30000;
+const JITTER_AMOUNT = 500;
 
 // ==========================================
 // CUSTOM JSON SERIALIZERS
@@ -76,8 +76,8 @@ export function useSyncBridge(
 
     // Clean up any existing connections or timers
     if (wsRef.current) {
-      wsRef.current.onclose = null; // Prevent old onclose from firing
-      wsRef.current.onerror = null; // Prevent old onerror from firing
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       wsRef.current.close();
     }
     if (reconnectTimeoutRef.current) {
@@ -128,7 +128,7 @@ export function useSyncBridge(
       if (isUnmountingRef.current) return;
       console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
       setConnectionStatus("connected");
-      reconnectAttemptsRef.current = 0; // Reset on successful connection
+      reconnectAttemptsRef.current = 0;
     };
 
     ws.onerror = (err) => {
@@ -234,8 +234,8 @@ export function useSyncBridge(
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsRef.current) {
-        wsRef.current.onclose = null; // Prevent reconnect on unmount
-        wsRef.current.onerror = null; // Prevent error logs on unmount
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
         wsRef.current.close();
       }
       setConnectionStatus("disconnected");
@@ -268,7 +268,7 @@ export function useSyncBridge(
             `📤 [Outbound] Detected ${changes.length} local changes. Sending...`,
           );
 
-          lastVersionRef.current = changes[changes.length - 1][5]; // db_version is index 5
+          lastVersionRef.current = changes[changes.length - 1][5];
           ws.send(serializeMsg({ type: "sync", payload: changes }));
         }
       } catch (err) {
