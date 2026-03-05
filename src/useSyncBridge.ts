@@ -193,7 +193,7 @@ export function useSyncBridge(
                 continue; // Skip changes originating from this site
               }
 
-              stmt.run(tx, row).catch((err) => {
+              await stmt.run(tx, row).catch((err) => {
                 console.error(`❌ [Inbound SQL Error]:`, err);
                 console.error(`Failing Row Data:`, row);
                 throw err; // Abort transaction
