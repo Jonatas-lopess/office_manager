@@ -1,5 +1,10 @@
 import { DB } from "@vlcn.io/crsqlite-wasm";
-import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const BASE_RECONNECT_DELAY = 1000; // 1 second
+const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+const JITTER_AMOUNT = 500; // 0.5 seconds
 
 // ==========================================
 // CUSTOM JSON SERIALIZERS
@@ -29,20 +34,119 @@ const deserializeMsg = (str: any) => {
   });
 };
 
-export function useSyncBridge(ctx: DB, wsUrl: string) {
+export type ConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
+
+export function useSyncBridge(ctx: DB, initialHubUrl: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const lastVersionRef = useRef(0n);
-  const [connectedPeers, setConnectedPeers] = useState([]);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const isUnmountingRef = useRef(false);
+
+  const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("disconnected");
 
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
   // ==========================================
-  useEffect(() => {
-    const ws = new WebSocket(wsUrl);
+  const connect = useCallback(async () => {
+    if (isUnmountingRef.current) return;
+
+    // Clean up any existing connections or timers
+    if (wsRef.current) {
+      wsRef.current.onclose = null; // Prevent old onclose from firing
+      wsRef.current.close();
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    setConnectionStatus(
+      reconnectAttemptsRef.current > 0 ? "reconnecting" : "connecting",
+    );
+
+    let targetUrl: string;
+    // On the very first attempt, use the initial URL provided to the hook.
+    if (reconnectAttemptsRef.current === 0) {
+      targetUrl = initialHubUrl;
+    } else {
+      // On subsequent attempts (failover), scan the network for a new Hub.
+      try {
+        console.log("[Failover] Scanning for a new Hub...");
+        const hubIp = await invoke<string | null>("find_hub_ip");
+        if (hubIp) {
+          console.log(`[Failover] Found new Hub at ${hubIp}`);
+          targetUrl = `ws://${hubIp}:1234/ws`;
+        } else {
+          // If no hub is found, this instance becomes the hub.
+          console.log(`[Failover] No Hub found. Promoting self to Hub.`);
+          targetUrl = `ws://localhost:1234/ws`;
+        }
+      } catch (e) {
+        console.error(
+          "[Failover] Error scanning for Hub, will default to localhost.",
+          e,
+        );
+        targetUrl = `ws://localhost:1234/ws`;
+      }
+    }
+
+    // Guard: If the component unmounted while we were awaiting 'find_hub_ip', stop here.
+    if (isUnmountingRef.current) return;
+
+    console.log(`[Network] Attempting to connect to ${targetUrl}...`);
+    const ws = new WebSocket(targetUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => console.log(`🟢 [Network] Connected to Hub`);
-    ws.onerror = (err) => console.error(`🔴 [Network] Socket Error:`, err);
+    ws.onopen = () => {
+      if (isUnmountingRef.current) return;
+      console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
+      setConnectionStatus("connected");
+      reconnectAttemptsRef.current = 0; // Reset on successful connection
+    };
+
+    ws.onerror = (err) => {
+      console.error(`🔴 [Network] Socket Error:`, err);
+      // ws.onclose will be called next, which handles reconnection.
+    };
+
+    ws.onclose = () => {
+      console.log(`🟡 [Network] Disconnected from Hub.`);
+      wsRef.current = null;
+
+      // Do not attempt to reconnect if the component is unmounting.
+      if (isUnmountingRef.current) {
+        setConnectionStatus("disconnected");
+        return;
+      }
+
+      setConnectionStatus("reconnecting");
+
+      const attempts = reconnectAttemptsRef.current;
+      // Exponential backoff with jitter
+      const delay =
+        Math.min(
+          MAX_RECONNECT_DELAY,
+          BASE_RECONNECT_DELAY * Math.pow(2, attempts),
+        ) +
+        Math.random() * JITTER_AMOUNT;
+
+      console.log(
+        `[Failover] Will attempt to reconnect in ${Math.round(
+          delay / 1000,
+        )}s (attempt #${attempts + 1})`,
+      );
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectAttemptsRef.current += 1;
+        connect();
+      }, delay);
+    };
 
     ws.onmessage = async (event) => {
       const mySiteIdStr = (
@@ -53,7 +157,7 @@ export function useSyncBridge(ctx: DB, wsUrl: string) {
       if (message.type === "presence") {
         console.log("👥 [Roster Update]:", message.payload);
         setConnectedPeers(message.payload);
-        return; // Stop here, this isn't database info
+        return;
       }
 
       if (message.type === "sync" && message.payload.length > 0) {
@@ -82,8 +186,7 @@ export function useSyncBridge(ctx: DB, wsUrl: string) {
               stmt.run(tx, row).catch((err) => {
                 console.error(`❌ [Inbound SQL Error]:`, err);
                 console.error(`Failing Row Data:`, row);
-
-                throw err; // Rethrow to abort the transaction
+                throw err; // Abort transaction
               });
             }
 
@@ -97,15 +200,24 @@ export function useSyncBridge(ctx: DB, wsUrl: string) {
         stmt.finalize(null);
       }
     };
+  }, [initialHubUrl, ctx]);
+
+  useEffect(() => {
+    isUnmountingRef.current = false;
+    connect();
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      } else {
-        ws.onopen = () => ws.close();
+      isUnmountingRef.current = true;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // Prevent reconnect on unmount
+        wsRef.current.close();
+      }
+      setConnectionStatus("disconnected");
     };
-  }, [wsUrl, ctx]); // Reconnect if the URL or DB context changes
+  }, [connect]);
 
   // ==========================================
   // EFFECT 2: MANAGE THE DATABASE LISTENER
@@ -147,5 +259,5 @@ export function useSyncBridge(ctx: DB, wsUrl: string) {
     };
   }, [ctx]);
 
-  return { connectedPeers };
+  return { connectedPeers, connectionStatus };
 }

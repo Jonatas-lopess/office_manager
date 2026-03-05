@@ -12,7 +12,7 @@ Smart Network Routing: A local Rust server broadcasts sync payloads with server-
 
 Live Presence: Real-time tracking of active devices connected to the local sync mesh.
 
-Dynamic Failover: If the primary Hub goes offline, Spoke devices utilize random jitter to rescan the network and automatically promote themselves to the new Hub. (Lacking implementation)
+Dynamic Failover: If the primary Hub goes offline, Spoke devices utilize random jitter to rescan the network and automatically promote themselves to the new Hub.
 
 Stack Used
 Frontend Framework: React with Vite (TypeScript).
