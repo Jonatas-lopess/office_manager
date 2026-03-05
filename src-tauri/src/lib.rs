@@ -7,19 +7,18 @@ use axum::{
     Router,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use std::{
-    collections::HashSet,
-    net::{IpAddr, SocketAddr},
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{collections::HashMap, net::{IpAddr, SocketAddr}, sync::{Arc, Mutex}, time::Duration};
 use tokio::{net::TcpStream, sync::{broadcast, oneshot}, time::timeout};
-use tauri::RunEvent;
+use tauri::{Emitter, RunEvent};
+use uuid::Uuid;
 
-// 1. The state now tracks connected IPs and uses a Tuple (Sender IP, JSON Message) for the channel
+// 1. The state now uses a per-connection UUID as the unique identifier.
+//    - The broadcast channel sends a (sender_uuid, msg) tuple.
+//    - We track clients in a HashMap mapping the UUID to their IP for logging/display.
 struct AppState {
-    tx: broadcast::Sender<(String, String)>,
-    connected_ips: Mutex<HashSet<String>>,
+    // The broadcast channel now holds a (sender_uuid, msg) tuple.
+    tx: broadcast::Sender<(Uuid, String)>,
+    connected_clients: Mutex<HashMap<Uuid, String>>,
 }
 
 #[tauri::command]
@@ -90,13 +89,15 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![find_hub_ip])
-        .setup(|_app| {
+        .setup(|app| {
+            // Clone the app handle so we can emit events from the async task.
+            let handle = app.handle().clone();
             tokio::spawn(async move {
-                // The channel now holds the tuple: (String, String)
-                let (tx, _rx) = broadcast::channel(100);
+                // The channel now holds the tuple: (Uuid, String)
+                let (tx, _rx) = broadcast::channel(100); // Channel for (sender_uuid, msg)
                 let app_state = Arc::new(AppState {
                     tx,
-                    connected_ips: Mutex::new(HashSet::new()),
+                    connected_clients: Mutex::new(HashMap::new()),
                 });
 
                 let axum_app = Router::new()
@@ -119,7 +120,14 @@ pub fn run() {
                         .await
                         .unwrap();
                     }
-                    Err(e) => eprintln!("CRITICAL: Port 1234 might be in use! Error: {}", e),
+                    // **FIX**: If the port is in use, emit an event to the frontend.
+                    Err(e) => {
+                        eprintln!("CRITICAL: Port 1234 might be in use! Error: {}", e);
+                        let _ = handle.emit(
+                            "server-error",
+                            format!("Port 1234 is in use. The sync server could not start."),
+                        );
+                    }
                 }
             });
             Ok(())
@@ -146,37 +154,42 @@ async fn ws_handler(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> axum::response::Response {
     let ip = addr.ip().to_string();
-    ws.on_upgrade(move |socket| handle_socket(socket, state, ip))
+    // **FIX**: Generate a unique ID for this specific connection.
+    let client_uuid = Uuid::new_v4();
+    ws.on_upgrade(move |socket| handle_socket(socket, state, ip, client_uuid))
 }
 
-// 4. The Smart Router Engine
-async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String) {
-    println!("🟢 Client connected from IP: {}", ip);
+// 4. The Smart Router Engine (now using UUIDs)
+async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, client_uuid: Uuid) {
+    println!("🟢 Client connected from IP: {}, UUID: {}", ip, client_uuid);
 
     // --- CONNECTION EVENT: Add to roster and broadcast ---
     {
-        let mut ips = state.connected_ips.lock().unwrap();
-        ips.insert(ip.clone());
-        
+        // Add the new client to our map.
+        let mut clients = state.connected_clients.lock().unwrap();
+        clients.insert(client_uuid, ip.clone());
+
+        // Collect all connected IPs to broadcast presence.
+        let ip_list: Vec<&String> = clients.values().collect();
         let roster_msg = format!(
             r#"{{"type": "presence", "payload": {:?}}}"#,
-            ips.iter().collect::<Vec<_>>()
+            ip_list
         );
-        // We use "server" as the sender IP so the echo cancellation doesn't block it!
-        let _ = state.tx.send(("server".to_string(), roster_msg));
+        // We use a nil UUID for server-sent messages so echo cancellation doesn't block it.
+        let _ = state.tx.send((Uuid::nil(), roster_msg));
     }
 
     let (mut sender, mut receiver) = socket.split();
     let mut rx = state.tx.subscribe();
 
     // TASK A: Sending DOWN to the client
-    let my_ip = ip.clone();
+    let my_uuid = client_uuid;
     let mut send_task = tokio::spawn(async move {
-        while let Ok((sender_ip, msg)) = rx.recv().await {
-            // SERVER-SIDE ECHO CANCELLATION: 
-            // If the message came from THIS exact IP, skip it!
-            if sender_ip == my_ip {
-                continue; 
+        while let Ok((sender_uuid, msg)) = rx.recv().await {
+            // **FIX**: SERVER-SIDE ECHO CANCELLATION (now using robust UUIDs)
+            // If the message came from THIS exact client, skip sending it back.
+            if sender_uuid == my_uuid {
+                continue;
             }
             if sender.send(Message::Text(msg)).await.is_err() {
                 break;
@@ -186,11 +199,11 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String) {
 
     // TASK B: Receiving UP from the client
     let tx = state.tx.clone();
-    let my_ip_for_recv = ip.clone();
+    let my_uuid_for_recv = client_uuid;
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            // Tag the outgoing message with this client's IP!
-            let _ = tx.send((my_ip_for_recv.clone(), text));
+            // **FIX**: Tag the outgoing message with this client's unique UUID.
+            let _ = tx.send((my_uuid_for_recv, text));
         }
     });
 
@@ -201,15 +214,17 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String) {
     };
 
     // --- DISCONNECT EVENT: Remove from roster and broadcast ---
-    println!("🔴 Client disconnected: {}", ip);
+    println!("🔴 Client disconnected: {}, UUID: {}", ip, client_uuid);
     {
-        let mut ips = state.connected_ips.lock().unwrap();
-        ips.remove(&ip);
-        
+        let mut clients = state.connected_clients.lock().unwrap();
+        clients.remove(&client_uuid);
+
+        // Collect the remaining IPs to broadcast the new presence state.
+        let ip_list: Vec<&String> = clients.values().collect();
         let roster_msg = format!(
             r#"{{"type": "presence", "payload": {:?}}}"#,
-            ips.iter().collect::<Vec<_>>()
+            ip_list
         );
-        let _ = state.tx.send(("server".to_string(), roster_msg));
+        let _ = state.tx.send((Uuid::nil(), roster_msg));
     }
 }

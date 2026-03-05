@@ -1,5 +1,6 @@
 import { DB } from "@vlcn.io/crsqlite-wasm";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const BASE_RECONNECT_DELAY = 1000; // 1 second
@@ -258,6 +259,18 @@ export function useSyncBridge(ctx: DB, initialHubUrl: string) {
       if (typeof cleanupOnUpdate === "function") cleanupOnUpdate();
     };
   }, [ctx]);
+
+  // ==========================================
+  // EFFECT 3: LOG SERVER ERRORS
+  // ==========================================
+  useEffect(() => {
+    const unlistenPromise = listen<string>("server-error", (event) => {
+      console.error("Server Start Error:", event.payload);
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
 
   return { connectedPeers, connectionStatus };
 }
