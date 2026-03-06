@@ -1,6 +1,5 @@
-// App.tsx
-import { useSyncBridge } from "./useSyncBridge";
-import ClientsManager from "./ClientsManager";
+import { useSyncBridge } from "./hooks/useSyncBridge";
+import ClientsManager from "./components/ClientsManager";
 import { DB } from "@vlcn.io/crsqlite-wasm";
 
 type AppProps = {

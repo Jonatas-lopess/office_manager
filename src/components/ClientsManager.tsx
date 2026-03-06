@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocalQuery } from "./useLocalQuery";
+import { useLocalQuery } from "../hooks/useLocalQuery";
 import { DB } from "@vlcn.io/crsqlite-wasm";
 
 export default function ClientsManager({ ctx }: { ctx: DB }) {
