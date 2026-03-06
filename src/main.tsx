@@ -1,21 +1,14 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
-
-// 1. vlcn.io and SQLite WASM imports
-// The '?url' tells Vite to treat the WASM file as a static asset
 import initWasm, { DB } from "@vlcn.io/crsqlite-wasm";
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
-
 import App from "./App";
 
 // --- PHASE 1: DATABASE INITIALIZATION ---
 async function initDatabase() {
   // Load the WebAssembly SQLite engine
   const sqlite = await initWasm(() => wasmUrl);
-
-  // Open (or create) the local database file.
-  // Thanks to the Vite headers we set earlier, this uses ultra-fast OPFS storage!
   const db = await sqlite.open("my_local_database.db");
 
   // Run our schema migrations
@@ -58,9 +51,6 @@ function Root() {
             console.log("Running in standard browser. Skipping TCP scan.");
             // For local browser testing, we just leave discoveredIp as null,
             // which tells App.tsx to connect to ws://localhost:1234
-
-            // NOTE: If you wanted to test on your phone browser, you could do:
-            // discoveredIp = prompt("Enter the Tauri Hub IP address:");
           }
         } catch (invokeErr) {
           console.warn(
