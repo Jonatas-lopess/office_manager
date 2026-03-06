@@ -1,51 +1,59 @@
 import { DB } from "@vlcn.io/crsqlite-wasm";
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState, useEffect, useMemo } from "react";
 
-export function useLocalQuery(ctx: DB, query: string, params: any[] = []) {
-  const [data, setData] = useState<any[]>([]);
+export function useLocalQuery<T>(ctx: DB, query: string, params: any[] = []) {
+  // Use a simple counter to track database updates
+  const [dbVersion, setDbVersion] = useState(0);
+
+  // 1. Define the Store
+  const store = useMemo(
+    () => ({
+      subscribe: (onStoreChange: () => void) => {
+        if (!ctx) return () => {};
+        // ctx.onUpdate returns a cleanup function
+        return ctx.onUpdate(() => {
+          setDbVersion((prev) => prev + 1);
+          onStoreChange();
+        });
+      },
+      getSnapshot: () => dbVersion,
+    }),
+    [ctx],
+  );
+
+  // 2. Subscribe using the React 19 standard
+  useSyncExternalStore(store.subscribe, store.getSnapshot);
+
+  // 3. Data Fetching Logic
+  const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Safety check: don't run if the database hasn't booted yet
-    if (!ctx || !ctx.db) return;
-
-    let isMounted = true;
+    if (!ctx) return;
+    let ignore = false;
 
     const fetchData = async () => {
       try {
-        // execO runs the SQL and returns an array of JSON objects
         const result = await ctx.execO(query, params);
-
-        if (isMounted) {
-          setData(result);
+        if (!ignore) {
+          setData(result as T[]);
           setLoading(false);
           setError(null);
         }
       } catch (err: any) {
-        console.error("SQL Execution Error:", err, "\nQuery:", query);
-        if (isMounted) {
+        if (!ignore) {
           setError(err.message);
           setLoading(false);
         }
       }
     };
 
-    // 1. Fetch the data instantly on mount
     fetchData();
-
-    // 2. Listen natively to the SQLite database.
-    // Anytime ANY write happens (local or synced via WebSocket), re-run the fetch!
-    const cleanup = ctx.onUpdate(() => {
-      fetchData();
-    });
-
     return () => {
-      isMounted = false;
-      cleanup(); // Remove the listener when the component unmounts
+      ignore = true;
     };
-    // We stringify the params array so React doesn't trigger infinite loops
-  }, [ctx, query, JSON.stringify(params)]);
+  }, [ctx, query, ...params, dbVersion]);
 
   return { data, loading, error };
 }
