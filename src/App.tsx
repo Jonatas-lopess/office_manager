@@ -1,20 +1,17 @@
 import { useSyncBridge } from "./hooks/useSyncBridge";
 import ClientsManager from "./components/ClientsManager";
-import { DB } from "@vlcn.io/crsqlite-wasm";
+import { useDb } from "./db/context";
 
 type AppProps = {
-  ctx: DB;
   hubIp: string | null;
   isTauri: boolean;
 };
 
-export default function App({ ctx, hubIp, isTauri }: AppProps) {
-  // Determine our connection URL based on the Tauri scan results
+export default function App({ hubIp, isTauri }: AppProps) {
+  const { db } = useDb();
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
-
-  // Start the mathematical CRDT sync engine!
   const { connectedPeers, connectionStatus } = useSyncBridge(
-    ctx,
+    db,
     wsUrl,
     isTauri,
   );
@@ -71,20 +68,18 @@ export default function App({ ctx, hubIp, isTauri }: AppProps) {
           </p>
         </div>
 
-        {/* 2. Render the Live Counter! */}
         <p style={{ margin: 0, color: "green", fontWeight: "bold" }}>
           🟢 {connectedPeers.length} Device(s) Online
         </p>
       </div>
 
-      {/* Optional: A debug list of the actual IPs */}
       <ul style={{ fontSize: "0.8rem", color: "gray", marginBottom: "2rem" }}>
         {connectedPeers.map((ip: string, i: number) => (
           <li key={`${ip}-${i}`}>{ip}</li>
         ))}
       </ul>
 
-      <ClientsManager ctx={ctx} />
+      <ClientsManager />
     </div>
   );
 }

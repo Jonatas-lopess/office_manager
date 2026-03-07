@@ -1,7 +1,8 @@
 import { DB } from "@vlcn.io/crsqlite-wasm";
+import { Query } from "drizzle-orm";
 import { useSyncExternalStore, useState, useEffect, useMemo } from "react";
 
-export function useLocalQuery<T>(ctx: DB, query: string, params: any[] = []) {
+export function useLocalQuery<T>(ctx: DB, query: Query) {
   // Use a simple counter to track database updates
   const [dbVersion, setDbVersion] = useState(0);
 
@@ -35,7 +36,8 @@ export function useLocalQuery<T>(ctx: DB, query: string, params: any[] = []) {
 
     const fetchData = async () => {
       try {
-        const result = await ctx.execO(query, params);
+        const result = await ctx.execO(query.sql, query.params as any[]);
+
         if (!ignore) {
           setData(result as T[]);
           setLoading(false);
@@ -53,7 +55,7 @@ export function useLocalQuery<T>(ctx: DB, query: string, params: any[] = []) {
     return () => {
       ignore = true;
     };
-  }, [ctx, query, ...params, dbVersion]);
+  }, [ctx, query.sql, ...query.params, dbVersion]);
 
   return { data, loading, error };
 }

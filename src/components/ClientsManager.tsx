@@ -1,39 +1,38 @@
 import { useState } from "react";
 import { useLocalQuery } from "../hooks/useLocalQuery";
-import { DB } from "@vlcn.io/crsqlite-wasm";
+import { useDb } from "../db/context";
+import { clientsTable } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { Client } from "../db/validations";
 
-export default function ClientsManager({ ctx }: { ctx: DB }) {
-  // 1. Reactive SQL Query
-  // useQuery automatically re-renders this component whenever the 'clients' table changes,
-  // whether that change came from this user, or synced from another PC!
+export default function ClientsManager() {
+  const { db, orm } = useDb();
+
   const {
     data: clients,
     loading,
     error,
-  } = useLocalQuery(
-    ctx,
-    "SELECT id, name, status FROM clients ORDER BY name ASC",
+  } = useLocalQuery<Client>(
+    db,
+    orm.select().from(clientsTable).orderBy(clientsTable.name).toSQL(),
   );
 
   const [newClientName, setNewClientName] = useState("");
 
-  const handleAddClient = () => {
+  const handleAddClient = async () => {
     if (!newClientName.trim()) return;
 
-    // 2. Standard SQL Mutation
-    // cr-sqlite automatically intercepts this, tracks the changes mathematically,
-    // and prepares the byte-sized diffs to be sent over your WebSocket relay.
-    ctx.exec("INSERT INTO clients (id, name, status) VALUES (?, ?, ?)", [
-      crypto.randomUUID(),
-      newClientName,
-      "Active",
-    ]);
+    await orm.insert(clientsTable).values({
+      id: crypto.randomUUID(),
+      name: newClientName,
+      status: "Active",
+    });
 
     setNewClientName("");
   };
 
-  const handleDelete = (id: string) => {
-    ctx.exec("DELETE FROM clients WHERE id = ?", [id]);
+  const handleDelete = async (id: string) => {
+    await orm.delete(clientsTable).where(eq(clientsTable.id, id));
   };
 
   if (error) return <div style={{ color: "red" }}>Database Error: {error}</div>;
@@ -53,7 +52,7 @@ export default function ClientsManager({ ctx }: { ctx: DB }) {
       </div>
 
       <ul>
-        {clients.map((client: any) => (
+        {clients.map((client) => (
           <li key={client.id}>
             <strong>{client.name}</strong> - {client.status}
             <button
