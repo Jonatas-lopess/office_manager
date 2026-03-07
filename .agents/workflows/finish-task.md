@@ -30,5 +30,5 @@ description: A Git Branch Organizer that finish and integrate new features.
 
 **Constraints:**
 
-- NEVER run `git push`. You must do this manually to "go live."
+- NEVER run `git push`.
 - ALWAYS ask before switching branches or deleting them.
