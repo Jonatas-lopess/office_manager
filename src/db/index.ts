@@ -1,14 +1,15 @@
 import { drizzle } from "drizzle-orm/sqlite-proxy";
-import { DB } from "@vlcn.io/crsqlite-wasm";
 import * as schema from "./schema";
+import initWasm, { DB } from "@vlcn.io/crsqlite-wasm";
+import { runMigrations } from "./migrator";
+import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
 
-export const createDrizzle = (ctx: DB) => {
+const createDrizzle = (ctx: DB) => {
   return drizzle(
     async (sql, params) => {
       try {
-        // Drizzle sends the SQL and params; we execute them in the WASM DB
-        const rows = await ctx.execA(sql, params);
-        // The proxy driver expects the result in this format
+        const rows = await ctx.execO(sql, params);
+
         return { rows };
       } catch (e) {
         console.error("Error executing Drizzle query:", e);
@@ -20,3 +21,13 @@ export const createDrizzle = (ctx: DB) => {
 };
 
 export type DrizzleDB = ReturnType<typeof createDrizzle>;
+
+export async function initDb(): Promise<{ db: DB; orm: DrizzleDB }> {
+  const crsqlite = await initWasm(() => wasmUrl);
+  const db = await crsqlite.open("my_local_database.db");
+
+  await runMigrations(db);
+
+  const orm = createDrizzle(db);
+  return { db, orm };
+}
