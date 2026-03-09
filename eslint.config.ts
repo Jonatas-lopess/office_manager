@@ -1,13 +1,19 @@
 import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
-import { defineConfig } from "eslint/config";
+import eslint from "@eslint/js";
 
-export default defineConfig([
+export default tseslint.config(
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  pluginReact.configs.flat.recommended,
+  {
+    ignores: ["src-tauri/**", "dist/**"],
+  },
   {
     files: ["**/*.{ts,mts,cts,tsx}"],
-    plugins: { tseslint },
-    extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+    rules: {
+      "react/react-in-jsx-scope": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+    },
   },
-  tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
-]);
+);

@@ -9,7 +9,7 @@ description: A Git Branch Organizer workflow to start a new feature.
 **Steps:**
 
 1. **Name Generation:** Suggest a branch name based on `<description>` (e.g., `feat/ui-refactor`).
-2. **User Approval:** Pause and ask: "Should I create the branch [name] and a TODO list?"
+2. **User Approval:** Pause and ask: "Should I create the branch [name]?"
 3. **Execute (On Approval):**
    - Run `git checkout main` and `git pull`.
    - Run `git checkout -b <name>`.
