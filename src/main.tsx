@@ -1,42 +1,26 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
-import initWasm, { DB } from "@vlcn.io/crsqlite-wasm";
-import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
 import App from "./App";
+import { DbProvider, DbContextState } from "./db/context";
+import { initDb } from "./db";
 
-// --- PHASE 1: DATABASE INITIALIZATION ---
-async function initDatabase() {
-  // Load the WebAssembly SQLite engine
-  const sqlite = await initWasm(() => wasmUrl);
-  const db = await sqlite.open("my_local_database.db");
+let isBooting = false;
 
-  // Run our schema migrations
-  await db.execMany([
-    `CREATE TABLE IF NOT EXISTS clients (
-      id TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'Onboarding'
-    );`,
-    `SELECT crsql_as_crr('clients');`,
-  ]);
-
-  // Return the complete context object expected by vlcn.io hooks
-  return db;
-}
-
-// --- PHASE 2: THE BOOTSTRAPPER ---
 function Root() {
-  const [ctx, setCtx] = useState<DB | null>(null);
+  const [dbState, setDbState] = useState<DbContextState | null>(null);
   const [hubIp, setHubIp] = useState<string | null>(null);
   const [isTauri, setIsTauri] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function bootSequence() {
+      if (isBooting) return;
+      isBooting = true;
+
       try {
         // 1. Initialize the database first
-        const databaseContext = await initDatabase();
+        const dbContext = await initDb();
         let discoveredIp = null;
         let isTauriEnv = false;
 
@@ -60,7 +44,7 @@ function Root() {
         }
 
         // 3. Set the state
-        setCtx(databaseContext);
+        setDbState(dbContext);
         setIsTauri(isTauriEnv);
         setHubIp(discoveredIp);
       } catch (err) {
@@ -75,15 +59,18 @@ function Root() {
   // Show a loading state while we scan the network and spin up WASM
   if (error)
     return <div style={{ color: "red", padding: "2rem" }}>{error}</div>;
-  if (!ctx)
+  if (!dbState)
     return (
       <div style={{ padding: "2rem" }}>
         Booting database & scanning local network...
       </div>
     );
 
-  // --- PHASE 3: RENDER THE APP ---
-  return <App ctx={ctx} hubIp={hubIp} isTauri={isTauri} />;
+  return (
+    <DbProvider db={dbState.db} orm={dbState.orm}>
+      <App hubIp={hubIp} isTauri={isTauri} />
+    </DbProvider>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
