@@ -5,6 +5,8 @@ import App from "./App";
 import { DbProvider, DbContextState } from "./db/context";
 import { initDb } from "./db";
 
+let isBooting = false;
+
 function Root() {
   const [dbState, setDbState] = useState<DbContextState | null>(null);
   const [hubIp, setHubIp] = useState<string | null>(null);
@@ -13,6 +15,9 @@ function Root() {
 
   useEffect(() => {
     async function bootSequence() {
+      if (isBooting) return;
+      isBooting = true;
+
       try {
         // 1. Initialize the database first
         const dbContext = await initDb();
