@@ -124,11 +124,36 @@ export function useSyncBridge(
     const ws = new WebSocket(targetUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       if (isUnmountingRef.current) return;
       console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
       setConnectionStatus("connected");
       reconnectAttemptsRef.current = 0;
+
+      // Ask peers to sync their history with us
+      ws.send(serializeMsg({ type: "request_sync" }));
+
+      // Broadcast our own authored changes right away
+      if (!ctx) return;
+      try {
+        const changes = await ctx.execA(
+          `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
+          FROM crsql_changes
+          WHERE site_id = crsql_site_id()`,
+        );
+        if (changes.length > 0) {
+          console.log(
+            `📤 [Initial Sync] Broadcasting ${changes.length} authored changes.`,
+          );
+          const maxVersion = changes[changes.length - 1][5];
+          if (maxVersion > lastVersionRef.current) {
+            lastVersionRef.current = maxVersion;
+          }
+          ws.send(serializeMsg({ type: "sync", payload: changes }));
+        }
+      } catch (err) {
+        console.error(`❌ [Initial Sync Error]:`, err);
+      }
     };
 
     ws.onerror = (err) => {
@@ -175,6 +200,31 @@ export function useSyncBridge(
       if (message.type === "presence") {
         console.log("👥 [Roster Update]:", message.payload);
         setConnectedPeers(message.payload);
+        return;
+      }
+
+      if (message.type === "request_sync") {
+        console.log("📥 [Inbound] Received request_sync");
+        if (!ctx) return;
+        try {
+          const changes = await ctx.execA(
+            `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
+            FROM crsql_changes
+            WHERE site_id = crsql_site_id()`,
+          );
+          if (changes.length > 0) {
+            console.log(
+              `📤 [Outbound] Fulfilling request_sync with ${changes.length} authored changes.`,
+            );
+            const maxVersion = changes[changes.length - 1][5];
+            if (maxVersion > lastVersionRef.current) {
+              lastVersionRef.current = maxVersion;
+            }
+            ws.send(serializeMsg({ type: "sync", payload: changes }));
+          }
+        } catch (err) {
+          console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
+        }
         return;
       }
 
