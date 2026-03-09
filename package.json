@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
   },
@@ -22,12 +23,17 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "drizzle-kit": "^0.31.9",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "jiti": "^2.6.1",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
   }
 }
