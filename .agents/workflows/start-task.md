@@ -13,7 +13,6 @@ description: A Git Branch Organizer workflow to start a new feature.
 3. **Execute (On Approval):**
    - Run `git checkout main` and `git pull`.
    - Run `git checkout -b <name>`.
-   - Create a `TODO.md` with a checklist derived from the task description.
 4. **Final Check:** Stop and wait for the user to confirm the workspace is ready.
 
 **Constraints:** - You are PROHIBITED from running `git commit`.

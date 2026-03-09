@@ -9,10 +9,8 @@ description: A Git Branch Organizer that finish and integrate new features.
 **Steps:**
 
 1. **Prerequisite Check:**
-   - Ensure `TODO.md` is 100% checked off.
    - If any tasks were skipped or deferred, move them to a "Future" section.
    - Scan all modified files for "TODO" comments, console logs, or debug markers you might have left.
-   - Run the project's linter/formatter (e.g., `npm run lint` or `npx prettier --check .`).
 2. **Syncing Main:**
    - Run `git checkout main` and `git pull origin main`.
    - Run `git checkout -` (returns to feature branch).
