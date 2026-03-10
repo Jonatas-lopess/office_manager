@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./App";
+import "./index.css";
 import { DbProvider, DbContextState } from "./db/context";
 import { initDb } from "./db";
 

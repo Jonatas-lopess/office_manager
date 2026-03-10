@@ -1,0 +1,260 @@
+import { useState } from "react";
+import { Check, Moon, SunMedium } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+
+import { Switch } from "@/components/ui/switch";
+import { AppShell, TableCard } from "@/components/panel/panel-kit";
+
+export default function SettingsPage() {
+  const [dark, setDark] = useState(false);
+  const [compact, setCompact] = useState(false);
+
+  return (
+    <AppShell
+      title="Configurações"
+      subtitle="Preferências e padrões do painel."
+    >
+      <div className="grid gap-4 lg:grid-cols-3" data-testid="grid-settings">
+        <Card
+          className="panel-card lg:col-span-2"
+          data-testid="card-preferences"
+        >
+          <div className="p-5">
+            <div
+              className="text-sm font-medium"
+              data-testid="text-preferences-title"
+            >
+              Preferências
+            </div>
+            <div className="mt-4 grid gap-4" data-testid="list-preferences">
+              <div
+                className="flex items-center justify-between gap-4"
+                data-testid="row-theme"
+              >
+                <div>
+                  <div
+                    className="text-sm font-medium"
+                    data-testid="text-theme-label"
+                  >
+                    Tema
+                  </div>
+                  <div
+                    className="mt-1 text-sm text-muted-foreground"
+                    data-testid="text-theme-desc"
+                  >
+                    Alternar entre claro e escuro.
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDark((v) => !v);
+                    document.documentElement.classList.toggle("dark");
+                  }}
+                  className="gap-2"
+                  data-testid="button-toggle-theme"
+                >
+                  {dark ? (
+                    <>
+                      <SunMedium className="h-4 w-4" />
+                      Claro
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4" />
+                      Escuro
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div
+                className="flex items-center justify-between gap-4"
+                data-testid="row-compact"
+              >
+                <div>
+                  <div
+                    className="text-sm font-medium"
+                    data-testid="text-compact-label"
+                  >
+                    Densidade compacta
+                  </div>
+                  <div
+                    className="mt-1 text-sm text-muted-foreground"
+                    data-testid="text-compact-desc"
+                  >
+                    Espaçamento reduzido para listas longas.
+                  </div>
+                </div>
+                <div
+                  className="flex items-center gap-3"
+                  data-testid="group-compact"
+                >
+                  <Switch
+                    checked={compact}
+                    onCheckedChange={setCompact}
+                    data-testid="switch-compact"
+                  />
+                  <div
+                    className="text-xs text-muted-foreground"
+                    data-testid="text-compact-value"
+                  >
+                    {compact ? "Ligado" : "Desligado"}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center justify-between gap-4"
+                data-testid="row-shortcuts"
+              >
+                <div>
+                  <div
+                    className="text-sm font-medium"
+                    data-testid="text-shortcuts-label"
+                  >
+                    Atalhos de teclado
+                  </div>
+                  <div
+                    className="mt-1 text-sm text-muted-foreground"
+                    data-testid="text-shortcuts-desc"
+                  >
+                    Navegação rápida.
+                  </div>
+                </div>
+                <div
+                  className="flex items-center gap-2"
+                  data-testid="kbd-shortcuts"
+                >
+                  <span
+                    className="kbd rounded-md px-2 py-1 text-xs"
+                    data-testid="kbd-g"
+                  >
+                    G
+                  </span>
+                  <span
+                    className="kbd rounded-md px-2 py-1 text-xs"
+                    data-testid="kbd-d"
+                  >
+                    D
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <TableCard
+          title="Dispositivos conectados"
+          description="Sessões ativas no momento"
+          dataTestId="card-devices"
+        >
+          <div className="grid gap-3 p-4 text-sm" data-testid="list-devices">
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-device-1"
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
+                </div>
+                <div className="font-medium">Desktop Windows</div>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">
+                192.168.1.15
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-device-2"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                <div className="font-medium">iPhone 15 Pro</div>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">
+                10.0.0.42
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-device-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-slate-300" />
+                <div className="font-medium">MacBook Pro</div>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">
+                192.168.1.10
+              </div>
+            </div>
+          </div>
+        </TableCard>
+
+        <TableCard
+          title="Espaço de Trabalho"
+          description="Padrões deste protótipo"
+          dataTestId="card-workspace"
+        >
+          <div className="grid gap-3 p-4 text-sm" data-testid="list-workspace">
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-workspace-status"
+            >
+              <div
+                className="text-muted-foreground"
+                data-testid="text-workspace-status-label"
+              >
+                Status
+              </div>
+              <div
+                className="inline-flex items-center gap-2"
+                data-testid="text-workspace-status-value"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Ativo
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-workspace-version"
+            >
+              <div
+                className="text-muted-foreground"
+                data-testid="text-workspace-version-label"
+              >
+                Versão
+              </div>
+              <div
+                className="font-mono text-xs"
+                data-testid="text-workspace-version-value"
+              >
+                v0.1
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-between"
+              data-testid="row-workspace-changes"
+            >
+              <div
+                className="text-muted-foreground"
+                data-testid="text-workspace-changes-label"
+              >
+                Alterações
+              </div>
+              <div
+                className="inline-flex items-center gap-2"
+                data-testid="text-workspace-changes-value"
+              >
+                <Check className="h-4 w-4" />
+                Salvo
+              </div>
+            </div>
+          </div>
+        </TableCard>
+      </div>
+    </AppShell>
+  );
+}
