@@ -1,6 +1,30 @@
 import { useSyncBridge } from "./hooks/useSyncBridge";
-import ClientsManager from "./components/ClientsManager";
 import { useDb } from "./db/context";
+
+import { Route, Switch } from "wouter";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toaster";
+import { queryClient } from "./lib/queryClient";
+import NotFound from "@/pages/not-found";
+import Dashboard from "@/pages/dashboard";
+import ClientsPage from "@/pages/clients";
+import ServicesPage from "@/pages/services";
+import LogsPage from "@/pages/logs";
+import SettingsPage from "@/pages/settings";
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/" component={Dashboard} />
+      <Route path="/clients" component={ClientsPage} />
+      <Route path="/services" component={ServicesPage} />
+      <Route path="/logs" component={LogsPage} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
 
 type AppProps = {
   hubIp: string | null;
@@ -10,76 +34,14 @@ type AppProps = {
 export default function App({ hubIp, isTauri }: AppProps) {
   const { db } = useDb();
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
-  const { connectedPeers, connectionStatus } = useSyncBridge(
-    db,
-    wsUrl,
-    isTauri,
-  );
+  useSyncBridge(db, wsUrl, isTauri);
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>My Local-First Business App</h1>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "#f3f4f6",
-          padding: "1rem",
-          borderRadius: "8px",
-          marginBottom: "2rem",
-        }}
-      >
-        <p style={{ margin: 0, color: "gray", fontSize: "0.9rem" }}>
-          <strong>Network Status:</strong>{" "}
-          {hubIp
-            ? `Connected to remote Hub (${hubIp})`
-            : isTauri
-              ? "Operating as the Local Hub (Broadcasting on port 1234)"
-              : "Connected to Local Hub (Browser Testing)"}
-        </p>
-        <div>
-          <p style={{ margin: 0, color: "gray", fontSize: "0.9rem" }}>
-            <strong>Status: </strong>
-            <span
-              style={{
-                fontWeight: "bold",
-                color:
-                  connectionStatus === "connected"
-                    ? "green"
-                    : connectionStatus === "reconnecting"
-                      ? "orange"
-                      : "red",
-                textTransform: "capitalize",
-              }}
-            >
-              {connectionStatus}
-            </span>
-          </p>
-          <p
-            style={{
-              margin: "0.25rem 0 0 0",
-              fontSize: "0.8rem",
-              color: "#666",
-            }}
-          >
-            {hubIp ? `Initial Hub: ${hubIp}` : "Local / Failover Mode"}
-          </p>
-        </div>
-
-        <p style={{ margin: 0, color: "green", fontWeight: "bold" }}>
-          🟢 {connectedPeers.length} Device(s) Online
-        </p>
-      </div>
-
-      <ul style={{ fontSize: "0.8rem", color: "gray", marginBottom: "2rem" }}>
-        {connectedPeers.map((ip: string, i: number) => (
-          <li key={`${ip}-${i}`}>{ip}</li>
-        ))}
-      </ul>
-
-      <ClientsManager />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }

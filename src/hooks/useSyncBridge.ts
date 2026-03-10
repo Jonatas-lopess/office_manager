@@ -61,7 +61,9 @@ export function useSyncBridge(
   const wsRef = useRef<WebSocket | null>(null);
   const lastVersionRef = useRef(0n);
   const reconnectAttemptsRef = useRef(0);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const isUnmountingRef = useRef(false);
 
   const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
