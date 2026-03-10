@@ -152,7 +152,10 @@ function Topbar({
   const isHome = location === "/";
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between" data-testid="topbar">
+    <div
+      className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"
+      data-testid="topbar"
+    >
       <div className="flex items-start gap-4 min-w-0" data-testid="topbar-left">
         {!isHome && (
           <Button
@@ -168,24 +171,40 @@ function Topbar({
           </Button>
         )}
         <div className="min-w-0">
-          <div className="flex items-center gap-2" data-testid="topbar-title-row">
-            <div className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">
+          <div
+            className="flex items-center gap-2"
+            data-testid="topbar-title-row"
+          >
+            <div
+              className="text-2xl font-semibold tracking-tight"
+              data-testid="text-page-title"
+            >
               {title}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground" data-testid="pill-prototype">
+            <span
+              className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground"
+              data-testid="pill-prototype"
+            >
               <Sparkles className="h-3.5 w-3.5" />
               Prototype
             </span>
           </div>
           {subtitle ? (
-            <div className="mt-1 text-sm text-muted-foreground" data-testid="text-page-subtitle">
+            <div
+              className="mt-1 text-sm text-muted-foreground"
+              data-testid="text-page-subtitle"
+            >
               {subtitle}
             </div>
           ) : null}
         </div>
       </div>
 
-      {right ? <div className="shrink-0" data-testid="topbar-right">{right}</div> : null}
+      {right ? (
+        <div className="shrink-0" data-testid="topbar-right">
+          {right}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -222,7 +241,12 @@ function NavItem({
       >
         {icon}
       </span>
-      <span className="truncate" data-testid={`navlabel-${label.toLowerCase()}`}>{label}</span>
+      <span
+        className="truncate"
+        data-testid={`navlabel-${label.toLowerCase()}`}
+      >
+        {label}
+      </span>
     </Link>
   );
 }
@@ -246,8 +270,16 @@ function Sidebar() {
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0" data-testid="brand-text">
-              <div className="truncate text-sm font-semibold" data-testid="text-brand-name">Painel de Controle</div>
-              <div className="truncate text-xs text-muted-foreground" data-testid="text-brand-subtitle">
+              <div
+                className="truncate text-sm font-semibold"
+                data-testid="text-brand-name"
+              >
+                Painel de Controle
+              </div>
+              <div
+                className="truncate text-xs text-muted-foreground"
+                data-testid="text-brand-subtitle"
+              >
                 Área administrativa
               </div>
             </div>
@@ -256,26 +288,65 @@ function Sidebar() {
 
         <div className="px-4" data-testid="sidebar-nav">
           <div className="grid gap-1" data-testid="nav-list">
-            <NavItem href="/" icon={<LayoutGrid className="h-4 w-4" />} label="Dashboard" />
-            <NavItem href="/clients" icon={<Users className="h-4 w-4" />} label="Clientes" />
-            <NavItem href="/services" icon={<BarChart3 className="h-4 w-4" />} label="Serviços" />
-            <NavItem href="/logs" icon={<HistoryIcon className="h-4 w-4" />} label="Logs" />
-            <NavItem href="/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
+            <NavItem
+              href="/"
+              icon={<LayoutGrid className="h-4 w-4" />}
+              label="Dashboard"
+            />
+            <NavItem
+              href="/clients"
+              icon={<Users className="h-4 w-4" />}
+              label="Clientes"
+            />
+            <NavItem
+              href="/services"
+              icon={<BarChart3 className="h-4 w-4" />}
+              label="Serviços"
+            />
+            <NavItem
+              href="/logs"
+              icon={<HistoryIcon className="h-4 w-4" />}
+              label="Logs"
+            />
+            <NavItem
+              href="/settings"
+              icon={<Settings className="h-4 w-4" />}
+              label="Configurações"
+            />
           </div>
         </div>
 
         <div className="mt-auto p-4" data-testid="sidebar-footer">
           <Separator className="mb-4" />
-          <div className="rounded-2xl border bg-card p-4" data-testid="card-sidebar-help">
-            <div className="text-sm font-semibold" data-testid="text-help-title">Ações rápidas</div>
-            <div className="mt-1 text-xs text-muted-foreground" data-testid="text-help-desc">
+          <div
+            className="rounded-2xl border bg-card p-4"
+            data-testid="card-sidebar-help"
+          >
+            <div
+              className="text-sm font-semibold"
+              data-testid="text-help-title"
+            >
+              Ações rápidas
+            </div>
+            <div
+              className="mt-1 text-xs text-muted-foreground"
+              data-testid="text-help-desc"
+            >
               Use a barra lateral para navegar.
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2" data-testid="grid-help-actions">
+            <div
+              className="mt-3 grid grid-cols-2 gap-2"
+              data-testid="grid-help-actions"
+            >
               <Button asChild size="sm" data-testid="button-help-clients">
                 <Link href="/clients">Clientes</Link>
               </Button>
-              <Button asChild size="sm" variant="secondary" data-testid="button-help-services">
+              <Button
+                asChild
+                size="sm"
+                variant="secondary"
+                data-testid="button-help-services"
+              >
                 <Link href="/services">Serviços</Link>
               </Button>
             </div>
@@ -310,7 +381,9 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   const displayLabel = labels[status] || status;
-  const style = colors[displayLabel] || "bg-slate-500/10 text-slate-600 border-slate-500/20";
+  const style =
+    colors[displayLabel] ||
+    "bg-slate-500/10 text-slate-600 border-slate-500/20";
 
   return (
     <Badge
@@ -335,11 +408,16 @@ export function AppShell({
 }>) {
   return (
     <div className="app-shell min-h-dvh" data-testid="app-shell">
-      <div className="mx-auto flex w-full max-w-[1280px] gap-6 px-4 py-6" data-testid="layout">
+      <div
+        className="mx-auto flex w-full max-w-[1280px] gap-6 px-4 py-6"
+        data-testid="layout"
+      >
         <Sidebar />
         <main className="min-w-0 flex-1" data-testid="main">
           <Topbar title={title} subtitle={subtitle} right={right} />
-          <div className="mt-5" data-testid="page-content">{children}</div>
+          <div className="mt-5" data-testid="page-content">
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -362,16 +440,28 @@ export function StatCard({
   return (
     <Card className="panel-card hover-lift" data-testid={dataTestId}>
       <div className="p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3" data-testid={`${dataTestId}-row`}>
+        <div
+          className="flex items-center justify-between gap-3"
+          data-testid={`${dataTestId}-row`}
+        >
           <div className="min-w-0 flex-1">
-            <div className="text-xs sm:text-sm font-medium text-muted-foreground truncate" data-testid={`${dataTestId}-label`}>
+            <div
+              className="text-xs sm:text-sm font-medium text-muted-foreground truncate"
+              data-testid={`${dataTestId}-label`}
+            >
               {label}
             </div>
-            <div className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight truncate" data-testid={`${dataTestId}-value`}>
+            <div
+              className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight truncate"
+              data-testid={`${dataTestId}-value`}
+            >
               {value}
             </div>
             {hint ? (
-              <div className="mt-1 text-[10px] sm:text-xs text-muted-foreground truncate" data-testid={`${dataTestId}-hint`}>
+              <div
+                className="mt-1 text-[10px] sm:text-xs text-muted-foreground truncate"
+                data-testid={`${dataTestId}-hint`}
+              >
                 {hint}
               </div>
             ) : null}
@@ -395,24 +485,44 @@ export function TableCard({
   action,
   children,
   dataTestId,
+  className,
 }: PropsWithChildren<{
   title: string;
   description?: string;
   action?: ReactNode;
   dataTestId: string;
+  className?: string;
 }>) {
   return (
-    <Card className="panel-card" data-testid={dataTestId}>
-      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between" data-testid={`${dataTestId}-header`}>
+    <Card
+      className={cn("panel-card overflow-hidden", className)}
+      data-testid={dataTestId}
+    >
+      <div
+        className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between"
+        data-testid={`${dataTestId}-header`}
+      >
         <div className="min-w-0">
-          <div className="text-sm font-medium truncate" data-testid={`${dataTestId}-title`}>{title}</div>
+          <div
+            className="text-sm font-medium truncate"
+            data-testid={`${dataTestId}-title`}
+          >
+            {title}
+          </div>
           {description ? (
-            <div className="mt-1 text-sm text-muted-foreground line-clamp-2" data-testid={`${dataTestId}-desc`}>
+            <div
+              className="mt-1 text-sm text-muted-foreground line-clamp-2"
+              data-testid={`${dataTestId}-desc`}
+            >
               {description}
             </div>
           ) : null}
         </div>
-        {action ? <div className="shrink-0" data-testid={`${dataTestId}-action`}>{action}</div> : null}
+        {action ? (
+          <div className="shrink-0" data-testid={`${dataTestId}-action`}>
+            {action}
+          </div>
+        ) : null}
       </div>
       <div data-testid={`${dataTestId}-content`}>{children}</div>
     </Card>

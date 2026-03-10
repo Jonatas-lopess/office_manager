@@ -196,7 +196,7 @@ export default function Dashboard() {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-3" data-testid="grid-main">
           <Card
-            className="panel-card hover-lift lg:col-span-2"
+            className="panel-card hover-lift lg:col-span-2 min-w-0 overflow-hidden"
             data-testid="card-chart"
           >
             <div className="flex items-start justify-between gap-4 p-5">
@@ -282,6 +282,7 @@ export default function Dashboard() {
 
           <TableCard
             title="Serviços recentes"
+            className="min-w-0"
             description="Últimos trabalhos entregues"
             action={
               <Button
@@ -315,7 +316,8 @@ export default function Dashboard() {
                       className="mt-0.5 truncate text-xs text-muted-foreground"
                       data-testid={`text-service-meta-${s.id}`}
                     >
-                      {s.clientName} · {format(parseISO(s.date), "MMM d, yyyy")}
+                      {s.clientName} &middot;{" "}
+                      {format(parseISO(s.date), "MMM d, yyyy")}
                     </div>
                   </div>
                   <div className="text-right">
