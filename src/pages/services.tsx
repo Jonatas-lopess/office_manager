@@ -324,6 +324,8 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
   const onSubmit = (data: NewServiceType) => {
     const svc: Service = {
       ...data,
+      status: data.status || "Draft",
+      type: data.type || "Outros",
       description: data.description || null,
       id: uid("s"),
       contract_date: new Date().toISOString().slice(0, 10),
@@ -347,6 +349,10 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
     }
   };
 
+  const onError = (errors: any) => {
+    console.error("[Form Validation Failed]", errors);
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -366,7 +372,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
         </DialogHeader>
 
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit, onError)}
           className="grid gap-4"
           data-testid="form-new-service"
         >

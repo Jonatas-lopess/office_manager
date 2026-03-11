@@ -213,6 +213,8 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
   const onSubmit = (data: NewClientType) => {
     const client: Client = {
       ...data,
+      status: data.status || "Active",
+      name: data.name || "",
       id: uid("c"),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -243,6 +245,10 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
     }
   };
 
+  const onError = (errors: any) => {
+    console.error("[Form Validation Failed]", errors);
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -265,7 +271,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
         </DialogHeader>
 
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit, onError)}
           className="grid gap-4"
           data-testid="form-add-client"
         >
