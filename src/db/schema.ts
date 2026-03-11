@@ -19,7 +19,7 @@ export const clientsTable = sqliteTable("clients", {
   mei_type: text("mei_type", {
     enum: ["Comercy", "Service", "Production", "Specific"],
   }),
-  nire: text("nire").unique(),
+  nirf: text("nirf").unique(),
   cib: text("cib").unique(),
   incra: text("incra").unique(),
   estadual_inscription: text("estadual_inscription").unique(),
