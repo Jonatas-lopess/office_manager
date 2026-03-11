@@ -4,10 +4,18 @@ import { clientsTable, servicesTable } from "./schema";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
   name: (schema) => schema.pipe(z.string().min(1, "Name is required")),
-  email: () => z.string().email("E-mail inválido").or(z.literal("")),
+  email: () => z.email("E-mail inválido").or(z.literal("")),
   phone: () => z.string().min(10, "Telefone inválido").or(z.literal("")),
-  cpf: () => z.string().length(14, "CPF deve ter 14 caracteres (000.000.000-00)").or(z.literal("")),
-  cnpj: () => z.string().length(18, "CNPJ deve ter 18 caracteres (00.000.000/0000-00)").or(z.literal("")),
+  cpf: () =>
+    z
+      .string()
+      .length(14, "CPF deve ter 14 caracteres (000.000.000-00)")
+      .or(z.literal("")),
+  cnpj: () =>
+    z
+      .string()
+      .length(18, "CNPJ deve ter 18 caracteres (00.000.000/0000-00)")
+      .or(z.literal("")),
 });
 
 export const selectClientSchema = createSelectSchema(clientsTable);

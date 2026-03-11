@@ -22,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AppShell, uid } from "@/components/panel/panel-kit";
+import { AppShell } from "@/components/panel/panel-kit";
+import { v7 as uuidv7 } from "uuid";
 import {
   Client,
   insertClientSchema,
@@ -215,7 +216,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
       ...data,
       status: data.status || "Active",
       name: data.name || "",
-      id: uid("c"),
+      id: uuidv7(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       email: data.email || null,
@@ -301,6 +302,11 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
               placeholder="alex@empresa.com"
               data-testid="input-client-email"
             />
+            {form.formState.errors.email && (
+              <span className="text-xs text-destructive">
+                {form.formState.errors.email.message}
+              </span>
+            )}
           </div>
 
           <div className="grid gap-4 grid-cols-2">
@@ -314,6 +320,11 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 placeholder="000.000.000-00"
                 data-testid="input-client-cpf"
               />
+              {form.formState.errors.cpf && (
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.cpf.message}
+                </span>
+              )}
             </div>
 
             <div className="grid gap-2" data-testid="field-client-phone">
@@ -326,6 +337,11 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 placeholder="(00) 00000-0000"
                 data-testid="input-client-phone"
               />
+              {form.formState.errors.phone && (
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.phone.message}
+                </span>
+              )}
             </div>
           </div>
 
@@ -340,6 +356,11 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 placeholder="00.000.000/0000-00"
                 data-testid="input-client-cnpj"
               />
+              {form.formState.errors.cnpj && (
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.cnpj.message}
+                </span>
+              )}
             </div>
 
             <div className="grid gap-2" data-testid="field-client-status">

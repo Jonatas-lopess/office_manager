@@ -15,9 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-export function uid(prefix: string) {
-  return `${prefix}_${Math.random().toString(16).slice(2, 9)}`;
-}
 
 export function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {

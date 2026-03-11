@@ -22,12 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AppShell,
-  currency,
-  StatusBadge,
-  uid,
-} from "@/components/panel/panel-kit";
+import { AppShell, currency, StatusBadge } from "@/components/panel/panel-kit";
+import { v7 as uuidv7 } from "uuid";
 import {
   Service,
   insertServiceSchema,
@@ -322,21 +318,23 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
   });
 
   const onSubmit = (data: NewServiceType) => {
+    const nowIso = new Date().toISOString();
     const svc: Service = {
       ...data,
       status: data.status || "Draft",
       type: data.type || "Outros",
       description: data.description || null,
-      id: uid("s"),
-      contract_date: new Date().toISOString().slice(0, 10),
+      id: uuidv7(),
+      contract_date: nowIso.slice(0, 10),
       final_date: null,
       payment_date: null,
       payment_method: null,
       installments: null,
       observations: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: nowIso,
+      updated_at: nowIso,
     };
+
     onCreate(svc);
     setOpen(false);
     form.reset();
@@ -441,6 +439,11 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
               placeholder="Notas adicionais sobre o serviço"
               data-testid="input-service-description"
             />
+            {form.formState.errors.description && (
+              <span className="text-xs text-destructive">
+                {form.formState.errors.description.message}
+              </span>
+            )}
           </div>
 
           <div className="grid gap-4 grid-cols-2">
