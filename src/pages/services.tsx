@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,41 +25,86 @@ import {
 import {
   AppShell,
   currency,
-  seedClients,
-  seedServices,
   StatusBadge,
-  type Service,
   uid,
 } from "@/components/panel/panel-kit";
+import {
+  Service,
+  insertServiceSchema,
+  NewService as NewServiceType,
+} from "@/db/validations";
+import { useDb } from "@/db/context";
+import { useLocalQuery } from "@/hooks/useLocalQuery";
+import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
+import { and, desc, eq, like, or } from "drizzle-orm";
 
-const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"] as const;
-
-type ServiceStatus = (typeof STATUS)[number];
+type ServiceStatus = Service["status"];
 
 export default function ServicesPage() {
-  const [items, setItems] = useState<Service[]>(seedServices);
+  const { db, orm } = useDb();
+  const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
+
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ServiceStatus>("all");
 
-  const filtered = useMemo(() => {
-    return items
-      .filter((s) => {
-        const matchQ = (s.title + s.clientName)
-          .toLowerCase()
-          .includes(q.toLowerCase().trim());
-        const matchS = status === "all" ? true : s.status === status;
-        return matchQ && matchS;
+  const servicesQuery = useMemo(() => {
+    let base = orm
+      .select({
+        id: servicesTable.id,
+        type: servicesTable.type,
+        description: servicesTable.description,
+        client_id: servicesTable.client_id,
+        status: servicesTable.status,
+        contract_date: servicesTable.contract_date,
+        price: servicesTable.price,
+        client_name: clientsTable.name,
       })
-      .sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [items, q, status]);
+      .from(servicesTable)
+      .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id));
 
-  const totalRevenue = filtered.reduce((acc, s) => acc + s.price, 0);
+    const conditions = [];
+
+    if (q.trim()) {
+      const searchTerm = `%${q.trim()}%`;
+      conditions.push(
+        or(
+          like(servicesTable.type, searchTerm),
+          like(clientsTable.name, searchTerm),
+        ),
+      );
+    }
+
+    if (status !== "all") {
+      conditions.push(eq(servicesTable.status, status));
+    }
+
+    if (conditions.length > 0) {
+      base = base.where(and(...conditions)) as any;
+    }
+
+    return base.orderBy(desc(servicesTable.contract_date)).toSQL();
+  }, [orm, q, status]);
+
+  const { data: rawServices } = useLocalQuery<any>(db, servicesQuery);
+  const services = useMemo(() => rawServices || [], [rawServices]);
+
+  const totalRevenue = services.reduce(
+    (acc: number, s: any) => acc + s.price,
+    0,
+  );
 
   return (
     <AppShell
       title="Serviços"
       subtitle="Acompanhe entregas e renda."
-      right={<NewService onCreate={(svc) => setItems((p) => [svc, ...p])} />}
+      right={
+        <NewService
+          onCreate={async (svc) => {
+            console.log("[Schema] Creating new service...");
+            await orm.insert(servicesTable).values(svc);
+          }}
+        />
+      }
     >
       <div className="grid gap-4 lg:grid-cols-3" data-testid="grid-services">
         <Card className="panel-card lg:col-span-2" data-testid="card-services">
@@ -109,7 +156,7 @@ export default function ServicesPage() {
           </div>
 
           <div className="divide-y" data-testid="list-services">
-            {filtered.map((s) => (
+            {services.map((s: any) => (
               <div
                 key={s.id}
                 className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -124,7 +171,7 @@ export default function ServicesPage() {
                       className="truncate text-sm font-semibold"
                       data-testid={`text-service-title-${s.id}`}
                     >
-                      {s.title}
+                      {s.type} {s.description && `- ${s.description}`}
                     </div>
                     <StatusBadge status={s.status} />
                   </div>
@@ -132,7 +179,8 @@ export default function ServicesPage() {
                     className="mt-1 truncate text-xs text-muted-foreground"
                     data-testid={`text-service-meta-${s.id}`}
                   >
-                    {s.clientName} · {format(parseISO(s.date), "MMM d, yyyy")}
+                    {s.client_name} ·{" "}
+                    {format(parseISO(s.contract_date), "MMM d, yyyy")}
                   </div>
                 </div>
 
@@ -172,7 +220,7 @@ export default function ServicesPage() {
               </div>
             ))}
 
-            {filtered.length === 0 ? (
+            {services.length === 0 ? (
               <div
                 className="p-8 text-center text-sm text-muted-foreground"
                 data-testid="empty-services"
@@ -197,7 +245,7 @@ export default function ServicesPage() {
             >
               <SummaryRow
                 label="Serviços"
-                value={String(filtered.length)}
+                value={String(services.length)}
                 testId="services"
               />
               <SummaryRow
@@ -249,27 +297,58 @@ function SummaryRow({
   );
 }
 
-function NewService({ onCreate }: { onCreate: (service: Service) => void }) {
+function NewService({ onCreate }: { onCreate: (service: any) => void }) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [clientId, setClientId] = useState(seedClients[0]?.id ?? "");
-  const [status, setStatus] = useState<ServiceStatus>("Draft");
-  const [price, setPrice] = useState("1200");
+  const { db, orm } = useDb();
 
-  const clients = seedClients;
-  const selectedClient = clients.find((c) => c.id === clientId);
+  const clientsQuery = useMemo(() => {
+    return orm.select().from(clientsTable).toSQL();
+  }, [orm]);
 
-  const canSave = title.trim().length > 2 && !!selectedClient;
+  const { data: clients } = useLocalQuery<{ id: string; name: string }>(
+    db,
+    clientsQuery,
+  );
 
-  function reset() {
-    setTitle("");
-    setClientId(seedClients[0]?.id ?? "");
-    setStatus("Draft");
-    setPrice("1200");
-  }
+  const form = useForm<NewServiceType>({
+    resolver: zodResolver(insertServiceSchema),
+    defaultValues: {
+      type: "Outros",
+      status: "Draft",
+      price: 1200,
+      description: "",
+      client_id: "",
+    },
+  });
+
+  const onSubmit = (data: NewServiceType) => {
+    const svc: Service = {
+      ...data,
+      description: data.description || null,
+      id: uid("s"),
+      contract_date: new Date().toISOString().slice(0, 10),
+      final_date: null,
+      payment_date: null,
+      payment_method: null,
+      installments: null,
+      observations: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    onCreate(svc);
+    setOpen(false);
+    form.reset();
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.reset();
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button data-testid="button-new-service" className="gap-2">
           <Plus className="h-4 w-4" />
@@ -286,23 +365,17 @@ function NewService({ onCreate }: { onCreate: (service: Service) => void }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4" data-testid="form-new-service">
-          <div className="grid gap-2" data-testid="field-service-title">
-            <Label htmlFor="service-title" data-testid="label-service-title">
-              Título
-            </Label>
-            <Input
-              id="service-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="ex: Redesign de Website"
-              data-testid="input-service-title"
-            />
-          </div>
-
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="grid gap-4"
+          data-testid="form-new-service"
+        >
           <div className="grid gap-2" data-testid="field-service-client">
             <Label data-testid="label-service-client">Cliente</Label>
-            <Select value={clientId} onValueChange={(v) => setClientId(v)}>
+            <Select
+              value={form.watch("client_id")}
+              onValueChange={(v) => form.setValue("client_id", v)}
+            >
               <SelectTrigger data-testid="select-service-client">
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
@@ -318,97 +391,133 @@ function NewService({ onCreate }: { onCreate: (service: Service) => void }) {
                 ))}
               </SelectContent>
             </Select>
+            {form.formState.errors.client_id && (
+              <span className="text-xs text-destructive">
+                {form.formState.errors.client_id.message}
+              </span>
+            )}
           </div>
 
-          <div className="grid gap-2" data-testid="field-service-status">
-            <Label data-testid="label-service-status">Status</Label>
+          <div className="grid gap-2" data-testid="field-service-type">
+            <Label data-testid="label-service-type">Tipo de Serviço</Label>
             <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as ServiceStatus)}
+              value={form.watch("type") ?? undefined}
+              onValueChange={(v) => form.setValue("type", v as any)}
             >
-              <SelectTrigger data-testid="select-new-service-status">
-                <SelectValue placeholder="Escolha o status" />
+              <SelectTrigger data-testid="select-service-type">
+                <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem
-                  value="Draft"
-                  data-testid="option-new-service-status-Draft"
-                >
-                  Rascunho
-                </SelectItem>
-                <SelectItem
-                  value="In progress"
-                  data-testid="option-new-service-status-In-progress"
-                >
-                  Em andamento
-                </SelectItem>
-                <SelectItem
-                  value="Delivered"
-                  data-testid="option-new-service-status-Delivered"
-                >
-                  Entregue
-                </SelectItem>
-                <SelectItem
-                  value="Invoiced"
-                  data-testid="option-new-service-status-Invoiced"
-                >
-                  Faturado
-                </SelectItem>
+                {serviceTypesArray.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {form.formState.errors.type && (
+              <span className="text-xs text-destructive">
+                {form.formState.errors.type.message}
+              </span>
+            )}
           </div>
 
-          <div className="grid gap-4" data-testid="group-service-money">
+          <div className="grid gap-2" data-testid="field-service-desc">
+            <Label
+              htmlFor="service-description"
+              data-testid="label-service-description"
+            >
+              Descrição (opcional)
+            </Label>
+            <Input
+              id="service-description"
+              {...form.register("description")}
+              placeholder="Notas adicionais sobre o serviço"
+              data-testid="input-service-description"
+            />
+          </div>
+
+          <div className="grid gap-4 grid-cols-2">
+            <div className="grid gap-2" data-testid="field-service-status">
+              <Label data-testid="label-service-status">Status</Label>
+              <Select
+                value={form.watch("status")}
+                onValueChange={(v) =>
+                  form.setValue("status", v as ServiceStatus)
+                }
+              >
+                <SelectTrigger data-testid="select-new-service-status">
+                  <SelectValue placeholder="Escolha o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    value="Draft"
+                    data-testid="option-new-service-status-Draft"
+                  >
+                    Rascunho
+                  </SelectItem>
+                  <SelectItem
+                    value="In progress"
+                    data-testid="option-new-service-status-In-progress"
+                  >
+                    Em andamento
+                  </SelectItem>
+                  <SelectItem
+                    value="Delivered"
+                    data-testid="option-new-service-status-Delivered"
+                  >
+                    Entregue
+                  </SelectItem>
+                  <SelectItem
+                    value="Invoiced"
+                    data-testid="option-new-service-status-Invoiced"
+                  >
+                    Faturado
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-2" data-testid="field-service-price">
               <Label htmlFor="service-price" data-testid="label-service-price">
-                Renda (R$)
+                Preço (R$)
               </Label>
               <Input
                 id="service-price"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                type="number"
+                {...form.register("price", { valueAsNumber: true })}
                 inputMode="decimal"
                 data-testid="input-service-price"
               />
+              {form.formState.errors.price && (
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.price.message}
+                </span>
+              )}
             </div>
           </div>
 
           <div
-            className="flex items-center justify-end gap-2"
+            className="flex items-center justify-end gap-2 mt-2"
             data-testid="group-new-service-actions"
           >
             <Button
+              type="button"
               variant="secondary"
-              onClick={() => {
-                setOpen(false);
-                reset();
-              }}
+              onClick={() => handleOpenChange(false)}
               data-testid="button-cancel-new-service"
             >
               Cancelar
             </Button>
             <Button
-              disabled={!canSave}
-              onClick={() => {
-                const svc: Service = {
-                  id: uid("s"),
-                  title: title.trim(),
-                  clientId: selectedClient!.id,
-                  clientName: selectedClient!.name,
-                  status,
-                  date: new Date().toISOString().slice(0, 10),
-                  price: Number(price) || 0,
-                };
-                onCreate(svc);
-                setOpen(false);
-                reset();
-              }}
+              type="submit"
+              disabled={form.formState.isSubmitting}
               data-testid="button-save-new-service"
             >
               Criar serviço
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
