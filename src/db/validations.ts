@@ -2,6 +2,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { clientsTable, servicesTable } from "./schema";
 import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
+import { NIRFvalidator } from "@/lib/utils";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
   name: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
@@ -19,6 +20,11 @@ export const insertClientSchema = createInsertSchema(clientsTable, {
         (val) => val === "" || cnpjValidator.isValid(val),
         "CNPJ Inválido",
       )
+      .or(z.literal("")),
+  nirf: () =>
+    z
+      .string()
+      .refine((val) => val === "" || NIRFvalidator(val), "NIRF inválido")
       .or(z.literal("")),
 }).omit({ id: true, created_at: true, updated_at: true });
 

@@ -33,7 +33,7 @@ import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
 import * as Accordion from "@radix-ui/react-accordion";
-import { maskCPF, maskCNPJ, maskPhone } from "@/lib/masks";
+import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 
 type ClientStatus = Client["status"];
 
@@ -215,7 +215,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
       gov_password: "",
       cnpj_begin_date: "",
       mei_type: undefined,
-      nire: "",
+      nirf: "",
       cib: "",
       incra: "",
       estadual_inscription: "",
@@ -240,7 +240,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
       gov_password: data.gov_password || null,
       cnpj_begin_date: data.cnpj_begin_date || null,
       mei_type: data.mei_type || null,
-      nire: data.nire || null,
+      nirf: data.nirf || null,
       cib: data.cib || null,
       incra: data.incra || null,
       estadual_inscription: data.estadual_inscription || null,
@@ -486,7 +486,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
             >
               <Accordion.Header className="flex">
                 <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Dados Avançados (Gov, IE, NIRE, etc)
+                  Dados Avançados (Gov, IE, NIRF, etc)
                   <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
                 </Accordion.Trigger>
               </Accordion.Header>
@@ -527,13 +527,22 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       placeholder="Número da IE"
                     />
                   </div>
-                  <div className="grid gap-2" data-testid="field-client-nire">
-                    <Label htmlFor="client-nire">NIRE</Label>
+                  <div className="grid gap-2" data-testid="field-client-nirf">
+                    <Label htmlFor="client-nirf">NIRF</Label>
                     <Input
-                      id="client-nire"
-                      {...form.register("nire")}
+                      id="client-nirf"
+                      {...form.register("nirf", {
+                        onChange: (e) => {
+                          e.target.value = maskNIRF(e.target.value);
+                        },
+                      })}
                       placeholder="0.000.000-0"
                     />
+                    {form.formState.errors.nirf && (
+                      <span className="text-xs text-destructive">
+                        {form.formState.errors.nirf.message}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -550,7 +559,11 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                     <Label htmlFor="client-incra">INCRA</Label>
                     <Input
                       id="client-incra"
-                      {...form.register("incra")}
+                      {...form.register("incra", {
+                        onChange: (e) => {
+                          e.target.value = maskIncra(e.target.value);
+                        },
+                      })}
                       placeholder="000.000.000.000-0"
                     />
                   </div>

@@ -24,3 +24,22 @@ export const maskPhone = (value: string) => {
     .replace(/(\d{5})(\d)/, "$1-$2")
     .replace(/(-\d{4})\d+?$/, "$1");
 };
+
+export const maskIncra = (value: string) => {
+  return value
+    .replace(/\D/g, "")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})/, "$1-$1")
+    .replace(/(-\d{1})\d+?$/, "$1");
+};
+
+export const maskNIRF = (value: string) => {
+  return value
+    .replace(/\D/g, "")
+    .replace(/(\d{1})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})/, "$1-$1")
+    .replace(/(-\d{1})\d+?$/, "$1");
+};
