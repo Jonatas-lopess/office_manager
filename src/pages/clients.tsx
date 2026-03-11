@@ -308,28 +308,56 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
             </div>
 
             <div className="grid gap-2" data-testid="field-client-status">
-              <Label htmlFor="client-status" data-testid="label-client-status">Status</Label>
+              <Label htmlFor="client-status" data-testid="label-client-status">
+                Status
+              </Label>
               <Select
                 value={form.watch("status") ?? undefined}
                 onValueChange={(v) =>
                   form.setValue("status", v as ClientStatus)
                 }
               >
-                <SelectTrigger id="client-status" data-testid="select-new-client-status">
+                <SelectTrigger
+                  id="client-status"
+                  data-testid="select-new-client-status"
+                >
                   <SelectValue placeholder="Escolha o status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Active" data-testid="option-new-client-status-Active">Ativo</SelectItem>
-                  <SelectItem value="Onboarding" data-testid="option-new-client-status-Onboarding">Integrando</SelectItem>
-                  <SelectItem value="Inactive" data-testid="option-new-client-status-Inactive">Inativo</SelectItem>
+                  <SelectItem
+                    value="Active"
+                    data-testid="option-new-client-status-Active"
+                  >
+                    Ativo
+                  </SelectItem>
+                  <SelectItem
+                    value="Onboarding"
+                    data-testid="option-new-client-status-Onboarding"
+                  >
+                    Integrando
+                  </SelectItem>
+                  <SelectItem
+                    value="Inactive"
+                    data-testid="option-new-client-status-Inactive"
+                  >
+                    Inativo
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <Accordion.Root type="single" collapsible defaultValue="additional" className="w-full space-y-4">
+          <Accordion.Root
+            type="single"
+            collapsible
+            defaultValue="additional"
+            className="w-full space-y-4"
+          >
             {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item value="additional" className="border rounded-md px-4 py-2 bg-muted/20">
+            <Accordion.Item
+              value="additional"
+              className="border rounded-md px-4 py-2 bg-muted/20"
+            >
               <Accordion.Header className="flex">
                 <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
                   Documentação & Contato principal
@@ -337,35 +365,68 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 </Accordion.Trigger>
               </Accordion.Header>
               <Accordion.Content className="pt-2 pb-4 space-y-4">
-                
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cpf">
                     <Label htmlFor="client-cpf">CPF</Label>
-                    <Input id="client-cpf" {...form.register("cpf", { onChange: (e) => { e.target.value = maskCPF(e.target.value); } })} placeholder="000.000.000-00" />
+                    <Input
+                      id="client-cpf"
+                      {...form.register("cpf", {
+                        onChange: (e) => {
+                          e.target.value = maskCPF(e.target.value);
+                        },
+                      })}
+                      placeholder="000.000.000-00"
+                    />
                     {form.formState.errors.cpf && (
-                      <span className="text-xs text-destructive">{form.formState.errors.cpf.message}</span>
+                      <span className="text-xs text-destructive">
+                        {form.formState.errors.cpf.message}
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-2" data-testid="field-client-cnpj">
                     <Label htmlFor="client-cnpj">CNPJ</Label>
-                    <Input id="client-cnpj" {...form.register("cnpj", { onChange: (e) => { e.target.value = maskCNPJ(e.target.value); } })} placeholder="00.000.000/0000-00" />
+                    <Input
+                      id="client-cnpj"
+                      {...form.register("cnpj", {
+                        onChange: (e) => {
+                          e.target.value = maskCNPJ(e.target.value);
+                        },
+                      })}
+                      placeholder="00.000.000/0000-00"
+                    />
                     {form.formState.errors.cnpj && (
-                      <span className="text-xs text-destructive">{form.formState.errors.cnpj.message}</span>
+                      <span className="text-xs text-destructive">
+                        {form.formState.errors.cnpj.message}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {(form.watch("cnpj")?.length ?? 0) > 0 && (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2" data-testid="field-client-cnpj-date">
-                      <Label htmlFor="client-cnpj-date">Data de Início do CNPJ</Label>
-                      <Input id="client-cnpj-date" type="date" {...form.register("cnpj_begin_date")} />
+                    <div
+                      className="grid gap-2"
+                      data-testid="field-client-cnpj-date"
+                    >
+                      <Label htmlFor="client-cnpj-date">
+                        Data de Início do CNPJ
+                      </Label>
+                      <Input
+                        id="client-cnpj-date"
+                        type="date"
+                        {...form.register("cnpj_begin_date")}
+                      />
                     </div>
-                    <div className="grid gap-2" data-testid="field-client-mei-type">
+                    <div
+                      className="grid gap-2"
+                      data-testid="field-client-mei-type"
+                    >
                       <Label htmlFor="client-mei-type">Tipo de MEI</Label>
                       <Select
                         value={form.watch("mei_type") ?? undefined}
-                        onValueChange={(v) => form.setValue("mei_type", v as any)}
+                        onValueChange={(v) =>
+                          form.setValue("mei_type", v as any)
+                        }
                       >
                         <SelectTrigger id="client-mei-type">
                           <SelectValue placeholder="Selecione o tipo..." />
@@ -374,7 +435,9 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                           <SelectItem value="Comercy">Comércio</SelectItem>
                           <SelectItem value="Service">Serviço</SelectItem>
                           <SelectItem value="Production">Produção</SelectItem>
-                          <SelectItem value="Specific">Outro Específico</SelectItem>
+                          <SelectItem value="Specific">
+                            Outro Específico
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -384,25 +447,43 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-email">
                     <Label htmlFor="client-email">Email</Label>
-                    <Input id="client-email" {...form.register("email")} placeholder="alex@empresa.com" />
+                    <Input
+                      id="client-email"
+                      {...form.register("email")}
+                      placeholder="alex@empresa.com"
+                    />
                     {form.formState.errors.email && (
-                      <span className="text-xs text-destructive">{form.formState.errors.email.message}</span>
+                      <span className="text-xs text-destructive">
+                        {form.formState.errors.email.message}
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-2" data-testid="field-client-phone">
                     <Label htmlFor="client-phone">Telefone</Label>
-                    <Input id="client-phone" {...form.register("phone", { onChange: (e) => { e.target.value = maskPhone(e.target.value); } })} placeholder="(00) 00000-0000" />
+                    <Input
+                      id="client-phone"
+                      {...form.register("phone", {
+                        onChange: (e) => {
+                          e.target.value = maskPhone(e.target.value);
+                        },
+                      })}
+                      placeholder="(00) 00000-0000"
+                    />
                     {form.formState.errors.phone && (
-                      <span className="text-xs text-destructive">{form.formState.errors.phone.message}</span>
+                      <span className="text-xs text-destructive">
+                        {form.formState.errors.phone.message}
+                      </span>
                     )}
                   </div>
                 </div>
-
               </Accordion.Content>
             </Accordion.Item>
 
             {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item value="advanced" className="border rounded-md px-4 py-2 bg-muted/20">
+            <Accordion.Item
+              value="advanced"
+              className="border rounded-md px-4 py-2 bg-muted/20"
+            >
               <Accordion.Header className="flex">
                 <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
                   Dados Avançados (Gov, IE, NIRE, etc)
@@ -410,51 +491,97 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 </Accordion.Trigger>
               </Accordion.Header>
               <Accordion.Content className="pt-2 pb-4 space-y-4">
-                
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-client-birthdate">
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-client-birthdate"
+                  >
                     <Label htmlFor="client-birthdate">Data de Nascimento</Label>
-                    <Input id="client-birthdate" type="date" {...form.register("birth_date")} />
+                    <Input
+                      id="client-birthdate"
+                      type="date"
+                      {...form.register("birth_date")}
+                    />
                   </div>
-                  <div className="grid gap-2" data-testid="field-client-payment-source">
-                    <Label htmlFor="client-payment-source">Fonte Pagadora</Label>
-                    <Input id="client-payment-source" {...form.register("payment_source")} placeholder="Ex: Nome da Empresa" />
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-client-payment-source"
+                  >
+                    <Label htmlFor="client-payment-source">
+                      Fonte Pagadora
+                    </Label>
+                    <Input
+                      id="client-payment-source"
+                      {...form.register("payment_source")}
+                      placeholder="Ex: Nome da Empresa"
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-ie">
                     <Label htmlFor="client-ie">Inscrição Estadual</Label>
-                    <Input id="client-ie" {...form.register("estadual_inscription")} placeholder="000.000.000.000" />
+                    <Input
+                      id="client-ie"
+                      {...form.register("estadual_inscription")}
+                      placeholder="Número da IE"
+                    />
                   </div>
                   <div className="grid gap-2" data-testid="field-client-nire">
                     <Label htmlFor="client-nire">NIRE</Label>
-                    <Input id="client-nire" {...form.register("nire")} placeholder="00.0.0000000-0" />
+                    <Input
+                      id="client-nire"
+                      {...form.register("nire")}
+                      placeholder="0.000.000-0"
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cib">
                     <Label htmlFor="client-cib">CIB</Label>
-                    <Input id="client-cib" {...form.register("cib")} placeholder="0.000.000-0" />
+                    <Input
+                      id="client-cib"
+                      {...form.register("cib")}
+                      placeholder="Número do CIB"
+                    />
                   </div>
                   <div className="grid gap-2" data-testid="field-client-incra">
                     <Label htmlFor="client-incra">INCRA</Label>
-                    <Input id="client-incra" {...form.register("incra")} placeholder="000.000.000.000-0" />
+                    <Input
+                      id="client-incra"
+                      {...form.register("incra")}
+                      placeholder="000.000.000.000-0"
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-client-gov-pass">
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-client-gov-pass"
+                  >
                     <Label htmlFor="client-gov-pass">Senha Gov</Label>
-                    <Input id="client-gov-pass" {...form.register("gov_password")} placeholder="Senha do portal" />
+                    <Input
+                      id="client-gov-pass"
+                      {...form.register("gov_password")}
+                      placeholder="Senha do portal"
+                    />
                   </div>
-                  <div className="grid gap-2" data-testid="field-client-observations">
-                    <Label htmlFor="client-observations">Observações Livres</Label>
-                    <Input id="client-observations" {...form.register("observations")} placeholder="Notas gerais..." />
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-client-observations"
+                  >
+                    <Label htmlFor="client-observations">
+                      Observações Livres
+                    </Label>
+                    <Input
+                      id="client-observations"
+                      {...form.register("observations")}
+                      placeholder="Notas gerais..."
+                    />
                   </div>
                 </div>
-
               </Accordion.Content>
             </Accordion.Item>
           </Accordion.Root>
@@ -463,10 +590,19 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
             className="flex items-center justify-end gap-2 mt-4"
             data-testid="group-add-client-actions"
           >
-            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} data-testid="button-cancel-add-client">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => handleOpenChange(false)}
+              data-testid="button-cancel-add-client"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting} data-testid="button-save-add-client">
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting}
+              data-testid="button-save-add-client"
+            >
               Salvar cliente
             </Button>
           </div>
