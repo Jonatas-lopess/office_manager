@@ -53,6 +53,8 @@ export async function runMigrations(db: DB) {
           await db.exec(`SELECT crsql_as_crr('${tableName}');`);
         }
       }
+
+      console.log(`✅ [Migrator] Migrations went smoothly!`);
     } catch (err) {
       await db.exec("ROLLBACK;");
       throw err;

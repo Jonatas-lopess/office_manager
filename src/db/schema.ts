@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const clientsTable = sqliteTable("clients", {
   id: text("id").primaryKey(),
@@ -56,8 +56,9 @@ export const servicesTable = sqliteTable("services", {
     .notNull()
     .default("Draft"),
   type: text("type", { enum: serviceTypesArray }).default("Outros"),
-  client_id: text("client_id").notNull().default(""),
-  client_name: text("client_name").notNull().default(""),
+  client_id: text("client_id")
+    .notNull()
+    .references(() => clientsTable.id, { onDelete: "restrict", onUpdate: "cascade" }),
   description: text("description"),
   contract_date: text("contract_date").notNull().default(""),
   final_date: text("final_date"),
@@ -68,4 +69,8 @@ export const servicesTable = sqliteTable("services", {
   observations: text("observations"),
   created_at: text("created_at").notNull().default(""),
   updated_at: text("updated_at").notNull().default(""),
+}, (table) => {
+  return {
+    clientIdIdx: index("client_id_idx").on(table.client_id),
+  };
 });

@@ -20,8 +20,6 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
     schema.pipe(z.enum(["Draft", "In progress", "Delivered", "Invoiced"])),
   client_id: (schema) =>
     schema.pipe(z.string().min(1, "Client ID is required")),
-  client_name: (schema) =>
-    schema.pipe(z.string().min(1, "Client name is required")),
   price: (schema) =>
     schema.pipe(z.number().min(0, "Price must be greater than or equal to 0")),
 });
