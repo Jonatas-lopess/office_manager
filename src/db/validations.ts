@@ -1,20 +1,19 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { clientsTable, servicesTable } from "./schema";
+import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
   name: (schema) => schema.pipe(z.string().min(1, "Name is required")),
   email: () => z.email("E-mail inválido").or(z.literal("")),
   phone: () => z.string().min(10, "Telefone inválido").or(z.literal("")),
   cpf: () =>
-    z
-      .string()
-      .length(14, "CPF deve ter 14 caracteres (000.000.000-00)")
+    z.string()
+      .refine((val) => val === "" || cpfValidator.isValid(val), "CPF Inválido")
       .or(z.literal("")),
   cnpj: () =>
-    z
-      .string()
-      .length(18, "CNPJ deve ter 18 caracteres (00.000.000/0000-00)")
+    z.string()
+      .refine((val) => val === "" || cnpjValidator.isValid(val), "CNPJ Inválido")
       .or(z.literal("")),
 });
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ChevronDown, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -13,6 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,7 +35,8 @@ import {
 import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, like, or, isNotNull, ne } from "drizzle-orm";
+import * as Accordion from "@radix-ui/react-accordion";
 
 type ServiceStatus = Service["status"];
 
@@ -306,14 +310,38 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
     clientsQuery,
   );
 
+  const [openDesc, setOpenDesc] = useState(false);
+  const [searchDesc, setSearchDesc] = useState("");
+
+  const descQuery = useMemo(() => {
+    return orm
+      .select({ description: servicesTable.description })
+      .from(servicesTable)
+      .where(and(isNotNull(servicesTable.description), ne(servicesTable.description, "")))
+      .groupBy(servicesTable.description)
+      .toSQL();
+  }, [orm]);
+
+  const { data: rawDesc } = useLocalQuery<any>(db, descQuery);
+  const historicDescriptions = useMemo(() => {
+    if (!rawDesc) return [];
+    return rawDesc.map((d: any) => d.description);
+  }, [rawDesc]);
+
   const form = useForm<NewServiceType>({
     resolver: zodResolver(insertServiceSchema),
     defaultValues: {
       type: "Outros",
       status: "Draft",
-      price: 1200,
+      price: 0,
       description: "",
       client_id: "",
+      contract_date: new Date().toISOString().slice(0, 10),
+      final_date: "",
+      payment_date: "",
+      payment_method: "",
+      installments: 1,
+      observations: "",
     },
   });
 
@@ -325,12 +353,12 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
       type: data.type || "Outros",
       description: data.description || null,
       id: uuidv7(),
-      contract_date: nowIso.slice(0, 10),
-      final_date: null,
-      payment_date: null,
-      payment_method: null,
-      installments: null,
-      observations: null,
+      contract_date: data.contract_date || nowIso.slice(0, 10),
+      final_date: data.final_date || null,
+      payment_date: data.payment_date || null,
+      payment_method: data.payment_method || null,
+      installments: data.installments || null,
+      observations: data.observations || null,
       created_at: nowIso,
       updated_at: nowIso,
     };
@@ -370,144 +398,198 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
         </DialogHeader>
 
         <form
+          autoComplete="off"
           onSubmit={form.handleSubmit(onSubmit, onError)}
           className="grid gap-4"
           data-testid="form-new-service"
         >
-          <div className="grid gap-2" data-testid="field-service-client">
-            <Label data-testid="label-service-client">Cliente</Label>
-            <Select
-              value={form.watch("client_id")}
-              onValueChange={(v) => form.setValue("client_id", v)}
-            >
-              <SelectTrigger data-testid="select-service-client">
-                <SelectValue placeholder="Selecione um cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem
-                    key={c.id}
-                    value={c.id}
-                    data-testid={`option-service-client-${c.id}`}
-                  >
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.client_id && (
-              <span className="text-xs text-destructive">
-                {form.formState.errors.client_id.message}
-              </span>
-            )}
-          </div>
-
-          <div className="grid gap-2" data-testid="field-service-type">
-            <Label data-testid="label-service-type">Tipo de Serviço</Label>
-            <Select
-              value={form.watch("type") ?? undefined}
-              onValueChange={(v) => form.setValue("type", v as any)}
-            >
-              <SelectTrigger data-testid="select-service-type">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {serviceTypesArray.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.type && (
-              <span className="text-xs text-destructive">
-                {form.formState.errors.type.message}
-              </span>
-            )}
-          </div>
-
-          <div className="grid gap-2" data-testid="field-service-desc">
-            <Label
-              htmlFor="service-description"
-              data-testid="label-service-description"
-            >
-              Descrição (opcional)
-            </Label>
-            <Input
-              id="service-description"
-              {...form.register("description")}
-              placeholder="Notas adicionais sobre o serviço"
-              data-testid="input-service-description"
-            />
-            {form.formState.errors.description && (
-              <span className="text-xs text-destructive">
-                {form.formState.errors.description.message}
-              </span>
-            )}
-          </div>
-
-          <div className="grid gap-4 grid-cols-2">
-            <div className="grid gap-2" data-testid="field-service-status">
-              <Label data-testid="label-service-status">Status</Label>
-              <Select
-                value={form.watch("status")}
-                onValueChange={(v) =>
-                  form.setValue("status", v as ServiceStatus)
-                }
-              >
-                <SelectTrigger data-testid="select-new-service-status">
-                  <SelectValue placeholder="Escolha o status" />
+          {/* TIER 1: CORE FIELDS */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2" data-testid="field-service-client">
+              <Label htmlFor="service-client" data-testid="label-service-client">Cliente *</Label>
+              <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
+                <SelectTrigger id="service-client" data-testid="select-service-client">
+                  <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem
-                    value="Draft"
-                    data-testid="option-new-service-status-Draft"
-                  >
-                    Rascunho
-                  </SelectItem>
-                  <SelectItem
-                    value="In progress"
-                    data-testid="option-new-service-status-In-progress"
-                  >
-                    Em andamento
-                  </SelectItem>
-                  <SelectItem
-                    value="Delivered"
-                    data-testid="option-new-service-status-Delivered"
-                  >
-                    Entregue
-                  </SelectItem>
-                  <SelectItem
-                    value="Invoiced"
-                    data-testid="option-new-service-status-Invoiced"
-                  >
-                    Faturado
-                  </SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id} data-testid={`option-service-client-${c.id}`}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {form.formState.errors.client_id && (
+                <span className="text-xs text-destructive">{form.formState.errors.client_id.message}</span>
+              )}
             </div>
 
             <div className="grid gap-2" data-testid="field-service-price">
-              <Label htmlFor="service-price" data-testid="label-service-price">
-                Preço (R$)
-              </Label>
-              <Input
-                id="service-price"
-                type="number"
-                {...form.register("price", { valueAsNumber: true })}
-                inputMode="decimal"
-                data-testid="input-service-price"
-              />
+              <Label htmlFor="service-price" data-testid="label-service-price">Valor Base (R$)</Label>
+              <Input id="service-price" type="number" {...form.register("price", { valueAsNumber: true })} inputMode="decimal" data-testid="input-service-price" />
               {form.formState.errors.price && (
-                <span className="text-xs text-destructive">
-                  {form.formState.errors.price.message}
-                </span>
+                <span className="text-xs text-destructive">{form.formState.errors.price.message}</span>
               )}
             </div>
           </div>
 
+          <div className="grid gap-2" data-testid="field-service-type">
+            <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
+            <Select value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
+              <SelectTrigger id="service-type" data-testid="select-service-type">
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {serviceTypesArray.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.type && (
+              <span className="text-xs text-destructive">{form.formState.errors.type.message}</span>
+            )}
+          </div>
+
+          <div className="grid gap-2" data-testid="field-service-desc">
+            <Label htmlFor="service-description">Descrição Resumida</Label>
+            <Popover open={openDesc} onOpenChange={setOpenDesc}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="service-description"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openDesc}
+                  className={cn("w-full justify-between font-normal", !form.watch("description") && "text-muted-foreground")}
+                >
+                  {form.watch("description") || "Notas rápidas sobre a entrega"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="Buscar ou adicionar nova..." 
+                    value={searchDesc}
+                    onValueChange={(val) => {
+                      setSearchDesc(val);
+                      form.setValue("description", val, { shouldValidate: true });
+                    }}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      <span className="text-muted-foreground text-sm pl-2">Pressione Enter para usar "{searchDesc}"</span>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {historicDescriptions.map((desc: string) => (
+                        <CommandItem
+                          key={desc}
+                          value={desc}
+                          onSelect={(currentValue) => {
+                            form.setValue("description", currentValue, { shouldValidate: true });
+                            setSearchDesc("");
+                            setOpenDesc(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.watch("description") === desc ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {desc}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {form.formState.errors.description && (
+              <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
+            )}
+          </div>
+
+          <Accordion.Root type="single" collapsible defaultValue="additional" className="w-full space-y-4">
+            {/* TIER 2: ADDITIONAL INFO */}
+            <Accordion.Item value="additional" className="border rounded-md px-4 py-2 bg-muted/20">
+              <Accordion.Header className="flex">
+                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
+                  Status & Contrato
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Content className="pt-2 pb-4 space-y-4">
+                
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2" data-testid="field-service-status">
+                    <Label htmlFor="service-status" data-testid="label-service-status">Status do Serviço</Label>
+                    <Select value={form.watch("status")} onValueChange={(v) => form.setValue("status", v as ServiceStatus)}>
+                      <SelectTrigger id="service-status" data-testid="select-new-service-status">
+                        <SelectValue placeholder="Escolha o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft" data-testid="option-new-service-status-Draft">Rascunho</SelectItem>
+                        <SelectItem value="In progress" data-testid="option-new-service-status-In-progress">Em andamento</SelectItem>
+                        <SelectItem value="Delivered" data-testid="option-new-service-status-Delivered">Entregue</SelectItem>
+                        <SelectItem value="Invoiced" data-testid="option-new-service-status-Invoiced">Faturado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2" data-testid="field-service-contract-date">
+                    <Label htmlFor="service-contract-date">Data de Contrato</Label>
+                    <Input id="service-contract-date" type="date" {...form.register("contract_date")} />
+                  </div>
+                </div>
+
+              </Accordion.Content>
+            </Accordion.Item>
+
+            {/* TIER 3: ADVANCED DETAILS */}
+            <Accordion.Item value="advanced" className="border rounded-md px-4 py-2 bg-muted/20">
+              <Accordion.Header className="flex">
+                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
+                  Dados Financeiros e Prazos
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Content className="pt-2 pb-4 space-y-4">
+                
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2" data-testid="field-service-final-date">
+                    <Label htmlFor="service-final-date">Prazo Final</Label>
+                    <Input id="service-final-date" type="date" {...form.register("final_date")} />
+                  </div>
+                  <div className="grid gap-2" data-testid="field-service-payment-date">
+                    <Label htmlFor="service-payment-date">Data Pagamento Esperado</Label>
+                    <Input id="service-payment-date" type="date" {...form.register("payment_date")} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2" data-testid="field-service-payment-method">
+                    <Label htmlFor="service-payment-method">Método de Pagamento</Label>
+                    <Input id="service-payment-method" {...form.register("payment_method")} placeholder="Ex: Pix, Boleto..." />
+                  </div>
+                  <div className="grid gap-2" data-testid="field-service-installments">
+                    <Label htmlFor="service-installments">Nº de Parcelas</Label>
+                    <Input id="service-installments" type="number" {...form.register("installments", { valueAsNumber: true })} placeholder="1" />
+                  </div>
+                </div>
+
+
+
+                <div className="grid gap-2" data-testid="field-service-observations">
+                  <Label htmlFor="service-observations">Observações Livres</Label>
+                  <Input id="service-observations" {...form.register("observations")} placeholder="Notas estendidas ou links..." />
+                </div>
+
+              </Accordion.Content>
+            </Accordion.Item>
+          </Accordion.Root>
+
           <div
-            className="flex items-center justify-end gap-2 mt-2"
+            className="flex items-center justify-end gap-2 mt-4"
             data-testid="group-new-service-actions"
           >
             <Button
