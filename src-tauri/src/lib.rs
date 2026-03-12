@@ -67,34 +67,37 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
         tasks.push(task);
     }
 
-    for task in tasks {
-        if let Ok(Some(found_ip)) = task.await {
-            return Ok(Some(found_ip)); 
+    let mut found_ip = None;
+    for task in &tasks {
+        if let Ok(Some(ip)) = task.await {
+            found_ip = Some(ip);
+            break;
         }
     }
 
-    Ok(None)
+    // Fix: Abort all remaining tasks to prevent background leakage
+    for task in tasks {
+        task.abort();
+    }
+
+    Ok(found_ip)
 }
 
 pub fn run() {
-    // Create the shutdown channel
-    // tx = Transmitter (we keep this on the main thread)
-    // rx = Receiver (we send this to the background server thread)
+    // 1. Create the shutdown channel
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     
     // Wrap the transmitter in a Mutex so it can be safely moved into Tauri's event loop
-    let shutdown_tx = Mutex::new(Some(shutdown_tx));
+    let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
 
-    // Notice we use `.build()` instead of `.default().run()` so we can attach the event listener
-    let app = tauri::Builder::default()
+    tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![find_hub_ip])
-        .setup(|app| {
-            // Clone the app handle so we can emit events from the async task.
+        .setup(move |app| {
             let handle = app.handle().clone();
+            
             tokio::spawn(async move {
-                // The channel now holds the tuple: (Uuid, String)
-                let (tx, _rx) = broadcast::channel(100); // Channel for (sender_uuid, msg)
+                let (tx, _rx) = broadcast::channel(100);
                 let app_state = Arc::new(AppState {
                     tx,
                     connected_clients: Mutex::new(HashMap::new()),
@@ -106,23 +109,26 @@ pub fn run() {
 
                 match tokio::net::TcpListener::bind("0.0.0.0:1234").await {
                     Ok(listener) => {
-                        println!("Local Hub Server started on port 1234");
-                        // 2. Tell Axum to extract IP addresses from incoming connections
-                        axum::serve(
+                        println!("🟢 [Hub] Local Hub Server started on port 1234");
+                        
+                        // Fix: Instead of .with_graceful_shutdown (which can hang waiting for connections),
+                        // we use tokio::select! to immediately drop the server future when notified.
+                        let server = axum::serve(
                             listener,
                             axum_app.into_make_service_with_connect_info::<SocketAddr>(),
-                        )
-                        .with_graceful_shutdown(async {
-                            // The server will pause here and wait for the rx signal
-                            shutdown_rx.await.ok();
-                            println!("Gracefully shutting down the WebSocket server...");
-                        })
-                        .await
-                        .unwrap();
+                        );
+
+                        tokio::select! {
+                            _ = server => {
+                                println!("⚪ [Hub] Server stopped naturally.");
+                            }
+                            _ = shutdown_rx => {
+                                println!("🔴 [Hub] Shutdown signal received. Closing Hub immediately.");
+                            }
+                        }
                     }
-                    // **FIX**: If the port is in use, emit an event to the frontend.
                     Err(e) => {
-                        eprintln!("CRITICAL: Port 1234 might be in use! Error: {}", e);
+                        eprintln!("❌ [Hub] CRITICAL: Port 1234 might be in use! Error: {}", e);
                         let _ = handle.emit(
                             "server-error",
                             format!("Port 1234 is in use. The sync server could not start."),
@@ -133,18 +139,19 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while running tauri application");
-
-        // Start the application event loop
-    app.run(move |_app_handle, event| {
-        // Intercept the close event
-        if let RunEvent::ExitRequested { .. } = event {
-            // Take the transmitter out of the Mutex and send the shutdown signal
-            if let Some(tx) = shutdown_tx.lock().unwrap().take() {
-                let _ = tx.send(()); 
+        .expect("error while running tauri application")
+        .run(move |_app_handle, event| {
+            // 2. Intercept the exit event
+            if let RunEvent::ExitRequested { .. } | RunEvent::Exit = event {
+                // Take the transmitter out of the Mutex and send the shutdown signal
+                if let Ok(mut lock) = shutdown_tx.lock() {
+                    if let Some(tx) = lock.take() {
+                        println!("🚪 [App] App exiting, sending shutdown signal to Hub...");
+                        let _ = tx.send(()); 
+                    }
+                }
             }
-        }
-    });
+        });
 }
 
 // 3. Extract the IP address before upgrading the connection
