@@ -37,12 +37,13 @@ import {
   StatCard,
   TableCard,
   StatusBadge,
-  type Service,
-  type Client,
-  seedClients,
-  seedServices,
   currency,
 } from "@/components/panel/panel-kit";
+import { type Client } from "@/db/validations";
+import { useDb } from "@/db/context";
+import { useLocalQuery } from "@/hooks/useLocalQuery";
+import { clientsTable, servicesTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const PERIODS = [
   { id: "7d", label: "Últimos 7 dias", days: 7 },
@@ -53,18 +54,43 @@ const PERIODS = [
 type PeriodId = (typeof PERIODS)[number]["id"];
 
 export default function Dashboard() {
+  const { db, orm } = useDb();
+
+  const servicesQuery = useMemo(() => {
+    return orm
+      .select({
+        id: servicesTable.id,
+        type: servicesTable.type,
+        description: servicesTable.description,
+        client_id: servicesTable.client_id,
+        status: servicesTable.status,
+        contract_date: servicesTable.contract_date,
+        price: servicesTable.price,
+        client_name: clientsTable.name, // live fetch from relation
+      })
+      .from(servicesTable)
+      .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
+      .toSQL();
+  }, [orm]);
+
+  const { data: servicesRaw } = useLocalQuery<any>(db, servicesQuery);
+  const services = useMemo(() => servicesRaw || [], [servicesRaw]);
+
+  const clientsQuery = useMemo(() => {
+    return orm.select().from(clientsTable).toSQL();
+  }, [orm]);
+  const { data: clients } = useLocalQuery<Client>(db, clientsQuery);
+
   const [period, setPeriod] = useState<PeriodId>("30d");
 
   const data = useMemo(() => {
-    const clients: Client[] = seedClients;
-    const services: Service[] = seedServices;
 
     const selected = PERIODS.find((p) => p.id === period) ?? PERIODS[1];
     const end = startOfDay(new Date());
     const start = addDays(end, -selected.days + 1);
 
     const servicesInRange = services.filter((s) => {
-      const d = startOfDay(parseISO(s.date));
+      const d = startOfDay(parseISO(s.contract_date));
       return isWithinInterval(d, { start, end });
     });
 
@@ -75,7 +101,7 @@ export default function Dashboard() {
       const d = addDays(start, i);
       const dayKey = format(d, "yyyy-MM-dd");
       const revenueDay = servicesInRange
-        .filter((s) => s.date === dayKey)
+        .filter((s) => s.contract_date === dayKey)
         .reduce((acc, s) => acc + s.price, 0);
       return {
         day: format(d, "MMM d"),
@@ -93,10 +119,12 @@ export default function Dashboard() {
       rangeLabel: `${format(start, "MMM d")} – ${format(end, "MMM d")}`,
       chart,
     };
-  }, [period]);
+  }, [period, clients, services]);
 
   const recent = useMemo(() => {
-    const list = [...data.services].sort((a, b) => (a.date < b.date ? 1 : -1));
+    const list = [...data.services].sort((a, b) =>
+      a.contract_date < b.contract_date ? 1 : -1,
+    );
     return list.slice(0, 6);
   }, [data.services]);
 
@@ -301,14 +329,14 @@ export default function Dashboard() {
                       className="truncate text-sm font-medium"
                       data-testid={`text-service-name-${s.id}`}
                     >
-                      {s.title}
+                      {s.type} {s.description && `- ${s.description}`}
                     </div>
                     <div
                       className="mt-0.5 truncate text-xs text-muted-foreground"
                       data-testid={`text-service-meta-${s.id}`}
                     >
-                      {s.clientName} &middot;{" "}
-                      {format(parseISO(s.date), "MMM d, yyyy")}
+                      {s.client_name} &middot;{" "}
+                      {format(parseISO(s.contract_date), "MMM d, yyyy")}
                     </div>
                   </div>
                   <div className="text-right">
@@ -381,7 +409,7 @@ export default function Dashboard() {
                         className="truncate text-xs text-muted-foreground"
                         data-testid={`text-quick-client-company-${c.id}`}
                       >
-                        {c.company || "Individual"}
+                        {c.observations || "Individual"}
                       </div>
                     </div>
                     <StatusBadge status={c.status} />
@@ -449,13 +477,13 @@ export default function Dashboard() {
                         className="truncate text-sm font-medium"
                         data-testid={`text-top-service-title-${s.id}`}
                       >
-                        {s.title}
+                        {s.type}
                       </div>
                       <div
                         className="truncate text-xs text-muted-foreground"
                         data-testid={`text-top-service-client-${s.id}`}
                       >
-                        {s.clientName}
+                        {s.client_name}
                       </div>
                     </div>
                     <StatusBadge status={s.status} />

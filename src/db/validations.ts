@@ -1,13 +1,32 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { clientsTable, servicesTable, serviceTypesArray } from "./schema";
+import { clientsTable, servicesTable } from "./schema";
+import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
+import { NIRFvalidator } from "@/lib/utils";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
-  name: (schema) => schema.pipe(z.string().min(1, "Name is required")),
-  status: (schema) => schema.pipe(z.enum(["Onboarding", "Active", "Inactive"])),
-  mei_type: (schema) =>
-    schema.pipe(z.enum(["Comercy", "Service", "Production", "Specific"])),
-});
+  name: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
+  email: () => z.email("E-mail inválido").or(z.literal("")),
+  phone: () => z.string().min(10, "Telefone inválido").or(z.literal("")),
+  cpf: () =>
+    z
+      .string()
+      .refine((val) => val === "" || cpfValidator.isValid(val), "CPF Inválido")
+      .or(z.literal("")),
+  cnpj: () =>
+    z
+      .string()
+      .refine(
+        (val) => val === "" || cnpjValidator.isValid(val),
+        "CNPJ Inválido",
+      )
+      .or(z.literal("")),
+  nirf: () =>
+    z
+      .string()
+      .refine((val) => val === "" || NIRFvalidator(val), "NIRF inválido")
+      .or(z.literal("")),
+}).omit({ id: true, created_at: true, updated_at: true });
 
 export const selectClientSchema = createSelectSchema(clientsTable);
 
@@ -15,16 +34,10 @@ export type Client = z.infer<typeof selectClientSchema>;
 export type NewClient = z.infer<typeof insertClientSchema>;
 
 export const insertServiceSchema = createInsertSchema(servicesTable, {
-  type: (schema) => schema.pipe(z.enum(serviceTypesArray)),
-  status: (schema) =>
-    schema.pipe(z.enum(["Draft", "In progress", "Delivered", "Invoiced"])),
-  client_id: (schema) =>
-    schema.pipe(z.string().min(1, "Client ID is required")),
-  client_name: (schema) =>
-    schema.pipe(z.string().min(1, "Client name is required")),
+  client_id: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
   price: (schema) =>
-    schema.pipe(z.number().min(0, "Price must be greater than or equal to 0")),
-});
+    schema.pipe(z.number().min(0, "Preço deve ser maior ou igual a 0")),
+}).omit({ id: true, created_at: true, updated_at: true });
 
 export const selectServiceSchema = createSelectSchema(servicesTable);
 
