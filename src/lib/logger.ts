@@ -8,7 +8,7 @@ export const logAction = async (
     module: string;
     status?: "Success" | "Error" | "Warning";
     device?: string;
-  }
+  },
 ) => {
   try {
     await orm.insert(logsTable).values({
@@ -16,7 +16,7 @@ export const logAction = async (
       action: data.action,
       module: data.module,
       status: data.status || "Success",
-      device: data.device || (typeof window !== "undefined" ? window.navigator.userAgent : "Unknown"),
+      device: data.device || "Unknown",
       created_at: new Date().toISOString(),
     });
   } catch (err) {

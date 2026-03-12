@@ -11,6 +11,7 @@ use std::{collections::HashMap, net::{IpAddr, SocketAddr}, sync::{Arc, Mutex}, t
 use tokio::{net::TcpStream, sync::{broadcast, oneshot}, time::timeout};
 use tauri::{Emitter, RunEvent};
 use uuid::Uuid;
+use serde_json;
 
 // 1. The state now uses a per-connection UUID as the unique identifier.
 //    - The broadcast channel sends a (sender_uuid, msg) tuple.
@@ -174,23 +175,33 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, clie
     // Subscribe EARLY so we don't miss the initial presence broadcast!
     let mut rx = state.tx.subscribe();
 
+    let (mut sender, mut receiver) = socket.split();
+
+    // --- IDENTITY EVENT: Tell the client who they are ---
+    let ident_msg = format!(
+        r#"{{"type": "identity", "payload": "{}"}}"#,
+        client_uuid
+    );
+    let _ = sender.send(Message::Text(ident_msg)).await;
+
     // --- CONNECTION EVENT: Add to roster and broadcast ---
     {
         // Add the new client to our map.
         let mut clients = state.connected_clients.lock().unwrap();
         clients.insert(client_uuid, ip.clone());
 
-        // Collect all connected IPs to broadcast presence.
-        let ip_list: Vec<&String> = clients.values().collect();
+        // Collect all connected clients for the roster.
+        let roster: Vec<serde_json::Value> = clients.iter()
+            .map(|(id, ip)| serde_json::json!({ "id": id, "ip": ip }))
+            .collect();
+
         let roster_msg = format!(
-            r#"{{"type": "presence", "payload": {:?}}}"#,
-            ip_list
+            r#"{{"type": "presence", "payload": {}}}"#,
+            serde_json::to_string(&roster).unwrap()
         );
         // We use a nil UUID for server-sent messages so echo cancellation doesn't block it.
         let _ = state.tx.send((Uuid::nil(), roster_msg));
     }
-
-    let (mut sender, mut receiver) = socket.split();
 
     // TASK A: Sending DOWN to the client
     let my_uuid = client_uuid;
@@ -229,11 +240,14 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, clie
         let mut clients = state.connected_clients.lock().unwrap();
         clients.remove(&client_uuid);
 
-        // Collect the remaining IPs to broadcast the new presence state.
-        let ip_list: Vec<&String> = clients.values().collect();
+        // Collect all connected clients for the roster.
+        let roster: Vec<serde_json::Value> = clients.iter()
+            .map(|(id, ip)| serde_json::json!({ "id": id, "ip": ip }))
+            .collect();
+
         let roster_msg = format!(
-            r#"{{"type": "presence", "payload": {:?}}}"#,
-            ip_list
+            r#"{{"type": "presence", "payload": {}}}"#,
+            serde_json::to_string(&roster).unwrap()
         );
         let _ = state.tx.send((Uuid::nil(), roster_msg));
     }

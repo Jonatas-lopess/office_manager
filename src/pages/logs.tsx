@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Search,
   Laptop,
@@ -98,7 +100,7 @@ export default function LogsPage() {
                         className="text-xs text-muted-foreground"
                         data-testid={`text-log-time-${log.id}`}
                       >
-                        {log.created_at}
+                        {format(new Date(log.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </span>
                     </div>
                   </div>

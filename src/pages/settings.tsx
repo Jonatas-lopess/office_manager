@@ -5,14 +5,11 @@ import { Card } from "@/components/ui/card";
 
 // import { Switch } from "@/components/ui/switch";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
-import { ConnectionStatus } from "@/hooks/useSyncBridge";
+import { useSync } from "@/db/sync-context";
 import packageJson from "../../package.json";
 
-type SettingsProps = {
-  connectedPeers: string[];
-  connectionStatus: ConnectionStatus;
-};
-export default function SettingsPage({ connectedPeers, connectionStatus }: SettingsProps) {
+export default function SettingsPage() {
+  const { myId, connectedPeers, connectionStatus } = useSync();
   const [dark, setDark] = useState(false);
   // const [compact, setCompact] = useState(false);
 
@@ -148,9 +145,9 @@ export default function SettingsPage({ connectedPeers, connectionStatus }: Setti
                 Nenhum dispositivo conectado.
               </div>
             ) : (
-              connectedPeers.map((peerIp, idx) => (
+              connectedPeers.map((peer, idx) => (
                 <div
-                  key={peerIp}
+                  key={peer.id}
                   className="flex items-center justify-between"
                   data-testid={`row-device-${idx + 1}`}
                 >
@@ -159,10 +156,13 @@ export default function SettingsPage({ connectedPeers, connectionStatus }: Setti
                       <div className="h-2 w-2 rounded-full bg-emerald-500" />
                       <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
                     </div>
-                    <div className="font-medium">Dispositivo {idx + 1}</div>
+                    <div className="font-medium">
+                      Dispositivo {idx + 1}
+                      {peer.id === myId && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Me</span>}
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground font-mono">
-                    {peerIp}
+                    {peer.ip}
                   </div>
                 </div>
               ))

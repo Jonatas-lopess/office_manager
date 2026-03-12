@@ -53,6 +53,11 @@ export type ConnectionStatus =
   | "connected"
   | "reconnecting";
 
+export interface Peer {
+  id: string;
+  ip: string;
+}
+
 export function useSyncBridge(
   ctx: DB,
   initialHubUrl: string,
@@ -66,7 +71,8 @@ export function useSyncBridge(
   );
   const isUnmountingRef = useRef(false);
 
-  const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
+  const [myId, setMyId] = useState<string | null>(null);
+  const [connectedPeers, setConnectedPeers] = useState<Peer[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
 
@@ -198,6 +204,12 @@ export function useSyncBridge(
 
     ws.onmessage = async (event) => {
       const message = deserializeMsg(event.data);
+
+      if (message.type === "identity") {
+        console.log("🆔 [Identity] My ID is:", message.payload);
+        setMyId(message.payload);
+        return;
+      }
 
       if (message.type === "presence") {
         console.log("👥 [Roster Update]:", message.payload);
@@ -346,5 +358,5 @@ export function useSyncBridge(
     };
   }, []);
 
-  return { connectedPeers, connectionStatus };
+  return { myId, connectedPeers, connectionStatus };
 }
