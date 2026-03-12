@@ -68,16 +68,17 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
     }
 
     let mut found_ip = None;
-    for task in &tasks {
-        if let Ok(Some(ip)) = task.await {
-            found_ip = Some(ip);
-            break;
-        }
-    }
-
-    // Fix: Abort all remaining tasks to prevent background leakage
+    // We iterate by value to await, but this consumes the vector.
+    // So we'll move the handles into a temporary container if we want to abort the rest.
     for task in tasks {
-        task.abort();
+        if found_ip.is_none() {
+            if let Ok(Some(ip)) = task.await {
+                found_ip = Some(ip);
+            }
+        } else {
+            // Already found one, abort the rest
+            task.abort();
+        }
     }
 
     Ok(found_ip)
