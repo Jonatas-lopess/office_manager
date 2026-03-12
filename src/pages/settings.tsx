@@ -157,8 +157,12 @@ export default function SettingsPage() {
                       <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
                     </div>
                     <div className="font-medium">
-                      Dispositivo {idx + 1}
-                      {peer.id === myId && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Me</span>}
+                      PC {idx + 1}
+                      {peer.id === myId && (
+                        <span className="ml-2 text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border border-zinc-200">
+                          Este dispositivo
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground font-mono">
@@ -229,7 +233,8 @@ export default function SettingsPage() {
                   <Check className="h-4 w-4 text-emerald-500" />
                   Sincronizado
                 </div>
-              ) : connectionStatus === "connecting" || connectionStatus === "reconnecting" ? (
+              ) : connectionStatus === "connecting" ||
+                connectionStatus === "reconnecting" ? (
                 <div
                   className="inline-flex items-center gap-2 text-amber-500"
                   data-testid="text-workspace-changes-value"
