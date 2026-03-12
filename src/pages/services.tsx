@@ -12,8 +12,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +65,7 @@ type ServiceStatus = Service["status"];
 
 export default function ServicesPage() {
   const { db, orm } = useDb();
-  const { myId } = useSync();
+  const { myId, connectedPeers } = useSync();
   const { toast } = useToast();
   const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
 
@@ -62,7 +73,9 @@ export default function ServicesPage() {
   const [status, setStatus] = useState<"all" | ServiceStatus>("all");
 
   const [selectedService, setSelectedService] = useState<any | null>(null);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create");
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">(
+    "create",
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -120,7 +133,7 @@ export default function ServicesPage() {
       action: `Serviço excluído: ${type}`,
       module: "Serviços",
       status: "Warning",
-      device: myId || undefined,
+      device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
     });
     toast({
       title: "Serviço excluído",
@@ -248,7 +261,7 @@ export default function ServicesPage() {
                     >
                       {currency(s.price)}
                     </div>
-                                     <div
+                    <div
                       className="flex items-center gap-2"
                       data-testid={`group-service-actions-${s.id}`}
                     >
@@ -279,7 +292,8 @@ export default function ServicesPage() {
                       >
                         Delete
                       </Button>
-                    </div>     </div>
+                    </div>{" "}
+                  </div>
                 </div>
               </div>
             ))}
@@ -339,18 +353,23 @@ export default function ServicesPage() {
             await logAction(orm, {
               action: `Novo serviço criado: ${svc.type}`,
               module: "Serviços",
-              device: myId || undefined,
+              device:
+                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
               title: "Serviço criado",
               description: `O serviço ${svc.type} foi registrado com sucesso.`,
             });
           } else if (dialogMode === "edit" && selectedService) {
-            await orm.update(servicesTable).set(svc).where(eq(servicesTable.id, selectedService.id));
+            await orm
+              .update(servicesTable)
+              .set(svc)
+              .where(eq(servicesTable.id, selectedService.id));
             await logAction(orm, {
               action: `Serviço atualizado: ${svc.type}`,
               module: "Serviços",
-              device: myId || undefined,
+              device:
+                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
               title: "Serviço atualizado",
@@ -362,14 +381,19 @@ export default function ServicesPage() {
         }}
       />
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Serviço</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o serviço{" "}
               <span className="font-semibold text-foreground">
-                {selectedService?.type} {selectedService?.description && `- ${selectedService.description}`}
+                {selectedService?.type}{" "}
+                {selectedService?.description &&
+                  `- ${selectedService.description}`}
               </span>
               ? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
@@ -453,7 +477,12 @@ function ServiceDialog({
     return orm
       .select({ description: servicesTable.description })
       .from(servicesTable)
-      .where(and(isNotNull(servicesTable.description), ne(servicesTable.description, "")))
+      .where(
+        and(
+          isNotNull(servicesTable.description),
+          ne(servicesTable.description, ""),
+        ),
+      )
       .groupBy(servicesTable.description)
       .toSQL();
   }, [orm]);
@@ -493,7 +522,8 @@ function ServiceDialog({
           status: initialData.status || "Draft",
           price: initialData.price || 0,
           description: initialData.description || "",
-          contract_date: initialData.contract_date || format(new Date(), "yyyy-MM-dd"),
+          contract_date:
+            initialData.contract_date || format(new Date(), "yyyy-MM-dd"),
           final_date: initialData.final_date || "",
           payment_date: initialData.payment_date || "",
           payment_method: initialData.payment_method || "",
@@ -594,52 +624,93 @@ function ServiceDialog({
         >
           {/* TIER 1: CORE FIELDS */}
           <div className="grid gap-2" data-testid="field-service-client">
-            <Label htmlFor="service-client" data-testid="label-service-client">Cliente *</Label>
-            <Select disabled={isView} value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
-              <SelectTrigger id="service-client" data-testid="select-service-client">
+            <Label htmlFor="service-client" data-testid="label-service-client">
+              Cliente *
+            </Label>
+            <Select
+              disabled={isView}
+              value={form.watch("client_id")}
+              onValueChange={(v) => form.setValue("client_id", v)}
+            >
+              <SelectTrigger
+                id="service-client"
+                data-testid="select-service-client"
+              >
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id} data-testid={`option-service-client-${c.id}`}>
+                  <SelectItem
+                    key={c.id}
+                    value={c.id}
+                    data-testid={`option-service-client-${c.id}`}
+                  >
                     {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {form.formState.errors.client_id && (
-              <span className="text-xs text-destructive">{form.formState.errors.client_id.message}</span>
+              <span className="text-xs text-destructive">
+                {form.formState.errors.client_id.message}
+              </span>
             )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="grid gap-2 sm:col-span-2" data-testid="field-service-type">
-              <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
-              <Select disabled={isView} value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
-                <SelectTrigger id="service-type" data-testid="select-service-type" className="overflow-hidden">
+            <div
+              className="grid gap-2 sm:col-span-2"
+              data-testid="field-service-type"
+            >
+              <Label htmlFor="service-type" data-testid="label-service-type">
+                Tipo de Serviço *
+              </Label>
+              <Select
+                disabled={isView}
+                value={form.watch("type") ?? undefined}
+                onValueChange={(v) => form.setValue("type", v as any)}
+              >
+                <SelectTrigger
+                  id="service-type"
+                  data-testid="select-service-type"
+                  className="overflow-hidden"
+                >
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
                   {serviceTypesArray.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {form.formState.errors.type && (
-                <span className="text-xs text-destructive">{form.formState.errors.type.message}</span>
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.type.message}
+                </span>
               )}
             </div>
 
             <div className="grid gap-2" data-testid="field-service-price">
-              <Label htmlFor="service-price" data-testid="label-service-price">Valor Base (R$)</Label>
-              <Input disabled={isView} id="service-price" type="number" {...form.register("price", { valueAsNumber: true })} inputMode="decimal" data-testid="input-service-price" />
+              <Label htmlFor="service-price" data-testid="label-service-price">
+                Valor Base (R$)
+              </Label>
+              <Input
+                disabled={isView}
+                id="service-price"
+                type="number"
+                {...form.register("price", { valueAsNumber: true })}
+                inputMode="decimal"
+                data-testid="input-service-price"
+              />
               {form.formState.errors.price && (
-                <span className="text-xs text-destructive">{form.formState.errors.price.message}</span>
+                <span className="text-xs text-destructive">
+                  {form.formState.errors.price.message}
+                </span>
               )}
             </div>
           </div>
-
-
 
           <div className="grid gap-2" data-testid="field-service-desc">
             <Label htmlFor="service-description">Descrição Resumida</Label>
@@ -651,7 +722,10 @@ function ServiceDialog({
                   role="combobox"
                   disabled={isView}
                   aria-expanded={openDesc}
-                  className={cn("w-full justify-between font-normal", !form.watch("description") && "text-muted-foreground")}
+                  className={cn(
+                    "w-full justify-between font-normal",
+                    !form.watch("description") && "text-muted-foreground",
+                  )}
                 >
                   {form.watch("description") || "Notas rápidas sobre a entrega"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -659,17 +733,21 @@ function ServiceDialog({
               </PopoverTrigger>
               <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
-                  <CommandInput 
-                    placeholder="Buscar ou adicionar nova..." 
+                  <CommandInput
+                    placeholder="Buscar ou adicionar nova..."
                     value={searchDesc}
                     onValueChange={(val) => {
                       setSearchDesc(val);
-                      form.setValue("description", val, { shouldValidate: true });
+                      form.setValue("description", val, {
+                        shouldValidate: true,
+                      });
                     }}
                   />
                   <CommandList>
                     <CommandEmpty>
-                      <span className="text-muted-foreground text-sm pl-2">Pressione Enter para usar &quot;{searchDesc}&quot;</span>
+                      <span className="text-muted-foreground text-sm pl-2">
+                        Pressione Enter para usar &quot;{searchDesc}&quot;
+                      </span>
                     </CommandEmpty>
                     <CommandGroup>
                       {historicDescriptions.map((desc: string) => (
@@ -677,7 +755,9 @@ function ServiceDialog({
                           key={desc}
                           value={desc}
                           onSelect={(currentValue) => {
-                            form.setValue("description", currentValue, { shouldValidate: true });
+                            form.setValue("description", currentValue, {
+                              shouldValidate: true,
+                            });
                             setSearchDesc("");
                             setOpenDesc(false);
                           }}
@@ -685,7 +765,9 @@ function ServiceDialog({
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              form.watch("description") === desc ? "opacity-100" : "opacity-0"
+                              form.watch("description") === desc
+                                ? "opacity-100"
+                                : "opacity-0",
                             )}
                           />
                           {desc}
@@ -697,13 +779,23 @@ function ServiceDialog({
               </PopoverContent>
             </Popover>
             {form.formState.errors.description && (
-              <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
+              <span className="text-xs text-destructive">
+                {form.formState.errors.description.message}
+              </span>
             )}
           </div>
 
-          <Accordion.Root type="single" collapsible defaultValue="additional" className="w-full space-y-4">
+          <Accordion.Root
+            type="single"
+            collapsible
+            defaultValue="additional"
+            className="w-full space-y-4"
+          >
             {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item value="additional" className="border rounded-md px-4 py-2 bg-muted/20">
+            <Accordion.Item
+              value="additional"
+              className="border rounded-md px-4 py-2 bg-muted/20"
+            >
               <Accordion.Header className="flex">
                 <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
                   Status & Contrato
@@ -711,45 +803,111 @@ function ServiceDialog({
                 </Accordion.Trigger>
               </Accordion.Header>
               <Accordion.Content className="pt-2 pb-4 space-y-4">
-                
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-service-status">
-                    <Label htmlFor="service-status" data-testid="label-service-status">Status do Serviço</Label>
-                    <Select disabled={isView} value={form.watch("status")} onValueChange={(v) => form.setValue("status", v as ServiceStatus)}>
-                      <SelectTrigger id="service-status" data-testid="select-new-service-status">
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-status"
+                  >
+                    <Label
+                      htmlFor="service-status"
+                      data-testid="label-service-status"
+                    >
+                      Status do Serviço
+                    </Label>
+                    <Select
+                      disabled={isView}
+                      value={form.watch("status")}
+                      onValueChange={(v) =>
+                        form.setValue("status", v as ServiceStatus)
+                      }
+                    >
+                      <SelectTrigger
+                        id="service-status"
+                        data-testid="select-new-service-status"
+                      >
                         <SelectValue placeholder="Escolha o status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Draft" data-testid="option-new-service-status-Draft">Rascunho</SelectItem>
-                        <SelectItem value="In progress" data-testid="option-new-service-status-In-progress">Em andamento</SelectItem>
-                        <SelectItem value="Delivered" data-testid="option-new-service-status-Delivered">Entregue</SelectItem>
-                        <SelectItem value="Invoiced" data-testid="option-new-service-status-Invoiced">Faturado</SelectItem>
+                        <SelectItem
+                          value="Draft"
+                          data-testid="option-new-service-status-Draft"
+                        >
+                          Rascunho
+                        </SelectItem>
+                        <SelectItem
+                          value="In progress"
+                          data-testid="option-new-service-status-In-progress"
+                        >
+                          Em andamento
+                        </SelectItem>
+                        <SelectItem
+                          value="Delivered"
+                          data-testid="option-new-service-status-Delivered"
+                        >
+                          Entregue
+                        </SelectItem>
+                        <SelectItem
+                          value="Invoiced"
+                          data-testid="option-new-service-status-Invoiced"
+                        >
+                          Faturado
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div className="grid gap-2" data-testid="field-service-contract-date">
-                    <Label htmlFor="service-contract-date">Data de Contrato</Label>
-                    <Input disabled={isView} id="service-contract-date" type="date" {...form.register("contract_date")} />
+
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-contract-date"
+                  >
+                    <Label htmlFor="service-contract-date">
+                      Data de Contrato
+                    </Label>
+                    <Input
+                      disabled={isView}
+                      id="service-contract-date"
+                      type="date"
+                      {...form.register("contract_date")}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-service-final-date">
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-final-date"
+                  >
                     <Label htmlFor="service-final-date">Data de Entrega</Label>
-                    <Input disabled={isView} id="service-final-date" type="date" {...form.register("final_date")} />
+                    <Input
+                      disabled={isView}
+                      id="service-final-date"
+                      type="date"
+                      {...form.register("final_date")}
+                    />
                   </div>
-                  <div className="grid gap-2" data-testid="field-service-payment-date">
-                    <Label htmlFor="service-payment-date">Data de Pagamento</Label>
-                    <Input disabled={isView} id="service-payment-date" type="date" {...form.register("payment_date")} />
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-payment-date"
+                  >
+                    <Label htmlFor="service-payment-date">
+                      Data de Pagamento
+                    </Label>
+                    <Input
+                      disabled={isView}
+                      id="service-payment-date"
+                      type="date"
+                      {...form.register("payment_date")}
+                    />
                   </div>
                 </div>
-
               </Accordion.Content>
             </Accordion.Item>
 
             {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item value="advanced" className="border rounded-md px-4 py-2 bg-muted/20">
+            <Accordion.Item
+              value="advanced"
+              className="border rounded-md px-4 py-2 bg-muted/20"
+            >
               <Accordion.Header className="flex">
                 <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
                   Dados Financeiros e Prazos
@@ -757,27 +915,51 @@ function ServiceDialog({
                 </Accordion.Trigger>
               </Accordion.Header>
               <Accordion.Content className="pt-2 pb-4 space-y-4">
-                
-
-
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-service-payment-method">
-                    <Label htmlFor="service-payment-method">Método de Pagamento</Label>
-                    <Input disabled={isView} id="service-payment-method" {...form.register("payment_method")} placeholder="Ex: Pix, Boleto..." />
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-payment-method"
+                  >
+                    <Label htmlFor="service-payment-method">
+                      Método de Pagamento
+                    </Label>
+                    <Input
+                      disabled={isView}
+                      id="service-payment-method"
+                      {...form.register("payment_method")}
+                      placeholder="Ex: Pix, Boleto..."
+                    />
                   </div>
-                  <div className="grid gap-2" data-testid="field-service-installments">
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-service-installments"
+                  >
                     <Label htmlFor="service-installments">Nº de Parcelas</Label>
-                    <Input disabled={isView} id="service-installments" type="number" {...form.register("installments", { valueAsNumber: true })} placeholder="1" />
+                    <Input
+                      disabled={isView}
+                      id="service-installments"
+                      type="number"
+                      {...form.register("installments", {
+                        valueAsNumber: true,
+                      })}
+                      placeholder="1"
+                    />
                   </div>
                 </div>
 
-
-
-                <div className="grid gap-2" data-testid="field-service-observations">
-                  <Label htmlFor="service-observations">Observações Livres</Label>
-                  <Input id="service-observations" {...form.register("observations")} placeholder="Notas estendidas ou links..." />
+                <div
+                  className="grid gap-2"
+                  data-testid="field-service-observations"
+                >
+                  <Label htmlFor="service-observations">
+                    Observações Livres
+                  </Label>
+                  <Input
+                    id="service-observations"
+                    {...form.register("observations")}
+                    placeholder="Notas estendidas ou links..."
+                  />
                 </div>
-
               </Accordion.Content>
             </Accordion.Item>
           </Accordion.Root>

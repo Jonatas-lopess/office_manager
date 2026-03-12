@@ -51,7 +51,7 @@ type ClientStatus = Client["status"];
 
 export default function ClientsPage() {
   const { db, orm } = useDb();
-  const { myId } = useSync();
+  const { myId, connectedPeers } = useSync();
   const { toast } = useToast();
 
   const clientsQuery = useMemo(() => {
@@ -63,7 +63,9 @@ export default function ClientsPage() {
   const [status, setStatus] = useState<"all" | ClientStatus>("all");
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create");
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">(
+    "create",
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -87,7 +89,7 @@ export default function ClientsPage() {
       action: `Cliente excluído: ${name}`,
       module: "Clientes",
       status: "Warning",
-      device: myId || undefined,
+      device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
     });
     toast({
       title: "Cliente excluído",
@@ -258,18 +260,23 @@ export default function ClientsPage() {
             await logAction(orm, {
               action: `Novo cliente cadastrado: ${client.name}`,
               module: "Clientes",
-              device: myId || undefined,
+              device:
+                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
               title: "Cliente criado",
               description: `O cliente ${client.name} foi cadastrado com sucesso.`,
             });
           } else if (dialogMode === "edit" && selectedClient) {
-            await orm.update(clientsTable).set(client).where(eq(clientsTable.id, selectedClient.id));
+            await orm
+              .update(clientsTable)
+              .set(client)
+              .where(eq(clientsTable.id, selectedClient.id));
             await logAction(orm, {
               action: `Cliente atualizado: ${client.name}`,
               module: "Clientes",
-              device: myId || undefined,
+              device:
+                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
               title: "Cliente atualizado",
@@ -281,13 +288,17 @@ export default function ClientsPage() {
         }}
       />
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o cliente{" "}
-              <span className="font-semibold">{selectedClient?.name}</span>? Esta ação não pode ser desfeita.
+              <span className="font-semibold">{selectedClient?.name}</span>?
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -374,7 +385,7 @@ function ClientDialog({
 
   const onSubmit = async (data: NewClientType) => {
     if (isView) return;
-    
+
     const client: Client = {
       ...(initialData || {}),
       ...data,
