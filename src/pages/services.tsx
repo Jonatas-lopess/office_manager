@@ -42,6 +42,7 @@ import {
   NewService as NewServiceType,
 } from "@/db/validations";
 import { useDb } from "@/db/context";
+import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
@@ -53,6 +54,7 @@ type ServiceStatus = Service["status"];
 
 export default function ServicesPage() {
   const { db, orm } = useDb();
+  const { myId } = useSync();
   const { toast } = useToast();
   const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
 
@@ -118,6 +120,7 @@ export default function ServicesPage() {
       action: `Serviço excluído: ${type}`,
       module: "Serviços",
       status: "Warning",
+      device: myId || undefined,
     });
     toast({
       title: "Serviço excluído",
@@ -336,6 +339,7 @@ export default function ServicesPage() {
             await logAction(orm, {
               action: `Novo serviço criado: ${svc.type}`,
               module: "Serviços",
+              device: myId || undefined,
             });
             toast({
               title: "Serviço criado",
@@ -346,6 +350,7 @@ export default function ServicesPage() {
             await logAction(orm, {
               action: `Serviço atualizado: ${svc.type}`,
               module: "Serviços",
+              device: myId || undefined,
             });
             toast({
               title: "Serviço atualizado",

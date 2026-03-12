@@ -38,6 +38,7 @@ import {
   NewClient as NewClientType,
 } from "@/db/validations";
 import { useDb } from "@/db/context";
+import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -50,6 +51,7 @@ type ClientStatus = Client["status"];
 
 export default function ClientsPage() {
   const { db, orm } = useDb();
+  const { myId } = useSync();
   const { toast } = useToast();
 
   const clientsQuery = useMemo(() => {
@@ -85,6 +87,7 @@ export default function ClientsPage() {
       action: `Cliente excluído: ${name}`,
       module: "Clientes",
       status: "Warning",
+      device: myId || undefined,
     });
     toast({
       title: "Cliente excluído",
@@ -255,6 +258,7 @@ export default function ClientsPage() {
             await logAction(orm, {
               action: `Novo cliente cadastrado: ${client.name}`,
               module: "Clientes",
+              device: myId || undefined,
             });
             toast({
               title: "Cliente criado",
@@ -265,6 +269,7 @@ export default function ClientsPage() {
             await logAction(orm, {
               action: `Cliente atualizado: ${client.name}`,
               module: "Clientes",
+              device: myId || undefined,
             });
             toast({
               title: "Cliente atualizado",
