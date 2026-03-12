@@ -94,14 +94,16 @@ export default function Dashboard() {
       return isWithinInterval(d, { start, end });
     });
 
-    const revenue = servicesInRange.reduce((acc, s) => acc + s.price, 0);
+    const revenue = servicesInRange
+      .filter((s) => s.status === "Invoiced")
+      .reduce((acc, s) => acc + s.price, 0);
     const profit = revenue;
 
     const chart = Array.from({ length: selected.days }, (_, i) => {
       const d = addDays(start, i);
       const dayKey = format(d, "yyyy-MM-dd");
       const revenueDay = servicesInRange
-        .filter((s) => s.contract_date === dayKey)
+        .filter((s) => s.contract_date === dayKey && s.status === "Invoiced")
         .reduce((acc, s) => acc + s.price, 0);
       return {
         day: format(d, "MMM d"),
@@ -194,14 +196,16 @@ export default function Dashboard() {
         >
           <StatCard
             label="Clientes"
-            value={data.clients.length}
+            value={data.clients.filter((c) => c.status === "Active").length}
             hint="Ativos no sistema"
             icon={<Users className="h-4 w-4" />}
             dataTestId="stat-clients"
           />
           <StatCard
             label="Serviços"
-            value={data.servicesInRange.length}
+            value={
+              data.servicesInRange.filter((s) => s.status !== "Draft").length
+            }
             hint={data.rangeLabel}
             icon={<Layers className="h-4 w-4" />}
             dataTestId="stat-services"

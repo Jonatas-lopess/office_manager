@@ -89,6 +89,11 @@ export default function ServicesPage() {
         status: servicesTable.status,
         contract_date: servicesTable.contract_date,
         price: servicesTable.price,
+        final_date: servicesTable.final_date,
+        payment_date: servicesTable.payment_date,
+        payment_method: servicesTable.payment_method,
+        installments: servicesTable.installments,
+        observations: servicesTable.observations,
         client_name: sql<string>`${clientsTable.name}`.as("client_name"),
       })
       .from(servicesTable)
@@ -120,10 +125,13 @@ export default function ServicesPage() {
   const { data: rawServices } = useLocalQuery<any>(db, servicesQuery);
   const services = useMemo(() => rawServices || [], [rawServices]);
 
-  const totalRevenue = services.reduce(
-    (acc: number, s: any) => acc + s.price,
-    0,
-  );
+  const totalRevenue = services
+    .filter((s: any) => s.status === "Invoiced")
+    .reduce((acc: number, s: any) => acc + s.price, 0);
+
+  const totalToReceive = services
+    .filter((s: any) => s.status !== "Invoiced" && s.status !== "Draft")
+    .reduce((acc: number, s: any) => acc + s.price, 0);
 
   const handleDelete = async () => {
     if (!selectedService) return;
@@ -327,9 +335,14 @@ export default function ServicesPage() {
                 testId="services"
               />
               <SummaryRow
-                label="Renda"
+                label="Renda (Faturado)"
                 value={currency(totalRevenue)}
                 testId="income"
+              />
+              <SummaryRow
+                label="A receber"
+                value={currency(totalToReceive)}
+                testId="to-receive"
               />
             </div>
             <div
@@ -958,6 +971,7 @@ function ServiceDialog({
                     id="service-observations"
                     {...form.register("observations")}
                     placeholder="Notas estendidas ou links..."
+                    disabled={isView}
                   />
                 </div>
               </Accordion.Content>
