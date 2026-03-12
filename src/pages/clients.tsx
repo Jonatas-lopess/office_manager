@@ -31,8 +31,10 @@ import {
 import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
+import { logAction } from "@/lib/logger";
 
 type ClientStatus = Client["status"];
 
@@ -59,6 +61,17 @@ export default function ClientsPage() {
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [items, q, status]);
 
+  const handleDelete = async (id: string, name: string) => {
+    if (confirm(`Deseja realmente excluir o cliente ${name}?`)) {
+      await orm.delete(clientsTable).where(eq(clientsTable.id, id));
+      await logAction(orm, {
+        action: `Cliente excluído: ${name}`,
+        module: "Clientes",
+        status: "Warning",
+      });
+    }
+  };
+
   return (
     <AppShell
       title="Clientes"
@@ -68,6 +81,10 @@ export default function ClientsPage() {
           onCreate={async (client) => {
             console.log("[Schema] Creating new client...");
             await orm.insert(clientsTable).values(client);
+            await logAction(orm, {
+              action: `Novo cliente cadastrado: ${client.name}`,
+              module: "Clientes",
+            });
           }}
         />
       }
@@ -172,6 +189,14 @@ export default function ClientsPage() {
                   data-testid={`button-client-edit-${c.id}`}
                 >
                   Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(c.id, c.name)}
+                  data-testid={`button-client-delete-${c.id}`}
+                >
+                  Delete
                 </Button>
               </div>
             </div>

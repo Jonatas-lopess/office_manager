@@ -37,6 +37,7 @@ import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
+import { logAction } from "@/lib/logger";
 
 type ServiceStatus = Service["status"];
 
@@ -93,6 +94,17 @@ export default function ServicesPage() {
     0,
   );
 
+  const handleDelete = async (id: string, type: string) => {
+    if (confirm(`Deseja realmente excluir o serviço: ${type}?`)) {
+      await orm.delete(servicesTable).where(eq(servicesTable.id, id));
+      await logAction(orm, {
+        action: `Serviço excluído: ${type}`,
+        module: "Serviços",
+        status: "Warning",
+      });
+    }
+  };
+
   return (
     <AppShell
       title="Serviços"
@@ -102,6 +114,10 @@ export default function ServicesPage() {
           onCreate={async (svc) => {
             console.log("[Schema] Creating new service...");
             await orm.insert(servicesTable).values(svc);
+            await logAction(orm, {
+              action: `Novo serviço criado: ${svc.type}`,
+              module: "Serviços",
+            });
           }}
         />
       }
@@ -222,6 +238,14 @@ export default function ServicesPage() {
                       data-testid={`button-service-edit-${s.id}`}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(s.id, s.type)}
+                      data-testid={`button-service-delete-${s.id}`}
+                    >
+                      Delete
                     </Button>
                   </div>
                 </div>

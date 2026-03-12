@@ -83,3 +83,16 @@ export const servicesTable = sqliteTable(
   },
   (table) => [index("client_id_idx").on(table.client_id)],
 );
+
+export const logsTable = sqliteTable("logs", {
+  id: text("id").primaryKey(),
+  action: text("action").notNull(),
+  module: text("module").notNull(),
+  device: text("device"),
+  status: text("status", {
+    enum: ["Success", "Error", "Warning"],
+  })
+    .notNull()
+    .default("Success"),
+  created_at: text("created_at").notNull().default(""),
+});

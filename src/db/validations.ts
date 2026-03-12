@@ -1,6 +1,6 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { clientsTable, servicesTable } from "./schema";
+import { clientsTable, logsTable, servicesTable } from "./schema";
 import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { NIRFvalidator } from "@/lib/utils";
 
@@ -43,3 +43,14 @@ export const selectServiceSchema = createSelectSchema(servicesTable);
 
 export type Service = z.infer<typeof selectServiceSchema>;
 export type NewService = z.infer<typeof insertServiceSchema>;
+
+export const insertLogSchema = createInsertSchema(logsTable, {
+  action: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
+  module: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
+  status: (schema) => schema.pipe(z.enum(["Success", "Error", "Warning"])),
+}).omit({ id: true, created_at: true });
+
+export const selectLogSchema = createSelectSchema(logsTable);
+
+export type Log = z.infer<typeof selectLogSchema>;
+export type NewLog = z.infer<typeof insertLogSchema>;
