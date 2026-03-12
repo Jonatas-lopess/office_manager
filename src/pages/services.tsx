@@ -35,7 +35,7 @@ import {
 import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
-import { and, desc, eq, like, or, isNotNull, ne } from "drizzle-orm";
+import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
 
 type ServiceStatus = Service["status"];
@@ -57,7 +57,7 @@ export default function ServicesPage() {
         status: servicesTable.status,
         contract_date: servicesTable.contract_date,
         price: servicesTable.price,
-        client_name: clientsTable.name,
+        client_name: sql<string>`${clientsTable.name}`.as("client_name"),
       })
       .from(servicesTable)
       .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id));
@@ -141,15 +141,23 @@ export default function ServicesPage() {
                   >
                     Todos os status
                   </SelectItem>
-                  {STATUS.map((s) => (
-                    <SelectItem
-                      key={s}
-                      value={s}
-                      data-testid={`option-service-status-${s}`}
-                    >
-                      {s}
-                    </SelectItem>
-                  ))}
+                  {STATUS.map((s) => {
+                    const labels: Record<string, string> = {
+                      Draft: "Rascunho",
+                      "In progress": "Em andamento",
+                      Delivered: "Entregue",
+                      Invoiced: "Faturado",
+                    };
+                    return (
+                      <SelectItem
+                        key={s}
+                        value={s}
+                        data-testid={`option-service-status-${s}`}
+                      >
+                        {labels[s] || s}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -164,7 +172,7 @@ export default function ServicesPage() {
               >
                 <div className="min-w-0">
                   <div
-                    className="flex flex-wrap items-center gap-2"
+                    className="flex items-center gap-2 min-w-0"
                     data-testid={`group-service-title-${s.id}`}
                   >
                     <div
@@ -336,7 +344,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
       price: 0,
       description: "",
       client_id: "",
-      contract_date: new Date().toISOString().slice(0, 10),
+      contract_date: format(new Date(), "yyyy-MM-dd"),
       final_date: "",
       payment_date: "",
       payment_method: "",
@@ -350,7 +358,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
   const paymentDate = form.watch("payment_date");
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = format(new Date(), "yyyy-MM-dd");
     if (status === "Delivered" && !finalDate) {
       form.setValue("final_date", today);
     } else if (status === "Invoiced" && !paymentDate) {
@@ -366,7 +374,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
       type: data.type || "Outros",
       description: data.description || null,
       id: uuidv7(),
-      contract_date: data.contract_date || nowIso.slice(0, 10),
+      contract_date: data.contract_date || format(new Date(), "yyyy-MM-dd"),
       final_date: data.final_date || null,
       payment_date: data.payment_date || null,
       payment_method: data.payment_method || null,
@@ -395,7 +403,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button data-testid="button-new-service" className="gap-2">
+        <Button data-testid="button-new-service" className="gap-2 cursor-pointer">
           <Plus className="h-4 w-4" />
           Novo serviço
         </Button>
@@ -440,7 +448,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
             <div className="grid gap-2 sm:col-span-2" data-testid="field-service-type">
               <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
               <Select value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
-                <SelectTrigger id="service-type" data-testid="select-service-type">
+                <SelectTrigger id="service-type" data-testid="select-service-type" className="overflow-hidden">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">

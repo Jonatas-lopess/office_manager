@@ -10,15 +10,28 @@ import ClientsPage from "@/pages/clients";
 import ServicesPage from "@/pages/services";
 import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
+import { ConnectionStatus } from "./hooks/useSyncBridge";
 
-function Router() {
+type SyncProps = {
+  connectedPeers: string[];
+  connectionStatus: ConnectionStatus;
+};
+
+function Router({ connectedPeers, connectionStatus }: SyncProps) {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/services" component={ServicesPage} />
       <Route path="/logs" component={LogsPage} />
-      <Route path="/settings" component={SettingsPage} />
+      <Route path="/settings">
+        {() => (
+          <SettingsPage
+            connectedPeers={connectedPeers}
+            connectionStatus={connectionStatus}
+          />
+        )}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -32,12 +45,12 @@ type AppProps = {
 export default function App({ hubIp, isTauri }: AppProps) {
   const { db } = useDb();
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
-  useSyncBridge(db, wsUrl, isTauri);
+  const { connectedPeers, connectionStatus } = useSyncBridge(db, wsUrl, isTauri);
 
   return (
     <TooltipProvider>
       <Toaster />
-      <Router />
+      <Router connectedPeers={connectedPeers} connectionStatus={connectionStatus} />
     </TooltipProvider>
   );
 }

@@ -1,14 +1,20 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium } from "lucide-react";
+import { Check, Moon, SunMedium, Loader2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-import { Switch } from "@/components/ui/switch";
+// import { Switch } from "@/components/ui/switch";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
+import { ConnectionStatus } from "@/hooks/useSyncBridge";
+import packageJson from "../../package.json";
 
-export default function SettingsPage() {
+type SettingsProps = {
+  connectedPeers: string[];
+  connectionStatus: ConnectionStatus;
+};
+export default function SettingsPage({ connectedPeers, connectionStatus }: SettingsProps) {
   const [dark, setDark] = useState(false);
-  const [compact, setCompact] = useState(false);
+  // const [compact, setCompact] = useState(false);
 
   return (
     <AppShell
@@ -69,41 +75,27 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
+              {/* COMPACT MODE - Commented out until CSS rules are defined
               <div
                 className="flex items-center justify-between gap-4"
                 data-testid="row-compact"
               >
                 <div>
-                  <div
-                    className="text-sm font-medium"
-                    data-testid="text-compact-label"
-                  >
+                  <div className="text-sm font-medium" data-testid="text-compact-label">
                     Densidade compacta
                   </div>
-                  <div
-                    className="mt-1 text-sm text-muted-foreground"
-                    data-testid="text-compact-desc"
-                  >
+                  <div className="mt-1 text-sm text-muted-foreground" data-testid="text-compact-desc">
                     Espaçamento reduzido para listas longas.
                   </div>
                 </div>
-                <div
-                  className="flex items-center gap-3"
-                  data-testid="group-compact"
-                >
-                  <Switch
-                    checked={compact}
-                    onCheckedChange={setCompact}
-                    data-testid="switch-compact"
-                  />
-                  <div
-                    className="text-xs text-muted-foreground"
-                    data-testid="text-compact-value"
-                  >
+                <div className="flex items-center gap-3" data-testid="group-compact">
+                  <Switch checked={compact} onCheckedChange={setCompact} data-testid="switch-compact" />
+                  <div className="text-xs text-muted-foreground" data-testid="text-compact-value">
                     {compact ? "Ligado" : "Desligado"}
                   </div>
                 </div>
               </div>
+              */}
 
               <div
                 className="flex items-center justify-between gap-4"
@@ -151,45 +143,30 @@ export default function SettingsPage() {
           dataTestId="card-devices"
         >
           <div className="grid gap-3 p-4 text-sm" data-testid="list-devices">
-            <div
-              className="flex items-center justify-between"
-              data-testid="row-device-1"
-            >
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
+            {connectedPeers.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-4">
+                Nenhum dispositivo conectado.
+              </div>
+            ) : (
+              connectedPeers.map((peerIp, idx) => (
+                <div
+                  key={peerIp}
+                  className="flex items-center justify-between"
+                  data-testid={`row-device-${idx + 1}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
+                    </div>
+                    <div className="font-medium">Dispositivo {idx + 1}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {peerIp}
+                  </div>
                 </div>
-                <div className="font-medium">Desktop Windows</div>
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                192.168.1.15
-              </div>
-            </div>
-            <div
-              className="flex items-center justify-between"
-              data-testid="row-device-2"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                <div className="font-medium">iPhone 15 Pro</div>
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                10.0.0.42
-              </div>
-            </div>
-            <div
-              className="flex items-center justify-between"
-              data-testid="row-device-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-slate-300" />
-                <div className="font-medium">MacBook Pro</div>
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                192.168.1.10
-              </div>
-            </div>
+              ))
+            )}
           </div>
         </TableCard>
 
@@ -231,7 +208,7 @@ export default function SettingsPage() {
                 className="font-mono text-xs"
                 data-testid="text-workspace-version-value"
               >
-                v0.1
+                v{packageJson.version}
               </div>
             </div>
             <div
@@ -244,13 +221,31 @@ export default function SettingsPage() {
               >
                 Alterações
               </div>
-              <div
-                className="inline-flex items-center gap-2"
-                data-testid="text-workspace-changes-value"
-              >
-                <Check className="h-4 w-4" />
-                Salvo
-              </div>
+              {connectionStatus === "connected" ? (
+                <div
+                  className="inline-flex items-center gap-2"
+                  data-testid="text-workspace-changes-value"
+                >
+                  <Check className="h-4 w-4 text-emerald-500" />
+                  Sincronizado
+                </div>
+              ) : connectionStatus === "connecting" || connectionStatus === "reconnecting" ? (
+                <div
+                  className="inline-flex items-center gap-2 text-amber-500"
+                  data-testid="text-workspace-changes-value"
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sincronizando...
+                </div>
+              ) : (
+                <div
+                  className="inline-flex items-center gap-2 text-destructive"
+                  data-testid="text-workspace-changes-value"
+                >
+                  <WifiOff className="h-4 w-4" />
+                  Desconectado
+                </div>
+              )}
             </div>
           </div>
         </TableCard>

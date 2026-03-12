@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   addDays,
+  endOfDay,
   format,
   isWithinInterval,
   parseISO,
@@ -43,7 +44,7 @@ import { type Client } from "@/db/validations";
 import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable, servicesTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const PERIODS = [
   { id: "7d", label: "Últimos 7 dias", days: 7 },
@@ -66,7 +67,7 @@ export default function Dashboard() {
         status: servicesTable.status,
         contract_date: servicesTable.contract_date,
         price: servicesTable.price,
-        client_name: clientsTable.name, // live fetch from relation
+        client_name: sql<string>`${clientsTable.name}`.as("client_name"),
       })
       .from(servicesTable)
       .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
@@ -84,10 +85,9 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<PeriodId>("30d");
 
   const data = useMemo(() => {
-
     const selected = PERIODS.find((p) => p.id === period) ?? PERIODS[1];
-    const end = startOfDay(new Date());
-    const start = addDays(end, -selected.days + 1);
+    const end = endOfDay(new Date());
+    const start = startOfDay(addDays(new Date(), -selected.days + 1));
 
     const servicesInRange = services.filter((s) => {
       const d = startOfDay(parseISO(s.contract_date));
@@ -122,9 +122,9 @@ export default function Dashboard() {
   }, [period, clients, services]);
 
   const recent = useMemo(() => {
-    const list = [...data.services].sort((a, b) =>
-      a.contract_date < b.contract_date ? 1 : -1,
-    );
+    const list = [...data.services]
+      .filter((s) => s.status === "Delivered")
+      .sort((a, b) => (a.contract_date < b.contract_date ? 1 : -1));
     return list.slice(0, 6);
   }, [data.services]);
 
@@ -189,7 +189,7 @@ export default function Dashboard() {
         <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
 
         <div
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           data-testid="grid-stats"
         >
           <StatCard
@@ -380,7 +380,7 @@ export default function Dashboard() {
                     className="mt-2 text-sm text-muted-foreground"
                     data-testid="text-quick-clients-desc"
                   >
-                    Notas, status e saúde num relance.
+                    Status de forma rápida.
                   </div>
                 </div>
                 <div
@@ -412,7 +412,9 @@ export default function Dashboard() {
                         {c.observations || "Individual"}
                       </div>
                     </div>
-                    <StatusBadge status={c.status} />
+                    <div className="shrink-0">
+                      <StatusBadge status={c.status} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -454,7 +456,7 @@ export default function Dashboard() {
                     className="mt-2 text-sm text-muted-foreground"
                     data-testid="text-quick-services-desc"
                   >
-                    Acompanhe preço, status e entrega.
+                    Acompanhe status e entrega.
                   </div>
                 </div>
                 <div
@@ -469,7 +471,7 @@ export default function Dashboard() {
                 {data.services.slice(0, 3).map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-xl border bg-card px-3 py-2"
+                    className="flex items-center justify-between gap-2 overflow-hidden rounded-xl border bg-card px-3 py-2"
                     data-testid={`row-top-service-${s.id}`}
                   >
                     <div className="min-w-0">
@@ -486,7 +488,9 @@ export default function Dashboard() {
                         {s.client_name}
                       </div>
                     </div>
-                    <StatusBadge status={s.status} />
+                    <div className="shrink-0">
+                      <StatusBadge status={s.status} />
+                    </div>
                   </div>
                 ))}
               </div>

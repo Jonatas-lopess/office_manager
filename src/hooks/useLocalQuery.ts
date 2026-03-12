@@ -55,7 +55,7 @@ export function useLocalQuery<T>(ctx: DB, query: Query) {
     return () => {
       ignore = true;
     };
-  }, [ctx, query.sql, ...query.params, dbVersion]);
+  }, [ctx, query.sql, JSON.stringify(query.params), dbVersion]);
 
   return { data, loading, error };
 }

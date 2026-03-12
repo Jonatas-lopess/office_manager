@@ -14,7 +14,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -22,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AppShell } from "@/components/panel/panel-kit";
+import { AppShell, StatusBadge } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
   Client,
@@ -145,18 +144,13 @@ export default function ClientsPage() {
                   >
                     {c.name}
                   </div>
-                  <Badge
-                    variant={c.status === "Active" ? "default" : "secondary"}
-                    data-testid={`badge-client-status-${c.id}`}
-                  >
-                    {c.status}
-                  </Badge>
+                  <StatusBadge status={c.status} />
                 </div>
                 <div
                   className="mt-1 truncate text-xs text-muted-foreground"
                   data-testid={`text-client-meta-${c.id}`}
                 >
-                  {c.email}
+                  {c.email || c.phone}
                   {c.observations ? ` · ${c.observations}` : ""}
                 </div>
               </div>
@@ -264,7 +258,10 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button data-testid="button-add-client" className="gap-2">
+        <Button
+          data-testid="button-add-client"
+          className="gap-2 cursor-pointer"
+        >
           <UserPlus className="h-4 w-4" />
           Adicionar cliente
         </Button>
