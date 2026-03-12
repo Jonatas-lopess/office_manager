@@ -13,6 +13,15 @@ export default function SettingsPage() {
   const [dark, setDark] = useState(false);
   // const [compact, setCompact] = useState(false);
 
+  const codenameArray = [
+    "Alfa",
+    "Bravo",
+    "Charlie",
+    "Delta",
+    "Echo",
+    "Foxtrot",
+  ];
+
   return (
     <AppShell
       title="Configurações"
@@ -157,7 +166,7 @@ export default function SettingsPage() {
                       <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
                     </div>
                     <div className="font-medium">
-                      PC {idx + 1}
+                      {codenameArray[idx] || `PC ${idx + 1}`}
                       {peer.id === myId && (
                         <span className="ml-2 text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border border-zinc-200">
                           Este dispositivo
