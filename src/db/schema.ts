@@ -1,4 +1,10 @@
-import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 export const clientsTable = sqliteTable("clients", {
   id: text("id").primaryKey(),
@@ -48,29 +54,32 @@ export const serviceTypesArray = [
   "Outros",
 ] as const;
 
-export const servicesTable = sqliteTable("services", {
-  id: text("id").primaryKey(),
-  status: text("status", {
-    enum: ["Draft", "In progress", "Delivered", "Invoiced"],
-  })
-    .notNull()
-    .default("Draft"),
-  type: text("type", { enum: serviceTypesArray }).default("Outros"),
-  client_id: text("client_id")
-    .notNull()
-    .references(() => clientsTable.id, { onDelete: "restrict", onUpdate: "cascade" }),
-  description: text("description"),
-  contract_date: text("contract_date").notNull().default(""),
-  final_date: text("final_date"),
-  price: real("price").notNull().default(0),
-  payment_date: text("payment_date"),
-  payment_method: text("payment_method"),
-  installments: integer("installments"),
-  observations: text("observations"),
-  created_at: text("created_at").notNull().default(""),
-  updated_at: text("updated_at").notNull().default(""),
-}, (table) => {
-  return {
-    clientIdIdx: index("client_id_idx").on(table.client_id),
-  };
-});
+export const servicesTable = sqliteTable(
+  "services",
+  {
+    id: text("id").primaryKey(),
+    status: text("status", {
+      enum: ["Draft", "In progress", "Delivered", "Invoiced"],
+    })
+      .notNull()
+      .default("Draft"),
+    type: text("type", { enum: serviceTypesArray }).default("Outros"),
+    client_id: text("client_id")
+      .notNull()
+      .references(() => clientsTable.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    description: text("description"),
+    contract_date: text("contract_date").notNull().default(""),
+    final_date: text("final_date"),
+    price: real("price").notNull().default(0),
+    payment_date: text("payment_date"),
+    payment_method: text("payment_method"),
+    installments: integer("installments"),
+    observations: text("observations"),
+    created_at: text("created_at").notNull().default(""),
+    updated_at: text("updated_at").notNull().default(""),
+  },
+  (table) => [index("client_id_idx").on(table.client_id)],
+);

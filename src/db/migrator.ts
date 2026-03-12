@@ -46,12 +46,12 @@ export async function runMigrations(db: DB) {
 
       await db.exec("COMMIT;");
 
-      const createTableMatches = sql.matchAll(/CREATE TABLE `([^`]+)`/g);
-      for (const match of createTableMatches) {
-        const tableName = match[1];
-        if (!tableName.startsWith("__")) {
-          await db.exec(`SELECT crsql_as_crr('${tableName}');`);
-        }
+      // Reconcile: ensure all user tables are CRR-registered
+      const tables = await db.execA(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '___%' AND name NOT LIKE 'sqlite_%'`,
+      );
+      for (const [tableName] of tables) {
+        await db.exec(`SELECT crsql_as_crr('${tableName}');`);
       }
 
       console.log(`✅ [Migrator] Migrations went smoothly!`);

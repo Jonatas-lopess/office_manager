@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1772856543062,
-      "tag": "0000_pink_nekra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1773249977249,
-      "tag": "0001_careless_mad_thinker",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1773250763588,
-      "tag": "0002_slow_the_anarchist",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1773265062647,
-      "tag": "0003_rainy_maestro",
+      "when": 1773283058579,
+      "tag": "0000_busy_sally_floyd",
       "breakpoints": true
     }
   ]
