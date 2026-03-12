@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Search, UserPlus, ChevronDown } from "lucide-react";
@@ -11,7 +11,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AppShell, StatusBadge } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
@@ -35,11 +44,13 @@ import { eq } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 import { logAction } from "@/lib/logger";
+import { useToast } from "@/hooks/use-toast";
 
 type ClientStatus = Client["status"];
 
 export default function ClientsPage() {
   const { db, orm } = useDb();
+  const { toast } = useToast();
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -49,8 +60,13 @@ export default function ClientsPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ClientStatus>("all");
 
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   const filtered = useMemo(() => {
-    return items
+    return (items || [])
       .filter((c) => {
         const matchQ = (c.name + (c.email || "") + (c.observations ?? ""))
           .toLowerCase()
@@ -61,15 +77,27 @@ export default function ClientsPage() {
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [items, q, status]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Deseja realmente excluir o cliente ${name}?`)) {
-      await orm.delete(clientsTable).where(eq(clientsTable.id, id));
-      await logAction(orm, {
-        action: `Cliente excluído: ${name}`,
-        module: "Clientes",
-        status: "Warning",
-      });
-    }
+  const handleDelete = async () => {
+    if (!selectedClient) return;
+    const { id, name } = selectedClient;
+    await orm.delete(clientsTable).where(eq(clientsTable.id, id));
+    await logAction(orm, {
+      action: `Cliente excluído: ${name}`,
+      module: "Clientes",
+      status: "Warning",
+    });
+    toast({
+      title: "Cliente excluído",
+      description: `O cliente ${name} foi removido com sucesso.`,
+    });
+    setIsDeleteDialogOpen(false);
+    setSelectedClient(null);
+  };
+
+  const openDialog = (mode: "create" | "edit" | "view", client?: Client) => {
+    setDialogMode(mode);
+    setSelectedClient(client || null);
+    setIsDialogOpen(true);
   };
 
   return (
@@ -77,16 +105,14 @@ export default function ClientsPage() {
       title="Clientes"
       subtitle="Contatos, detalhes da empresa e status."
       right={
-        <AddClient
-          onCreate={async (client) => {
-            console.log("[Schema] Creating new client...");
-            await orm.insert(clientsTable).values(client);
-            await logAction(orm, {
-              action: `Novo cliente cadastrado: ${client.name}`,
-              module: "Clientes",
-            });
-          }}
-        />
+        <Button
+          onClick={() => openDialog("create")}
+          className="gap-2 cursor-pointer"
+          data-testid="button-add-client-top"
+        >
+          <UserPlus className="h-4 w-4" />
+          Adicionar cliente
+        </Button>
       }
     >
       <Card className="panel-card" data-testid="card-clients">
@@ -179,6 +205,7 @@ export default function ClientsPage() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  onClick={() => openDialog("view", c)}
                   data-testid={`button-client-view-${c.id}`}
                 >
                   View
@@ -186,6 +213,7 @@ export default function ClientsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => openDialog("edit", c)}
                   data-testid={`button-client-edit-${c.id}`}
                 >
                   Edit
@@ -193,7 +221,10 @@ export default function ClientsPage() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDelete(c.id, c.name)}
+                  onClick={() => {
+                    setSelectedClient(c);
+                    setIsDeleteDialogOpen(true);
+                  }}
                   data-testid={`button-client-delete-${c.id}`}
                 >
                   Delete
@@ -212,16 +243,82 @@ export default function ClientsPage() {
           ) : null}
         </div>
       </Card>
+
+      <ClientDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        initialData={selectedClient}
+        onSave={async (client) => {
+          if (dialogMode === "create") {
+            await orm.insert(clientsTable).values(client);
+            await logAction(orm, {
+              action: `Novo cliente cadastrado: ${client.name}`,
+              module: "Clientes",
+            });
+            toast({
+              title: "Cliente criado",
+              description: `O cliente ${client.name} foi cadastrado com sucesso.`,
+            });
+          } else if (dialogMode === "edit" && selectedClient) {
+            await orm.update(clientsTable).set(client).where(eq(clientsTable.id, selectedClient.id));
+            await logAction(orm, {
+              action: `Cliente atualizado: ${client.name}`,
+              module: "Clientes",
+            });
+            toast({
+              title: "Cliente atualizado",
+              description: `As informações de ${client.name} foram salvas.`,
+            });
+          }
+          setIsDialogOpen(false);
+          setSelectedClient(null);
+        }}
+      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente{" "}
+              <span className="font-semibold">{selectedClient?.name}</span>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
 
-function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
-  const [open, setOpen] = useState(false);
-
+function ClientDialog({
+  open,
+  onOpenChange,
+  mode,
+  initialData,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: "create" | "edit" | "view";
+  initialData: Client | null;
+  onSave: (client: Client) => Promise<void>;
+}) {
   const form = useForm<NewClientType>({
     resolver: zodResolver(insertClientSchema),
-    defaultValues: {
+    defaultValues: initialData || {
       name: "",
       email: "",
       observations: "",
@@ -233,7 +330,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
       payment_source: "",
       gov_password: "",
       cnpj_begin_date: "",
-      mei_type: undefined,
+      mei_type: null,
       nirf: "",
       cib: "",
       incra: "",
@@ -241,13 +338,45 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
     },
   });
 
-  const onSubmit = (data: NewClientType) => {
+  const isView = mode === "view";
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        form.reset(initialData as any);
+      } else {
+        form.reset({
+          name: "",
+          email: "",
+          observations: "",
+          status: "Active",
+          phone: "",
+          cpf: "",
+          cnpj: "",
+          birth_date: "",
+          payment_source: "",
+          gov_password: "",
+          cnpj_begin_date: "",
+          mei_type: null,
+          nirf: "",
+          cib: "",
+          incra: "",
+          estadual_inscription: "",
+        });
+      }
+    }
+  }, [open, initialData, form]);
+
+  const onSubmit = async (data: NewClientType) => {
+    if (isView) return;
+    
     const client: Client = {
+      ...(initialData || {}),
       ...data,
       status: data.status || "Active",
       name: data.name || "",
-      id: uuidv7(),
-      created_at: new Date().toISOString(),
+      id: initialData?.id || uuidv7(),
+      created_at: initialData?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
       email: data.email || null,
       observations: data.observations || null,
@@ -264,43 +393,42 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
       incra: data.incra || null,
       estadual_inscription: data.estadual_inscription || null,
     };
-    onCreate(client);
-    setOpen(false);
-    form.reset();
+
+    await onSave(client);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      form.reset();
-    }
+    onOpenChange(newOpen);
   };
 
   const onError = (errors: any) => {
     console.error("[Form Validation Failed]", errors);
   };
 
+  const titles = {
+    create: "Novo cliente",
+    edit: "Editar cliente",
+    view: "Dados do cliente",
+  };
+
+  const descriptions = {
+    create: "Adicione um cliente ao seu espaço de trabalho.",
+    edit: "Atualize as informações do cliente.",
+    view: "Visualize as informações detalhadas do cliente.",
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          data-testid="button-add-client"
-          className="gap-2 cursor-pointer"
-        >
-          <UserPlus className="h-4 w-4" />
-          Adicionar cliente
-        </Button>
-      </DialogTrigger>
       <DialogContent
         data-testid="dialog-add-client"
         className="max-h-[85vh] overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle data-testid="text-add-client-title">
-            Novo cliente
+            {titles[mode]}
           </DialogTitle>
           <DialogDescription data-testid="text-add-client-desc">
-            Adicione um cliente ao seu espaço de trabalho.
+            {descriptions[mode]}
           </DialogDescription>
         </DialogHeader>
 
@@ -321,6 +449,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 {...form.register("name")}
                 placeholder="ex: Alex Silva"
                 data-testid="input-client-name"
+                disabled={isView}
               />
               {form.formState.errors.name && (
                 <span className="text-xs text-destructive">
@@ -334,6 +463,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                 Status
               </Label>
               <Select
+                disabled={isView}
                 value={form.watch("status") ?? undefined}
                 onValueChange={(v) =>
                   form.setValue("status", v as ClientStatus)
@@ -398,6 +528,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         },
                       })}
                       placeholder="000.000.000-00"
+                      disabled={isView}
                     />
                     {form.formState.errors.cpf && (
                       <span className="text-xs text-destructive">
@@ -415,6 +546,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         },
                       })}
                       placeholder="00.000.000/0000-00"
+                      disabled={isView}
                     />
                     {form.formState.errors.cnpj && (
                       <span className="text-xs text-destructive">
@@ -437,6 +569,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         id="client-cnpj-date"
                         type="date"
                         {...form.register("cnpj_begin_date")}
+                        disabled={isView}
                       />
                     </div>
                     <div
@@ -445,6 +578,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                     >
                       <Label htmlFor="client-mei-type">Tipo de MEI</Label>
                       <Select
+                        disabled={isView}
                         value={form.watch("mei_type") ?? undefined}
                         onValueChange={(v) =>
                           form.setValue("mei_type", v as any)
@@ -473,6 +607,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-email"
                       {...form.register("email")}
                       placeholder="alex@empresa.com"
+                      disabled={isView}
                     />
                     {form.formState.errors.email && (
                       <span className="text-xs text-destructive">
@@ -490,6 +625,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         },
                       })}
                       placeholder="(00) 00000-0000"
+                      disabled={isView}
                     />
                     {form.formState.errors.phone && (
                       <span className="text-xs text-destructive">
@@ -523,6 +659,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-birthdate"
                       type="date"
                       {...form.register("birth_date")}
+                      disabled={isView}
                     />
                   </div>
                   <div
@@ -536,6 +673,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-payment-source"
                       {...form.register("payment_source")}
                       placeholder="Ex: Nome da Empresa"
+                      disabled={isView}
                     />
                   </div>
                 </div>
@@ -547,6 +685,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-ie"
                       {...form.register("estadual_inscription")}
                       placeholder="Número da IE"
+                      disabled={isView}
                     />
                   </div>
                   <div className="grid gap-2" data-testid="field-client-nirf">
@@ -559,6 +698,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         },
                       })}
                       placeholder="0.000.000-0"
+                      disabled={isView}
                     />
                     {form.formState.errors.nirf && (
                       <span className="text-xs text-destructive">
@@ -575,6 +715,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-cib"
                       {...form.register("cib")}
                       placeholder="Número do CIB"
+                      disabled={isView}
                     />
                   </div>
                   <div className="grid gap-2" data-testid="field-client-incra">
@@ -587,6 +728,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                         },
                       })}
                       placeholder="000.000.000.000-0"
+                      disabled={isView}
                     />
                   </div>
                 </div>
@@ -601,6 +743,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-gov-pass"
                       {...form.register("gov_password")}
                       placeholder="Senha do portal"
+                      disabled={isView}
                     />
                   </div>
                   <div
@@ -614,6 +757,7 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
                       id="client-observations"
                       {...form.register("observations")}
                       placeholder="Notas gerais..."
+                      disabled={isView}
                     />
                   </div>
                 </div>
@@ -631,15 +775,17 @@ function AddClient({ onCreate }: { onCreate: (client: Client) => void }) {
               onClick={() => handleOpenChange(false)}
               data-testid="button-cancel-add-client"
             >
-              Cancelar
+              {isView ? "Fechar" : "Cancelar"}
             </Button>
-            <Button
-              type="submit"
-              disabled={form.formState.isSubmitting}
-              data-testid="button-save-add-client"
-            >
-              Salvar cliente
-            </Button>
+            {!isView && (
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                data-testid="button-save-add-client"
+              >
+                {mode === "create" ? "Salvar cliente" : "Atualizar cliente"}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>

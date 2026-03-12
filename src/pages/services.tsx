@@ -11,7 +11,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,6 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AppShell, currency, StatusBadge } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
@@ -38,15 +47,22 @@ import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
 import { logAction } from "@/lib/logger";
+import { useToast } from "@/hooks/use-toast";
 
 type ServiceStatus = Service["status"];
 
 export default function ServicesPage() {
   const { db, orm } = useDb();
+  const { toast } = useToast();
   const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ServiceStatus>("all");
+
+  const [selectedService, setSelectedService] = useState<any | null>(null);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const servicesQuery = useMemo(() => {
     let base = orm
@@ -94,15 +110,27 @@ export default function ServicesPage() {
     0,
   );
 
-  const handleDelete = async (id: string, type: string) => {
-    if (confirm(`Deseja realmente excluir o serviço: ${type}?`)) {
-      await orm.delete(servicesTable).where(eq(servicesTable.id, id));
-      await logAction(orm, {
-        action: `Serviço excluído: ${type}`,
-        module: "Serviços",
-        status: "Warning",
-      });
-    }
+  const handleDelete = async () => {
+    if (!selectedService) return;
+    const { id, type } = selectedService;
+    await orm.delete(servicesTable).where(eq(servicesTable.id, id));
+    await logAction(orm, {
+      action: `Serviço excluído: ${type}`,
+      module: "Serviços",
+      status: "Warning",
+    });
+    toast({
+      title: "Serviço excluído",
+      description: `O serviço ${type} foi removido com sucesso.`,
+    });
+    setIsDeleteDialogOpen(false);
+    setSelectedService(null);
+  };
+
+  const openDialog = (mode: "create" | "edit" | "view", service?: any) => {
+    setDialogMode(mode);
+    setSelectedService(service || null);
+    setIsDialogOpen(true);
   };
 
   return (
@@ -110,16 +138,14 @@ export default function ServicesPage() {
       title="Serviços"
       subtitle="Acompanhe entregas e renda."
       right={
-        <NewService
-          onCreate={async (svc) => {
-            console.log("[Schema] Creating new service...");
-            await orm.insert(servicesTable).values(svc);
-            await logAction(orm, {
-              action: `Novo serviço criado: ${svc.type}`,
-              module: "Serviços",
-            });
-          }}
-        />
+        <Button
+          onClick={() => openDialog("create")}
+          className="gap-2 cursor-pointer"
+          data-testid="button-new-service-top"
+        >
+          <Plus className="h-4 w-4" />
+          Novo serviço
+        </Button>
       }
     >
       <div className="grid gap-4 lg:grid-cols-3" data-testid="grid-services">
@@ -219,35 +245,38 @@ export default function ServicesPage() {
                     >
                       {currency(s.price)}
                     </div>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-2"
-                    data-testid={`group-service-actions-${s.id}`}
-                  >
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-service-view-${s.id}`}
+                                     <div
+                      className="flex items-center gap-2"
+                      data-testid={`group-service-actions-${s.id}`}
                     >
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid={`button-service-edit-${s.id}`}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(s.id, s.type)}
-                      data-testid={`button-service-delete-${s.id}`}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => openDialog("view", s)}
+                        data-testid={`button-service-view-${s.id}`}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openDialog("edit", s)}
+                        data-testid={`button-service-edit-${s.id}`}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedService(s);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        data-testid={`button-service-delete-${s.id}`}
+                      >
+                        Delete
+                      </Button>
+                    </div>     </div>
                 </div>
               </div>
             ))}
@@ -295,6 +324,65 @@ export default function ServicesPage() {
           </div>
         </Card>
       </div>
+
+      <ServiceDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        initialData={selectedService}
+        onSave={async (svc) => {
+          if (dialogMode === "create") {
+            await orm.insert(servicesTable).values(svc);
+            await logAction(orm, {
+              action: `Novo serviço criado: ${svc.type}`,
+              module: "Serviços",
+            });
+            toast({
+              title: "Serviço criado",
+              description: `O serviço ${svc.type} foi registrado com sucesso.`,
+            });
+          } else if (dialogMode === "edit" && selectedService) {
+            await orm.update(servicesTable).set(svc).where(eq(servicesTable.id, selectedService.id));
+            await logAction(orm, {
+              action: `Serviço atualizado: ${svc.type}`,
+              module: "Serviços",
+            });
+            toast({
+              title: "Serviço atualizado",
+              description: `As informações do serviço ${svc.type} foram atualizadas.`,
+            });
+          }
+          setIsDialogOpen(false);
+          setSelectedService(null);
+        }}
+      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Serviço</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o serviço{" "}
+              <span className="font-semibold text-foreground">
+                {selectedService?.type} {selectedService?.description && `- ${selectedService.description}`}
+              </span>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
@@ -329,8 +417,19 @@ function SummaryRow({
   );
 }
 
-function NewService({ onCreate }: { onCreate: (service: any) => void }) {
-  const [open, setOpen] = useState(false);
+function ServiceDialog({
+  open,
+  onOpenChange,
+  mode,
+  initialData,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: "create" | "edit" | "view";
+  initialData: any | null;
+  onSave: (service: any) => Promise<void>;
+}) {
   const { db, orm } = useDb();
 
   const clientsQuery = useMemo(() => {
@@ -362,7 +461,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
 
   const form = useForm<NewServiceType>({
     resolver: zodResolver(insertServiceSchema),
-    defaultValues: {
+    defaultValues: initialData || {
       type: "Outros",
       status: "Draft",
       price: 0,
@@ -377,6 +476,43 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
     },
   });
 
+  const isView = mode === "view";
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        form.reset({
+          ...initialData,
+          client_id: initialData.client_id || "",
+          type: initialData.type || "Outros",
+          status: initialData.status || "Draft",
+          price: initialData.price || 0,
+          description: initialData.description || "",
+          contract_date: initialData.contract_date || format(new Date(), "yyyy-MM-dd"),
+          final_date: initialData.final_date || "",
+          payment_date: initialData.payment_date || "",
+          payment_method: initialData.payment_method || "",
+          installments: initialData.installments || 1,
+          observations: initialData.observations || "",
+        });
+      } else {
+        form.reset({
+          type: "Outros",
+          status: "Draft",
+          price: 0,
+          description: "",
+          client_id: "",
+          contract_date: format(new Date(), "yyyy-MM-dd"),
+          final_date: "",
+          payment_date: "",
+          payment_method: "",
+          installments: 1,
+          observations: "",
+        });
+      }
+    }
+  }, [open, initialData, form]);
+
   const status = form.watch("status");
   const finalDate = form.watch("final_date");
   const paymentDate = form.watch("payment_date");
@@ -390,34 +526,43 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
     }
   }, [status, form, finalDate, paymentDate]);
 
-  const onSubmit = (data: NewServiceType) => {
+  const onSubmit = async (data: NewServiceType) => {
+    if (isView) return;
     const nowIso = new Date().toISOString();
     const svc: Service = {
+      ...(initialData || {}),
       ...data,
       status: data.status || "Draft",
       type: data.type || "Outros",
       description: data.description || null,
-      id: uuidv7(),
+      id: initialData?.id || uuidv7(),
       contract_date: data.contract_date || format(new Date(), "yyyy-MM-dd"),
       final_date: data.final_date || null,
       payment_date: data.payment_date || null,
       payment_method: data.payment_method || null,
       installments: data.installments || null,
       observations: data.observations || null,
-      created_at: nowIso,
+      created_at: initialData?.created_at || nowIso,
       updated_at: nowIso,
     };
 
-    onCreate(svc);
-    setOpen(false);
-    form.reset();
+    await onSave(svc);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      form.reset();
-    }
+    onOpenChange(newOpen);
+  };
+
+  const titles = {
+    create: "Novo serviço",
+    edit: "Editar serviço",
+    view: "Detalhes do serviço",
+  };
+
+  const descriptions = {
+    create: "Crie uma entrada de serviço vinculada a um cliente.",
+    edit: "Atualize as informações do serviço e acompanhe o progresso.",
+    view: "Confira as informações detalhadas deste serviço.",
   };
 
   const onError = (errors: any) => {
@@ -426,19 +571,13 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button data-testid="button-new-service" className="gap-2 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Novo serviço
-        </Button>
-      </DialogTrigger>
       <DialogContent data-testid="dialog-new-service">
         <DialogHeader>
           <DialogTitle data-testid="text-new-service-title">
-            Novo serviço
+            {titles[mode]}
           </DialogTitle>
           <DialogDescription data-testid="text-new-service-desc">
-            Crie uma entrada de serviço vinculada a um cliente.
+            {descriptions[mode]}
           </DialogDescription>
         </DialogHeader>
 
@@ -451,7 +590,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
           {/* TIER 1: CORE FIELDS */}
           <div className="grid gap-2" data-testid="field-service-client">
             <Label htmlFor="service-client" data-testid="label-service-client">Cliente *</Label>
-            <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
+            <Select disabled={isView} value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
               <SelectTrigger id="service-client" data-testid="select-service-client">
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
@@ -471,7 +610,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-2 sm:col-span-2" data-testid="field-service-type">
               <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
-              <Select value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
+              <Select disabled={isView} value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
                 <SelectTrigger id="service-type" data-testid="select-service-type" className="overflow-hidden">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
@@ -488,7 +627,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
 
             <div className="grid gap-2" data-testid="field-service-price">
               <Label htmlFor="service-price" data-testid="label-service-price">Valor Base (R$)</Label>
-              <Input id="service-price" type="number" {...form.register("price", { valueAsNumber: true })} inputMode="decimal" data-testid="input-service-price" />
+              <Input disabled={isView} id="service-price" type="number" {...form.register("price", { valueAsNumber: true })} inputMode="decimal" data-testid="input-service-price" />
               {form.formState.errors.price && (
                 <span className="text-xs text-destructive">{form.formState.errors.price.message}</span>
               )}
@@ -505,6 +644,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                   id="service-description"
                   variant="outline"
                   role="combobox"
+                  disabled={isView}
                   aria-expanded={openDesc}
                   className={cn("w-full justify-between font-normal", !form.watch("description") && "text-muted-foreground")}
                 >
@@ -524,7 +664,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                   />
                   <CommandList>
                     <CommandEmpty>
-                      <span className="text-muted-foreground text-sm pl-2">Pressione Enter para usar "{searchDesc}"</span>
+                      <span className="text-muted-foreground text-sm pl-2">Pressione Enter para usar &quot;{searchDesc}&quot;</span>
                     </CommandEmpty>
                     <CommandGroup>
                       {historicDescriptions.map((desc: string) => (
@@ -570,7 +710,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-service-status">
                     <Label htmlFor="service-status" data-testid="label-service-status">Status do Serviço</Label>
-                    <Select value={form.watch("status")} onValueChange={(v) => form.setValue("status", v as ServiceStatus)}>
+                    <Select disabled={isView} value={form.watch("status")} onValueChange={(v) => form.setValue("status", v as ServiceStatus)}>
                       <SelectTrigger id="service-status" data-testid="select-new-service-status">
                         <SelectValue placeholder="Escolha o status" />
                       </SelectTrigger>
@@ -585,18 +725,18 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                   
                   <div className="grid gap-2" data-testid="field-service-contract-date">
                     <Label htmlFor="service-contract-date">Data de Contrato</Label>
-                    <Input id="service-contract-date" type="date" {...form.register("contract_date")} />
+                    <Input disabled={isView} id="service-contract-date" type="date" {...form.register("contract_date")} />
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-service-final-date">
                     <Label htmlFor="service-final-date">Data de Entrega</Label>
-                    <Input id="service-final-date" type="date" {...form.register("final_date")} />
+                    <Input disabled={isView} id="service-final-date" type="date" {...form.register("final_date")} />
                   </div>
                   <div className="grid gap-2" data-testid="field-service-payment-date">
                     <Label htmlFor="service-payment-date">Data de Pagamento</Label>
-                    <Input id="service-payment-date" type="date" {...form.register("payment_date")} />
+                    <Input disabled={isView} id="service-payment-date" type="date" {...form.register("payment_date")} />
                   </div>
                 </div>
 
@@ -618,11 +758,11 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-service-payment-method">
                     <Label htmlFor="service-payment-method">Método de Pagamento</Label>
-                    <Input id="service-payment-method" {...form.register("payment_method")} placeholder="Ex: Pix, Boleto..." />
+                    <Input disabled={isView} id="service-payment-method" {...form.register("payment_method")} placeholder="Ex: Pix, Boleto..." />
                   </div>
                   <div className="grid gap-2" data-testid="field-service-installments">
                     <Label htmlFor="service-installments">Nº de Parcelas</Label>
-                    <Input id="service-installments" type="number" {...form.register("installments", { valueAsNumber: true })} placeholder="1" />
+                    <Input disabled={isView} id="service-installments" type="number" {...form.register("installments", { valueAsNumber: true })} placeholder="1" />
                   </div>
                 </div>
 
@@ -647,15 +787,17 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
               onClick={() => handleOpenChange(false)}
               data-testid="button-cancel-new-service"
             >
-              Cancelar
+              {isView ? "Fechar" : "Cancelar"}
             </Button>
-            <Button
-              type="submit"
-              disabled={form.formState.isSubmitting}
-              data-testid="button-save-new-service"
-            >
-              Criar serviço
-            </Button>
+            {!isView && (
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                data-testid="button-save-new-service"
+              >
+                {mode === "create" ? "Criar serviço" : "Atualizar serviço"}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>
