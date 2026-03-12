@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -345,6 +345,19 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
     },
   });
 
+  const status = form.watch("status");
+  const finalDate = form.watch("final_date");
+  const paymentDate = form.watch("payment_date");
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (status === "Delivered" && !finalDate) {
+      form.setValue("final_date", today);
+    } else if (status === "Invoiced" && !paymentDate) {
+      form.setValue("payment_date", today);
+    }
+  }, [status, form, finalDate, paymentDate]);
+
   const onSubmit = (data: NewServiceType) => {
     const nowIso = new Date().toISOString();
     const svc: Service = {
@@ -404,23 +417,40 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
           data-testid="form-new-service"
         >
           {/* TIER 1: CORE FIELDS */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2" data-testid="field-service-client">
-              <Label htmlFor="service-client" data-testid="label-service-client">Cliente *</Label>
-              <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
-                <SelectTrigger id="service-client" data-testid="select-service-client">
-                  <SelectValue placeholder="Selecione um cliente" />
+          <div className="grid gap-2" data-testid="field-service-client">
+            <Label htmlFor="service-client" data-testid="label-service-client">Cliente *</Label>
+            <Select value={form.watch("client_id")} onValueChange={(v) => form.setValue("client_id", v)}>
+              <SelectTrigger id="service-client" data-testid="select-service-client">
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id} data-testid={`option-service-client-${c.id}`}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.client_id && (
+              <span className="text-xs text-destructive">{form.formState.errors.client_id.message}</span>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-2 sm:col-span-2" data-testid="field-service-type">
+              <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
+              <Select value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
+                <SelectTrigger id="service-type" data-testid="select-service-type">
+                  <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id} data-testid={`option-service-client-${c.id}`}>
-                      {c.name}
-                    </SelectItem>
+                <SelectContent className="max-h-60">
+                  {serviceTypesArray.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.client_id && (
-                <span className="text-xs text-destructive">{form.formState.errors.client_id.message}</span>
+              {form.formState.errors.type && (
+                <span className="text-xs text-destructive">{form.formState.errors.type.message}</span>
               )}
             </div>
 
@@ -433,22 +463,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
             </div>
           </div>
 
-          <div className="grid gap-2" data-testid="field-service-type">
-            <Label htmlFor="service-type" data-testid="label-service-type">Tipo de Serviço *</Label>
-            <Select value={form.watch("type") ?? undefined} onValueChange={(v) => form.setValue("type", v as any)}>
-              <SelectTrigger id="service-type" data-testid="select-service-type">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {serviceTypesArray.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.type && (
-              <span className="text-xs text-destructive">{form.formState.errors.type.message}</span>
-            )}
-          </div>
+
 
           <div className="grid gap-2" data-testid="field-service-desc">
             <Label htmlFor="service-description">Descrição Resumida</Label>
@@ -542,6 +557,17 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
                   </div>
                 </div>
 
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2" data-testid="field-service-final-date">
+                    <Label htmlFor="service-final-date">Data de Entrega</Label>
+                    <Input id="service-final-date" type="date" {...form.register("final_date")} />
+                  </div>
+                  <div className="grid gap-2" data-testid="field-service-payment-date">
+                    <Label htmlFor="service-payment-date">Data de Pagamento</Label>
+                    <Input id="service-payment-date" type="date" {...form.register("payment_date")} />
+                  </div>
+                </div>
+
               </Accordion.Content>
             </Accordion.Item>
 
@@ -555,16 +581,7 @@ function NewService({ onCreate }: { onCreate: (service: any) => void }) {
               </Accordion.Header>
               <Accordion.Content className="pt-2 pb-4 space-y-4">
                 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2" data-testid="field-service-final-date">
-                    <Label htmlFor="service-final-date">Prazo Final</Label>
-                    <Input id="service-final-date" type="date" {...form.register("final_date")} />
-                  </div>
-                  <div className="grid gap-2" data-testid="field-service-payment-date">
-                    <Label htmlFor="service-payment-date">Data Pagamento Esperado</Label>
-                    <Input id="service-payment-date" type="date" {...form.register("payment_date")} />
-                  </div>
-                </div>
+
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-service-payment-method">
