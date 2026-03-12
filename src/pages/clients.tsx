@@ -92,6 +92,7 @@ export default function ClientsPage() {
       device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
     });
     toast({
+      variant: "destructive",
       title: "Cliente excluído",
       description: `O cliente ${name} foi removido com sucesso.`,
     });
@@ -264,6 +265,7 @@ export default function ClientsPage() {
                 connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
+              variant: "success",
               title: "Cliente criado",
               description: `O cliente ${client.name} foi cadastrado com sucesso.`,
             });
@@ -279,6 +281,7 @@ export default function ClientsPage() {
                 connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
+              variant: "success",
               title: "Cliente atualizado",
               description: `As informações de ${client.name} foram salvas.`,
             });

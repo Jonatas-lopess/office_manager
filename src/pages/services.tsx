@@ -144,6 +144,7 @@ export default function ServicesPage() {
       device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
     });
     toast({
+      variant: "destructive",
       title: "Serviço excluído",
       description: `O serviço ${type} foi removido com sucesso.`,
     });
@@ -259,20 +260,19 @@ export default function ServicesPage() {
                 </div>
 
                 <div
-                  className="flex items-center justify-between gap-3 sm:justify-end"
+                  className="flex flex-col items-end gap-2 sm:shrink-0"
                   data-testid={`group-service-right-${s.id}`}
                 >
-                  <div className="text-right">
-                    <div
-                      className="text-sm font-semibold"
-                      data-testid={`text-service-price-${s.id}`}
-                    >
-                      {currency(s.price)}
-                    </div>
-                    <div
-                      className="flex items-center gap-2"
-                      data-testid={`group-service-actions-${s.id}`}
-                    >
+                  <div
+                    className="text-base font-extrabold text-foreground"
+                    data-testid={`text-service-price-${s.id}`}
+                  >
+                    {currency(s.price)}
+                  </div>
+                  <div
+                    className="flex items-center gap-2"
+                    data-testid={`group-service-actions-${s.id}`}
+                  >
                       <Button
                         variant="secondary"
                         size="sm"
@@ -300,8 +300,7 @@ export default function ServicesPage() {
                       >
                         Delete
                       </Button>
-                    </div>{" "}
-                  </div>
+                  </div>{" "}
                 </div>
               </div>
             ))}
@@ -370,6 +369,7 @@ export default function ServicesPage() {
                 connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
+              variant: "success",
               title: "Serviço criado",
               description: `O serviço ${svc.type} foi registrado com sucesso.`,
             });
@@ -385,6 +385,7 @@ export default function ServicesPage() {
                 connectedPeers.find((p) => p.id === myId)?.ip || undefined,
             });
             toast({
+              variant: "success",
               title: "Serviço atualizado",
               description: `As informações do serviço ${svc.type} foram atualizadas.`,
             });
