@@ -20,12 +20,7 @@ CREATE TABLE `clients` (
 	`updated_at` text DEFAULT '' NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `clients_cpf_unique` ON `clients` (`cpf`);--> statement-breakpoint
-CREATE UNIQUE INDEX `clients_cnpj_unique` ON `clients` (`cnpj`);--> statement-breakpoint
-CREATE UNIQUE INDEX `clients_nirf_unique` ON `clients` (`nirf`);--> statement-breakpoint
-CREATE UNIQUE INDEX `clients_cib_unique` ON `clients` (`cib`);--> statement-breakpoint
-CREATE UNIQUE INDEX `clients_incra_unique` ON `clients` (`incra`);--> statement-breakpoint
-CREATE UNIQUE INDEX `clients_estadual_inscription_unique` ON `clients` (`estadual_inscription`);--> statement-breakpoint
+
 CREATE TABLE `services` (
 	`id` text PRIMARY KEY NOT NULL,
 	`status` text DEFAULT 'Draft' NOT NULL,
