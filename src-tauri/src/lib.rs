@@ -56,7 +56,7 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
 
         let task = tokio::spawn(async move {
             let connect_attempt = timeout(
-                Duration::from_millis(200),
+                Duration::from_millis(500),
                 TcpStream::connect(&address)
             ).await;
 
@@ -206,14 +206,24 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, ip: String, clie
     // TASK A: Sending DOWN to the client
     let my_uuid = client_uuid;
     let mut send_task = tokio::spawn(async move {
-        while let Ok((sender_uuid, msg)) = rx.recv().await {
-            // **FIX**: SERVER-SIDE ECHO CANCELLATION (now using robust UUIDs)
-            // If the message came from THIS exact client, skip sending it back.
-            if sender_uuid == my_uuid {
-                continue;
-            }
-            if sender.send(Message::Text(msg)).await.is_err() {
-                break;
+        loop {
+            match rx.recv().await {
+                Ok((sender_uuid, msg)) => {
+                    // SERVER-SIDE ECHO CANCELLATION
+                    if sender_uuid == my_uuid {
+                        continue;
+                    }
+                    if sender.send(Message::Text(msg)).await.is_err() {
+                        break;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(count)) => {
+                    eprintln!("⚠️ [Hub] Client {} is lagging. Missed {} messages.", my_uuid, count);
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    break;
+                }
             }
         }
     });

@@ -147,7 +147,8 @@ export function useSyncBridge(
         const changes = await ctx.execA(
           `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
           FROM crsql_changes
-          WHERE site_id = crsql_site_id()`,
+          WHERE site_id = crsql_site_id()
+          ORDER BY db_version, seq`,
         );
         if (changes.length > 0) {
           console.log(
@@ -224,8 +225,10 @@ export function useSyncBridge(
           const changes = await ctx.execA(
             `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
             FROM crsql_changes
-            WHERE site_id = crsql_site_id()`,
+            WHERE site_id = crsql_site_id()
+            ORDER BY db_version, seq`,
           );
+
           if (changes.length > 0) {
             console.log(
               `📤 [Outbound] Fulfilling request_sync with ${changes.length} authored changes.`,
@@ -235,6 +238,8 @@ export function useSyncBridge(
               lastVersionRef.current = maxVersion;
             }
             ws.send(serializeMsg({ type: "sync", payload: changes }));
+          } else {
+            console.log("📤 [Outbound] No changes to sync.");
           }
         } catch (err) {
           console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
@@ -323,7 +328,8 @@ export function useSyncBridge(
         const changes = await ctx.execA(
           `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
           FROM crsql_changes
-          WHERE db_version > ? AND site_id = crsql_site_id()`,
+          WHERE db_version > ? AND site_id = crsql_site_id()
+          ORDER BY db_version, seq`,
           [lastVersionRef.current],
         );
 
