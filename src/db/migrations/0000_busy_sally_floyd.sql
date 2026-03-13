@@ -25,7 +25,7 @@ CREATE TABLE `services` (
 	`id` text PRIMARY KEY NOT NULL,
 	`status` text DEFAULT 'Draft' NOT NULL,
 	`type` text DEFAULT 'Outros',
-	`client_id` text NOT NULL,
+	`client_id` text DEFAULT '' NOT NULL,
 	`description` text,
 	`contract_date` text DEFAULT '' NOT NULL,
 	`final_date` text,
@@ -35,8 +35,7 @@ CREATE TABLE `services` (
 	`installments` integer,
 	`observations` text,
 	`created_at` text DEFAULT '' NOT NULL,
-	`updated_at` text DEFAULT '' NOT NULL,
-	FOREIGN KEY (`client_id`) REFERENCES `clients`(`id`) ON UPDATE cascade ON DELETE restrict
+	`updated_at` text DEFAULT '' NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `client_id_idx` ON `services` (`client_id`);

@@ -64,12 +64,7 @@ export const servicesTable = sqliteTable(
       .notNull()
       .default("Draft"),
     type: text("type", { enum: serviceTypesArray }).default("Outros"),
-    client_id: text("client_id")
-      .notNull()
-      .references(() => clientsTable.id, {
-        onDelete: "restrict",
-        onUpdate: "cascade",
-      }),
+    client_id: text("client_id").notNull().default(""),
     description: text("description"),
     contract_date: text("contract_date").notNull().default(""),
     final_date: text("final_date"),
@@ -86,8 +81,8 @@ export const servicesTable = sqliteTable(
 
 export const logsTable = sqliteTable("logs", {
   id: text("id").primaryKey(),
-  action: text("action").notNull(),
-  module: text("module").notNull(),
+  action: text("action").notNull().default(""),
+  module: text("module").notNull().default(""),
   device: text("device"),
   status: text("status", {
     enum: ["Success", "Error", "Warning"],
