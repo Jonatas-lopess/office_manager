@@ -46,6 +46,7 @@ import * as Accordion from "@radix-ui/react-accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
+import ClickToCopy from "@/components/ui/click-to-copy";
 
 type ClientStatus = Client["status"];
 
@@ -463,13 +464,20 @@ function ClientDialog({
               <Label htmlFor="client-name" data-testid="label-client-name">
                 Nome Completo *
               </Label>
-              <Input
-                id="client-name"
-                {...form.register("name")}
-                placeholder="ex: Alex Silva"
-                data-testid="input-client-name"
-                disabled={isView}
-              />
+              <ClickToCopy
+                enabled={isView}
+                value={form.watch("name")}
+                label="Nome Completo"
+              >
+                <Input
+                  id="client-name"
+                  {...form.register("name")}
+                  placeholder="ex: Alex Silva"
+                  data-testid="input-client-name"
+                  disabled={isView}
+                  className={isView ? "pointer-events-none" : ""}
+                />
+              </ClickToCopy>
               {form.formState.errors.name && (
                 <span className="text-xs text-destructive">
                   {form.formState.errors.name.message}
@@ -539,16 +547,23 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cpf">
                     <Label htmlFor="client-cpf">CPF</Label>
-                    <Input
-                      id="client-cpf"
-                      {...form.register("cpf", {
-                        onChange: (e) => {
-                          e.target.value = maskCPF(e.target.value);
-                        },
-                      })}
-                      placeholder="000.000.000-00"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("cpf")}
+                      label="CPF"
+                    >
+                      <Input
+                        id="client-cpf"
+                        {...form.register("cpf", {
+                          onChange: (e) => {
+                            e.target.value = maskCPF(e.target.value);
+                          },
+                        })}
+                        placeholder="000.000.000-00"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                     {form.formState.errors.cpf && (
                       <span className="text-xs text-destructive">
                         {form.formState.errors.cpf.message}
@@ -557,16 +572,23 @@ function ClientDialog({
                   </div>
                   <div className="grid gap-2" data-testid="field-client-cnpj">
                     <Label htmlFor="client-cnpj">CNPJ</Label>
-                    <Input
-                      id="client-cnpj"
-                      {...form.register("cnpj", {
-                        onChange: (e) => {
-                          e.target.value = maskCNPJ(e.target.value);
-                        },
-                      })}
-                      placeholder="00.000.000/0000-00"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("cnpj")}
+                      label="CNPJ"
+                    >
+                      <Input
+                        id="client-cnpj"
+                        {...form.register("cnpj", {
+                          onChange: (e) => {
+                            e.target.value = maskCNPJ(e.target.value);
+                          },
+                        })}
+                        placeholder="00.000.000/0000-00"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                     {form.formState.errors.cnpj && (
                       <span className="text-xs text-destructive">
                         {form.formState.errors.cnpj.message}
@@ -584,12 +606,19 @@ function ClientDialog({
                       <Label htmlFor="client-cnpj-date">
                         Data de Início do CNPJ
                       </Label>
-                      <Input
-                        id="client-cnpj-date"
-                        type="date"
-                        {...form.register("cnpj_begin_date")}
-                        disabled={isView}
-                      />
+                      <ClickToCopy
+                        enabled={isView}
+                        value={form.watch("cnpj_begin_date")}
+                        label="Data de Início do CNPJ"
+                      >
+                        <Input
+                          id="client-cnpj-date"
+                          type="date"
+                          {...form.register("cnpj_begin_date")}
+                          disabled={isView}
+                          className={isView ? "pointer-events-none" : ""}
+                        />
+                      </ClickToCopy>
                     </div>
                     <div
                       className="grid gap-2"
@@ -622,12 +651,19 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-email">
                     <Label htmlFor="client-email">Email</Label>
-                    <Input
-                      id="client-email"
-                      {...form.register("email")}
-                      placeholder="alex@empresa.com"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("email")}
+                      label="Email"
+                    >
+                      <Input
+                        id="client-email"
+                        {...form.register("email")}
+                        placeholder="alex@empresa.com"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                     {form.formState.errors.email && (
                       <span className="text-xs text-destructive">
                         {form.formState.errors.email.message}
@@ -636,16 +672,23 @@ function ClientDialog({
                   </div>
                   <div className="grid gap-2" data-testid="field-client-phone">
                     <Label htmlFor="client-phone">Telefone</Label>
-                    <Input
-                      id="client-phone"
-                      {...form.register("phone", {
-                        onChange: (e) => {
-                          e.target.value = maskPhone(e.target.value);
-                        },
-                      })}
-                      placeholder="(00) 00000-0000"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("phone")}
+                      label="Telefone"
+                    >
+                      <Input
+                        id="client-phone"
+                        {...form.register("phone", {
+                          onChange: (e) => {
+                            e.target.value = maskPhone(e.target.value);
+                          },
+                        })}
+                        placeholder="(00) 00000-0000"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                     {form.formState.errors.phone && (
                       <span className="text-xs text-destructive">
                         {form.formState.errors.phone.message}
@@ -674,12 +717,19 @@ function ClientDialog({
                     data-testid="field-client-birthdate"
                   >
                     <Label htmlFor="client-birthdate">Data de Nascimento</Label>
-                    <Input
-                      id="client-birthdate"
-                      type="date"
-                      {...form.register("birth_date")}
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("birth_date")}
+                      label="Data de Nascimento"
+                    >
+                      <Input
+                        id="client-birthdate"
+                        type="date"
+                        {...form.register("birth_date")}
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div
                     className="grid gap-2"
@@ -688,37 +738,58 @@ function ClientDialog({
                     <Label htmlFor="client-payment-source">
                       Fonte Pagadora
                     </Label>
-                    <Input
-                      id="client-payment-source"
-                      {...form.register("payment_source")}
-                      placeholder="Ex: Nome da Empresa"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("payment_source")}
+                      label="Fonte Pagadora"
+                    >
+                      <Input
+                        id="client-payment-source"
+                        {...form.register("payment_source")}
+                        placeholder="Ex: Nome da Empresa"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-ie">
                     <Label htmlFor="client-ie">Inscrição Estadual</Label>
-                    <Input
-                      id="client-ie"
-                      {...form.register("estadual_inscription")}
-                      placeholder="Número da IE"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("estadual_inscription")}
+                      label="Inscrição Estadual"
+                    >
+                      <Input
+                        id="client-ie"
+                        {...form.register("estadual_inscription")}
+                        placeholder="Número da IE"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div className="grid gap-2" data-testid="field-client-nirf">
                     <Label htmlFor="client-nirf">NIRF</Label>
-                    <Input
-                      id="client-nirf"
-                      {...form.register("nirf", {
-                        onChange: (e) => {
-                          e.target.value = maskNIRF(e.target.value);
-                        },
-                      })}
-                      placeholder="0.000.000-0"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("nirf")}
+                      label="NIRF"
+                    >
+                      <Input
+                        id="client-nirf"
+                        {...form.register("nirf", {
+                          onChange: (e) => {
+                            e.target.value = maskNIRF(e.target.value);
+                          },
+                        })}
+                        placeholder="0.000.000-0"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                     {form.formState.errors.nirf && (
                       <span className="text-xs text-destructive">
                         {form.formState.errors.nirf.message}
@@ -730,25 +801,39 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cib">
                     <Label htmlFor="client-cib">CIB</Label>
-                    <Input
-                      id="client-cib"
-                      {...form.register("cib")}
-                      placeholder="Número do CIB"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("cib")}
+                      label="CIB"
+                    >
+                      <Input
+                        id="client-cib"
+                        {...form.register("cib")}
+                        placeholder="Número do CIB"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div className="grid gap-2" data-testid="field-client-incra">
                     <Label htmlFor="client-incra">INCRA</Label>
-                    <Input
-                      id="client-incra"
-                      {...form.register("incra", {
-                        onChange: (e) => {
-                          e.target.value = maskIncra(e.target.value);
-                        },
-                      })}
-                      placeholder="000.000.000.000-0"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("incra")}
+                      label="INCRA"
+                    >
+                      <Input
+                        id="client-incra"
+                        {...form.register("incra", {
+                          onChange: (e) => {
+                            e.target.value = maskIncra(e.target.value);
+                          },
+                        })}
+                        placeholder="000.000.000.000-0"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
 
@@ -758,12 +843,19 @@ function ClientDialog({
                     data-testid="field-client-gov-pass"
                   >
                     <Label htmlFor="client-gov-pass">Senha Gov</Label>
-                    <Input
-                      id="client-gov-pass"
-                      {...form.register("gov_password")}
-                      placeholder="Senha do portal"
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("gov_password")}
+                      label="Senha Gov"
+                    >
+                      <Input
+                        id="client-gov-pass"
+                        {...form.register("gov_password")}
+                        placeholder="Senha do portal"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div
                     className="grid gap-2"
@@ -772,12 +864,19 @@ function ClientDialog({
                     <Label htmlFor="client-observations">
                       Observações Livres
                     </Label>
-                    <Input
-                      id="client-observations"
-                      {...form.register("observations")}
-                      placeholder="Notas gerais..."
-                      disabled={isView}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("observations")}
+                      label="Observações Livres"
+                    >
+                      <Input
+                        id="client-observations"
+                        {...form.register("observations")}
+                        placeholder="Notas gerais..."
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
               </Accordion.Content>

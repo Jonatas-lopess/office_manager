@@ -60,6 +60,7 @@ import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import * as Accordion from "@radix-ui/react-accordion";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
+import ClickToCopy from "@/components/ui/click-to-copy";
 
 type ServiceStatus = Service["status"];
 
@@ -273,33 +274,33 @@ export default function ServicesPage() {
                     className="flex items-center gap-2"
                     data-testid={`group-service-actions-${s.id}`}
                   >
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => openDialog("view", s)}
-                        data-testid={`button-service-view-${s.id}`}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openDialog("edit", s)}
-                        data-testid={`button-service-edit-${s.id}`}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedService(s);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        data-testid={`button-service-delete-${s.id}`}
-                      >
-                        Delete
-                      </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openDialog("view", s)}
+                      data-testid={`button-service-view-${s.id}`}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openDialog("edit", s)}
+                      data-testid={`button-service-edit-${s.id}`}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedService(s);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      data-testid={`button-service-delete-${s.id}`}
+                    >
+                      Delete
+                    </Button>
                   </div>{" "}
                 </div>
               </div>
@@ -343,12 +344,6 @@ export default function ServicesPage() {
                 value={currency(totalToReceive)}
                 testId="to-receive"
               />
-            </div>
-            <div
-              className="mt-4 rounded-2xl border bg-card p-4 text-xs text-muted-foreground"
-              data-testid="callout-services"
-            >
-              Dica: use “Faturado” para acompanhar o que já foi pago.
             </div>
           </div>
         </Card>
@@ -706,10 +701,11 @@ function ServiceDialog({
               )}
             </div>
 
-            <div className="grid gap-2" data-testid="field-service-price">
-              <Label htmlFor="service-price" data-testid="label-service-price">
-                Valor Base (R$)
-              </Label>
+            <ClickToCopy
+              enabled={isView}
+              value={form.watch("price")}
+              label="Valor Base"
+            >
               <Input
                 disabled={isView}
                 id="service-price"
@@ -717,33 +713,37 @@ function ServiceDialog({
                 {...form.register("price", { valueAsNumber: true })}
                 inputMode="decimal"
                 data-testid="input-service-price"
+                className={isView ? "pointer-events-none" : ""}
               />
-              {form.formState.errors.price && (
-                <span className="text-xs text-destructive">
-                  {form.formState.errors.price.message}
-                </span>
-              )}
-            </div>
+            </ClickToCopy>
           </div>
 
           <div className="grid gap-2" data-testid="field-service-desc">
             <Label htmlFor="service-description">Descrição Resumida</Label>
             <Popover open={openDesc} onOpenChange={setOpenDesc}>
               <PopoverTrigger asChild>
-                <Button
-                  id="service-description"
-                  variant="outline"
-                  role="combobox"
-                  disabled={isView}
-                  aria-expanded={openDesc}
-                  className={cn(
-                    "w-full justify-between font-normal",
-                    !form.watch("description") && "text-muted-foreground",
-                  )}
+                <ClickToCopy
+                  enabled={isView}
+                  value={form.watch("description")}
+                  label="Descrição"
                 >
-                  {form.watch("description") || "Notas rápidas sobre a entrega"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
+                  <Button
+                    id="service-description"
+                    variant="outline"
+                    role="combobox"
+                    disabled={isView}
+                    aria-expanded={openDesc}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      !form.watch("description") && "text-muted-foreground",
+                      isView && "pointer-events-none",
+                    )}
+                  >
+                    {form.watch("description") ||
+                      "Notas rápidas sobre a entrega"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </ClickToCopy>
               </PopoverTrigger>
               <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
@@ -877,12 +877,19 @@ function ServiceDialog({
                     <Label htmlFor="service-contract-date">
                       Data de Contrato
                     </Label>
-                    <Input
-                      disabled={isView}
-                      id="service-contract-date"
-                      type="date"
-                      {...form.register("contract_date")}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("contract_date")}
+                      label="Data do Contrato"
+                    >
+                      <Input
+                        id="service-date"
+                        type="date"
+                        {...form.register("contract_date")}
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
 
@@ -892,12 +899,19 @@ function ServiceDialog({
                     data-testid="field-service-final-date"
                   >
                     <Label htmlFor="service-final-date">Data de Entrega</Label>
-                    <Input
-                      disabled={isView}
-                      id="service-final-date"
-                      type="date"
-                      {...form.register("final_date")}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("final_date")}
+                      label="Data de Entrega"
+                    >
+                      <Input
+                        id="service-final-date"
+                        type="date"
+                        {...form.register("final_date")}
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div
                     className="grid gap-2"
@@ -906,12 +920,19 @@ function ServiceDialog({
                     <Label htmlFor="service-payment-date">
                       Data de Pagamento
                     </Label>
-                    <Input
-                      disabled={isView}
-                      id="service-payment-date"
-                      type="date"
-                      {...form.register("payment_date")}
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("payment_date")}
+                      label="Data de Pagamento"
+                    >
+                      <Input
+                        id="service-payment-date"
+                        type="date"
+                        {...form.register("payment_date")}
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
               </Accordion.Content>
@@ -937,27 +958,40 @@ function ServiceDialog({
                     <Label htmlFor="service-payment-method">
                       Método de Pagamento
                     </Label>
-                    <Input
-                      disabled={isView}
-                      id="service-payment-method"
-                      {...form.register("payment_method")}
-                      placeholder="Ex: Pix, Boleto..."
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("payment_method")}
+                      label="Meio de Pagamento"
+                    >
+                      <Input
+                        id="service-payment-method"
+                        {...form.register("payment_method")}
+                        placeholder="Ex: Pix, Cartão…"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                   <div
                     className="grid gap-2"
                     data-testid="field-service-installments"
                   >
                     <Label htmlFor="service-installments">Nº de Parcelas</Label>
-                    <Input
-                      disabled={isView}
-                      id="service-installments"
-                      type="number"
-                      {...form.register("installments", {
-                        valueAsNumber: true,
-                      })}
-                      placeholder="1"
-                    />
+                    <ClickToCopy
+                      enabled={isView}
+                      value={form.watch("installments")}
+                      label="Parcelas"
+                    >
+                      <Input
+                        id="service-installments"
+                        type="number"
+                        {...form.register("installments", {
+                          valueAsNumber: true,
+                        })}
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
                   </div>
                 </div>
 
@@ -968,12 +1002,19 @@ function ServiceDialog({
                   <Label htmlFor="service-observations">
                     Observações Livres
                   </Label>
-                  <Input
-                    id="service-observations"
-                    {...form.register("observations")}
-                    placeholder="Notas estendidas ou links..."
-                    disabled={isView}
-                  />
+                  <ClickToCopy
+                    enabled={isView}
+                    value={form.watch("observations")}
+                    label="Observações"
+                  >
+                    <Input
+                      id="service-observations"
+                      {...form.register("observations")}
+                      placeholder="Notas internas…"
+                      disabled={isView}
+                      className={isView ? "pointer-events-none" : ""}
+                    />
+                  </ClickToCopy>
                 </div>
               </Accordion.Content>
             </Accordion.Item>
