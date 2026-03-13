@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -315,12 +316,14 @@ export function StatCard({
   hint,
   icon,
   dataTestId,
+  loading,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   icon: ReactNode;
   dataTestId: string;
+  loading?: boolean;
 }) {
   return (
     <Card className="panel-card hover-lift" data-testid={dataTestId}>
@@ -340,14 +343,22 @@ export function StatCard({
               className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight truncate"
               data-testid={`${dataTestId}-value`}
             >
-              {value}
+              {loading ? (
+                <Skeleton className="h-7 w-24 mb-1" />
+              ) : (
+                value
+              )}
             </div>
-            {hint ? (
+            {hint || loading ? (
               <div
                 className="mt-1 text-[10px] sm:text-xs text-muted-foreground truncate"
                 data-testid={`${dataTestId}-hint`}
               >
-                {hint}
+                {loading ? (
+                  <Skeleton className="h-3 w-32" />
+                ) : (
+                  hint
+                )}
               </div>
             ) : null}
           </div>

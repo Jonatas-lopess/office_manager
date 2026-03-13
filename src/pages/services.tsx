@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -128,16 +129,37 @@ export default function ServicesPage() {
     return base.orderBy(desc(servicesTable.contract_date)).toSQL();
   }, [orm, q, status]);
 
-  const { data: rawServices } = useLocalQuery<any>(db, servicesQuery);
+  const { data: rawServices, loading: servicesLoading } = useLocalQuery<any>(db, servicesQuery);
   const services = useMemo(() => rawServices || [], [rawServices]);
 
-  const totalRevenue = services
-    .filter((s: any) => s.status === "Invoiced")
-    .reduce((acc: number, s: any) => acc + s.price, 0);
+  const clientsQuery = useMemo(() => {
+    return orm.select().from(clientsTable).toSQL();
+  }, [orm]);
+  const { data: rawClients, loading: clientsLoading } = useLocalQuery<any>(db, clientsQuery);
+  const clients = useMemo(() => rawClients || [], [rawClients]);
 
-  const totalToReceive = services
-    .filter((s: any) => s.status !== "Invoiced" && s.status !== "Draft")
-    .reduce((acc: number, s: any) => acc + s.price, 0);
+  const loading = servicesLoading || clientsLoading;
+
+  const clientsMap = useMemo(() => {
+    return clients.reduce((acc: Record<string, any>, c: any) => {
+      acc[c.id] = c;
+      return acc;
+    }, {});
+  }, [clients]);
+
+  const filtered = services;
+
+  const totalRevenue = useMemo(() => {
+    return services
+      .filter((s: any) => s.status === "Invoiced")
+      .reduce((acc: number, s: any) => acc + s.price, 0);
+  }, [services]);
+
+  const totalToReceive = useMemo(() => {
+    return services
+      .filter((s: any) => s.status !== "Invoiced" && s.status !== "Draft")
+      .reduce((acc: number, s: any) => acc + s.price, 0);
+  }, [services]);
 
   const handleDelete = async () => {
     if (!selectedService) return;
@@ -237,106 +259,106 @@ export default function ServicesPage() {
           </div>
 
           <div className="divide-y" data-testid="list-services">
-            {services.map((s: any) => (
-              <div
-                key={s.id}
-                className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
-                data-testid={`row-service-${s.id}`}
-              >
-                <div className="min-w-0">
-                  <div
-                    className="flex items-center gap-2 min-w-0"
-                    data-testid={`group-service-title-${s.id}`}
-                  >
-                    <div
-                      className="truncate text-sm font-semibold"
-                      data-testid={`text-service-title-${s.id}`}
-                    >
-                      {s.type} {s.description && `- ${s.description}`}
-                    </div>
-                    <StatusBadge status={s.status} />
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-4 p-4"
+                >
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64" />
                   </div>
-                  <div
-                    className="mt-1 truncate text-xs text-muted-foreground"
-                    data-testid={`text-service-meta-${s.id}`}
-                  >
-                    {s.client_name} ·{" "}
-                    {format(parseISO(s.contract_date), "MMM d, yyyy")}
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
                   </div>
                 </div>
-
+              ))
+            ) : filtered.length > 0 ? (
+              filtered.map((s) => (
                 <div
-                  className="flex flex-col items-end gap-2 sm:shrink-0"
-                  data-testid={`group-service-right-${s.id}`}
+                  key={s.id}
+                  className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                  data-testid={`row-service-${s.id}`}
                 >
-                  <div
-                    className="text-base font-extrabold text-foreground"
-                    data-testid={`text-service-price-${s.id}`}
-                  >
-                    {currency(s.price)}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="truncate text-sm font-medium"
+                        data-testid={`text-service-type-${s.id}`}
+                      >
+                        {s.type} {s.description && `- ${s.description}`}
+                      </div>
+                      <StatusBadge status={s.status} />
+                    </div>
+                    <div
+                      className="mt-0.5 truncate text-xs text-muted-foreground"
+                      data-testid={`text-service-meta-${s.id}`}
+                    >
+                      {clientsMap[s.client_id]?.name || "Cliente desconhecido"} &middot;{" "}
+                      {format(parseISO(s.contract_date), "dd/MM/yyyy")} &middot;{" "}
+                      {currency(s.price)}
+                    </div>
                   </div>
+
                   <div
                     className="flex items-center gap-2"
                     data-testid={`group-service-actions-${s.id}`}
                   >
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => openDialog("view", s)}
-                            data-testid={`button-service-view-${s.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Visualizar</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => openDialog("edit", s)}
-                            data-testid={`button-service-edit-${s.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Editar</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setSelectedService(s);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                            data-testid={`button-service-delete-${s.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Excluir</TooltipContent>
-                      </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openDialog("view", s)}
+                          data-testid={`button-service-view-${s.id}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Visualizar</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openDialog("edit", s)}
+                          data-testid={`button-service-edit-${s.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Editar</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setSelectedService(s);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          data-testid={`button-service-delete-${s.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Excluir</TooltipContent>
+                    </Tooltip>
                   </div>{" "}
                 </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-muted-foreground">
+                Nenhum serviço encontrado para sua busca.
               </div>
-            ))}
-
-            {services.length === 0 ? (
-              <div
-                className="p-8 text-center text-sm text-muted-foreground"
-                data-testid="empty-services"
-              >
-                No services found. Try changing your filters.
-              </div>
-            ) : null}
+            )}
           </div>
         </Card>
 
@@ -354,7 +376,7 @@ export default function ServicesPage() {
             >
               <SummaryRow
                 label="Serviços"
-                value={String(services.length)}
+                value={String(filtered.length)}
                 testId="services"
               />
               <SummaryRow

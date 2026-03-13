@@ -32,6 +32,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   AppShell,
@@ -73,14 +74,16 @@ export default function Dashboard() {
       .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
       .toSQL();
   }, [orm]);
-
-  const { data: servicesRaw } = useLocalQuery<any>(db, servicesQuery);
+  const { data: servicesRaw, loading: servicesLoading } = useLocalQuery<any>(db, servicesQuery);
   const services = useMemo(() => servicesRaw || [], [servicesRaw]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
-  const { data: clients } = useLocalQuery<Client>(db, clientsQuery);
+  const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<Client>(db, clientsQuery);
+  const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
+
+  const loading = servicesLoading || clientsLoading;
 
   const [period, setPeriod] = useState<PeriodId>("30d");
 
@@ -200,6 +203,7 @@ export default function Dashboard() {
             hint="Ativos no sistema"
             icon={<Users className="h-4 w-4" />}
             dataTestId="stat-clients"
+            loading={loading}
           />
           <StatCard
             label="Serviços"
@@ -209,6 +213,7 @@ export default function Dashboard() {
             hint={data.rangeLabel}
             icon={<Layers className="h-4 w-4" />}
             dataTestId="stat-services"
+            loading={loading}
           />
           <StatCard
             label="Renda"
@@ -216,6 +221,7 @@ export default function Dashboard() {
             hint={data.rangeLabel}
             icon={<BadgeDollarSign className="h-4 w-4" />}
             dataTestId="stat-income"
+            loading={loading}
           />
         </div>
 
@@ -262,44 +268,56 @@ export default function Dashboard() {
             </div>
 
             <div className="px-3 pb-4" data-testid="chart-wrapper">
-              <ChartContainer
-                config={{
-                  revenue: { label: "Income", color: "hsl(var(--chart-1))" },
-                }}
-                className="h-[260px] w-full"
-              >
-                <AreaChart
-                  data={data.chart}
-                  margin={{ left: 6, right: 10, top: 10, bottom: 0 }}
+              {loading ? (
+                <div className="flex h-[260px] w-full items-end gap-2 px-2 pb-6">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <Skeleton
+                      key={i}
+                      className="flex-1"
+                      style={{ height: `${Math.random() * 60 + 20}%` }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    revenue: { label: "Income", color: "hsl(var(--chart-1))" },
+                  }}
+                  className="h-[260px] w-full"
                 >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis
-                    dataKey="day"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={12}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={12}
-                    width={34}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(var(--chart-1))"
-                    fill="hsl(var(--chart-1) / 0.12)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ChartContainer>
+                  <AreaChart
+                    data={data.chart}
+                    margin={{ left: 6, right: 10, top: 10, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                    />
+                    <XAxis
+                      dataKey="day"
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
+                      width={34}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="hsl(var(--chart-1))"
+                      fill="hsl(var(--chart-1) / 0.12)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )}
             </div>
           </Card>
 
@@ -322,37 +340,53 @@ export default function Dashboard() {
             dataTestId="card-recent"
           >
             <div className="divide-y" data-testid="list-recent-services">
-              {recent.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between gap-4 p-4"
-                  data-testid={`row-recent-service-${s.id}`}
-                >
-                  <div className="min-w-0">
-                    <div
-                      className="truncate text-sm font-medium"
-                      data-testid={`text-service-name-${s.id}`}
-                    >
-                      {s.type} {s.description && `- ${s.description}`}
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between gap-4 p-4">
+                    <div className="min-w-0 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
                     </div>
-                    <div
-                      className="mt-0.5 truncate text-xs text-muted-foreground"
-                      data-testid={`text-service-meta-${s.id}`}
-                    >
-                      {s.client_name} &middot;{" "}
-                      {format(parseISO(s.contract_date), "MMM d, yyyy")}
+                    <Skeleton className="h-5 w-16" />
+                  </div>
+                ))
+              ) : recent.length > 0 ? (
+                recent.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-4 p-4"
+                    data-testid={`row-recent-service-${s.id}`}
+                  >
+                    <div className="min-w-0">
+                      <div
+                        className="truncate text-sm font-medium"
+                        data-testid={`text-service-name-${s.id}`}
+                      >
+                        {s.type} {s.description && `- ${s.description}`}
+                      </div>
+                      <div
+                        className="mt-0.5 truncate text-xs text-muted-foreground"
+                        data-testid={`text-service-meta-${s.id}`}
+                      >
+                        {s.client_name} &middot;{" "}
+                        {format(parseISO(s.contract_date), "MMM d, yyyy")}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className="text-sm font-semibold"
+                        data-testid={`text-service-price-${s.id}`}
+                      >
+                        {currency(s.price)}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div
-                      className="text-sm font-semibold"
-                      data-testid={`text-service-price-${s.id}`}
-                    >
-                      {currency(s.price)}
-                    </div>
-                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Nenhum serviço recente encontrado.
                 </div>
-              ))}
+              )}
             </div>
           </TableCard>
         </div>

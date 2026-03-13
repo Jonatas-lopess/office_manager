@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -63,7 +64,8 @@ export default function ClientsPage() {
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
-  const { data: items } = useLocalQuery<Client>(db, clientsQuery);
+  const { data: clientsRaw, loading } = useLocalQuery<Client>(db, clientsQuery);
+  const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ClientStatus>("all");
@@ -76,7 +78,7 @@ export default function ClientsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    return (items || [])
+    return (clients || [])
       .filter((c) => {
         const matchQ = (c.name + (c.email || "") + (c.observations ?? ""))
           .toLowerCase()
@@ -85,7 +87,7 @@ export default function ClientsPage() {
         return matchQ && matchS;
       })
       .sort((a, b) => (a.name > b.name ? 1 : -1));
-  }, [items, q, status]);
+  }, [clients, q, status]);
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -142,7 +144,6 @@ export default function ClientsPage() {
               data-testid="input-client-search"
             />
           </div>
-
           <div
             className="flex items-center gap-2"
             data-testid="wrap-client-filters"
@@ -182,95 +183,105 @@ export default function ClientsPage() {
         </div>
 
         <div className="divide-y" data-testid="list-clients">
-          {filtered.map((c) => (
-            <div
-              key={c.id}
-              className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
-              data-testid={`row-client-${c.id}`}
-            >
-              <div className="min-w-0">
-                <div
-                  className="flex flex-wrap items-center gap-2"
-                  data-testid={`group-client-title-${c.id}`}
-                >
-                  <div
-                    className="truncate text-sm font-semibold"
-                    data-testid={`text-client-name-${c.id}`}
-                  >
-                    {c.name}
-                  </div>
-                  <StatusBadge status={c.status} />
-                </div>
-                <div
-                  className="mt-1 truncate text-xs text-muted-foreground"
-                  data-testid={`text-client-meta-${c.id}`}
-                >
-                  {c.email || c.phone}
-                  {c.observations ? ` · ${c.observations}` : ""}
-                </div>
-              </div>
-
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
               <div
-                className="flex items-center gap-2"
-                data-testid={`group-client-actions-${c.id}`}
+                key={i}
+                className="flex items-center justify-between gap-4 p-4"
               >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openDialog("view", c)}
-                      data-testid={`button-client-view-${c.id}`}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Visualizar</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openDialog("edit", c)}
-                      data-testid={`button-client-edit-${c.id}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Editar</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setSelectedClient(c);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                      data-testid={`button-client-delete-${c.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Excluir</TooltipContent>
-                </Tooltip>
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : filtered.length > 0 ? (
+            filtered.map((c) => (
+              <div
+                key={c.id}
+                className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                data-testid={`row-client-${c.id}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="truncate text-sm font-medium"
+                      data-testid={`text-client-name-${c.id}`}
+                    >
+                      {c.name}
+                    </div>
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <div
+                    className="mt-0.5 truncate text-xs text-muted-foreground"
+                    data-testid={`text-client-meta-${c.id}`}
+                  >
+                    {c.cpf || c.cnpj} &middot;{" "}
+                    {c.phone}
+                  </div>
+                </div>
 
-          {filtered.length === 0 ? (
-            <div
-              className="p-8 text-center text-sm text-muted-foreground"
-              data-testid="empty-clients"
-            >
-              No clients found. Try changing your filters.
+                <div
+                  className="flex items-center gap-2"
+                  data-testid={`group-client-actions-${c.id}`}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openDialog("view", c)}
+                        data-testid={`button-client-view-${c.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Visualizar</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openDialog("edit", c)}
+                        data-testid={`button-client-edit-${c.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Editar</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setSelectedClient(c);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        data-testid={`button-client-delete-${c.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Excluir</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">
+              Nenhum cliente encontrado para sua busca.
             </div>
-          ) : null}
+          )}
         </div>
       </Card>
 
