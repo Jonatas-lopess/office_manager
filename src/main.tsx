@@ -19,6 +19,23 @@ function AppLoader({
 }) {
   const { isInitialSyncFinished, connectionStatus } = useSync();
 
+  useEffect(() => {
+    // As soon as this component mounts (meaning DB is ready and we can show the loading UI),
+    // we close the splashscreen and reveal the main window.
+    if (isTauri) {
+      async function transitionWindows() {
+        try {
+          // Add a tiny delay to ensure React has painted the first frame of the loading UI
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          await invoke("close_splashscreen");
+        } catch (err) {
+          console.error("Failed to transition windows:", err);
+        }
+      }
+      transitionWindows();
+    }
+  }, [isTauri]);
+
   if (!isInitialSyncFinished) {
     let message = "Synchronizing data...";
     let subMessage = "Fetching the latest updates from the network";

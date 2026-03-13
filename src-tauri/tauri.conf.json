@@ -13,8 +13,21 @@
     "windows": [
       {
         "title": "office_manager",
-        "width": 800,
-        "height": 600
+        "width": 1024,
+        "height": 768,
+        "visible": false
+      },
+      {
+        "title": "office_manager_splash",
+        "label": "splashscreen",
+        "url": "/splashscreen.html",
+        "width": 400,
+        "height": 300,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "center": true
       }
     ],
     "security": {

@@ -9,7 +9,7 @@ use axum::{
 use futures::{sink::SinkExt, stream::StreamExt};
 use std::{collections::HashMap, net::{IpAddr, SocketAddr}, sync::{Arc, Mutex}, time::Duration};
 use tokio::{net::TcpStream, sync::{broadcast, oneshot}, time::timeout};
-use tauri::{Emitter, RunEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use uuid::Uuid;
 use serde_json;
 
@@ -20,6 +20,16 @@ struct AppState {
     // The broadcast channel now holds a (sender_uuid, msg) tuple.
     tx: broadcast::Sender<(Uuid, String)>,
     connected_clients: Mutex<HashMap<Uuid, String>>,
+}
+
+#[tauri::command]
+async fn close_splashscreen(window: tauri::Window) {
+    // Close splashscreen
+    if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+        splashscreen.close().unwrap();
+    }
+    // Show main window
+    window.get_webview_window("main").unwrap().show().unwrap();
 }
 
 #[tauri::command]
@@ -94,7 +104,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![find_hub_ip])
+        .invoke_handler(tauri::generate_handler![find_hub_ip, close_splashscreen])
         .setup(move |app| {
             let handle = app.handle().clone();
             

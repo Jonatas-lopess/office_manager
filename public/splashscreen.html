@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+  <style>
+    :root {
+      --bg-color: rgba(248, 250, 252, 0.9); /* slate-50 with opacity */
+      --text-color: #0f172a; /* slate-900 */
+      --spinner-color: #2563eb; /* blue-600 */
+      --border-color: rgba(226, 232, 240, 0.8); /* slate-200 */
+    }
+
+    html, body {
+      background-color: transparent !important;
+      background: transparent !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      /* Allows dragging the window by clicking the background */
+      -webkit-app-region: drag;
+    }
+
+    .glass-container {
+      background-color: var(--bg-color);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 32px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      /* Removed box-shadow to prevent any unwanted outlines on Windows */
+      /* Prevent dragging on inner elements if needed, but here we let the whole window be draggable */
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(37, 99, 235, 0.2);
+      border-top-color: var(--spinner-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 24px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-color);
+      letter-spacing: -0.5px;
+    }
+    
+    p {
+      margin-top: 8px;
+      margin-bottom: 0;
+      font-size: 14px;
+      color: #64748b; /* slate-500 */
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-container">
+    <div class="spinner"></div>
+    <h1>Office Manager</h1>
+    <p>Starting up...</p>
+  </div>
+</body>
+</html>
