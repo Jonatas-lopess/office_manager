@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Search, UserPlus, ChevronDown } from "lucide-react";
+import { Search, UserPlus, ChevronDown, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -211,30 +211,36 @@ export default function ClientsPage() {
               >
                 <Button
                   variant="secondary"
-                  size="sm"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => openDialog("view", c)}
                   data-testid={`button-client-view-${c.id}`}
+                  title="View"
                 >
-                  View
+                  <Eye className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => openDialog("edit", c)}
                   data-testid={`button-client-edit-${c.id}`}
+                  title="Edit"
                 >
-                  Edit
+                  <Pencil className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="destructive"
-                  size="sm"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => {
                     setSelectedClient(c);
                     setIsDeleteDialogOpen(true);
                   }}
                   data-testid={`button-client-delete-${c.id}`}
+                  title="Delete"
                 >
-                  Delete
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>

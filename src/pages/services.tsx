@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Search, ChevronDown, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Search, ChevronDown, Check, ChevronsUpDown, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -276,30 +276,36 @@ export default function ServicesPage() {
                   >
                     <Button
                       variant="secondary"
-                      size="sm"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => openDialog("view", s)}
                       data-testid={`button-service-view-${s.id}`}
+                      title="View"
                     >
-                      View
+                      <Eye className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => openDialog("edit", s)}
                       data-testid={`button-service-edit-${s.id}`}
+                      title="Edit"
                     >
-                      Edit
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="destructive"
-                      size="sm"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => {
                         setSelectedService(s);
                         setIsDeleteDialogOpen(true);
                       }}
                       data-testid={`button-service-delete-${s.id}`}
+                      title="Delete"
                     >
-                      Delete
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>{" "}
                 </div>
