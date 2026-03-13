@@ -7,8 +7,6 @@ import ClientsPage from "@/pages/clients";
 import ServicesPage from "@/pages/services";
 import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
-import { SyncProvider } from "./db/sync-context";
-
 function Router() {
   return (
     <Switch>
@@ -27,13 +25,11 @@ type AppProps = {
   isTauri: boolean;
 };
 
-export default function App({ hubIp, isTauri }: AppProps) {
+export default function App({ }: AppProps) {
   return (
     <TooltipProvider>
-      <SyncProvider hubIp={hubIp} isTauri={isTauri}>
-        <Toaster />
-        <Router />
-      </SyncProvider>
+      <Toaster />
+      <Router />
     </TooltipProvider>
   );
 }

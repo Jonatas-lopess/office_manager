@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const BASE_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 const JITTER_AMOUNT = 500;
+const SYNC_BATCH_SIZE = 1000; // Optimal for balancing latency and throughput
 
 // ==========================================
 // CUSTOM JSON SERIALIZERS
@@ -76,6 +77,10 @@ export function useSyncBridge(
   const [connectedPeers, setConnectedPeers] = useState<Peer[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
+  const [isInitialSyncFinished, setIsInitialSyncFinished] = useState(false);
+  const syncDebounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
@@ -162,6 +167,16 @@ export function useSyncBridge(
           payload: { knowledgeMap },
         }),
       );
+
+      // If we don't receive any sync messages within 1.5 seconds after connecting,
+      // assume we are up to date or the hub has no data.
+      if (syncDebounceTimeoutRef.current) {
+        clearTimeout(syncDebounceTimeoutRef.current);
+      }
+      syncDebounceTimeoutRef.current = setTimeout(() => {
+        console.log("✅ [Sync] Initial sync finished (timeout on open)");
+        setIsInitialSyncFinished(true);
+      }, 1500);
     };
 
     ws.onerror = (err) => {
@@ -258,7 +273,15 @@ export function useSyncBridge(
               return Number(BigInt(a[8]) - BigInt(b[8])); // seq
             });
 
-            ws.send(serializeMsg({ type: "sync", payload: allChanges }));
+            // Send in batches to avoid blocking main thread and potential IPC limits
+            for (let i = 0; i < allChanges.length; i += SYNC_BATCH_SIZE) {
+              const batch = allChanges.slice(i, i + SYNC_BATCH_SIZE);
+              ws.send(serializeMsg({ type: "sync", payload: batch }));
+              // Small yield to let UI remain responsive between batches if there are many
+              if (allChanges.length > SYNC_BATCH_SIZE) {
+                await new Promise((resolve) => setTimeout(resolve, 0));
+              }
+            }
           } else {
             console.log("📤 [Outbound] No incremental changes to sync.");
           }
@@ -300,6 +323,15 @@ export function useSyncBridge(
                 payload: { knowledgeMap: myKnowledgeMap },
               }),
             );
+          } else {
+             // Anti-entropy determined we are fully up to date with this request
+             if (!isInitialSyncFinished) {
+               if (syncDebounceTimeoutRef.current) {
+                 clearTimeout(syncDebounceTimeoutRef.current);
+               }
+               console.log("✅ [Sync] Initial sync finished (anti-entropy check complete)");
+               setIsInitialSyncFinished(true);
+             }
           }
         } catch (err) {
           console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
@@ -349,6 +381,17 @@ export function useSyncBridge(
           .finally(() => {
             stmt.finalize(null);
           });
+          
+        // Reset the debounce timer on every received sync message
+        if (!isInitialSyncFinished) {
+          if (syncDebounceTimeoutRef.current) {
+            clearTimeout(syncDebounceTimeoutRef.current);
+          }
+          syncDebounceTimeoutRef.current = setTimeout(() => {
+            console.log("✅ [Sync] Initial sync finished (no more changes received)");
+            setIsInitialSyncFinished(true);
+          }, 1000);
+        }
       }
     };
   }, [initialHubUrl, ctx, isTauri]);
@@ -362,12 +405,16 @@ export function useSyncBridge(
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      if (syncDebounceTimeoutRef.current) {
+        clearTimeout(syncDebounceTimeoutRef.current);
+      }
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;
         wsRef.current.close();
       }
       setConnectionStatus("disconnected");
+      setIsInitialSyncFinished(false);
     };
   }, [connect]);
 
@@ -413,7 +460,16 @@ export function useSyncBridge(
           );
 
           lastVersionRef.current = changes[changes.length - 1][5];
-          ws.send(serializeMsg({ type: "sync", payload: changes }));
+
+          // Send in batches for better UI responsiveness and reliability
+          for (let i = 0; i < changes.length; i += SYNC_BATCH_SIZE) {
+            const batch = changes.slice(i, i + SYNC_BATCH_SIZE);
+            ws.send(serializeMsg({ type: "sync", payload: batch }));
+
+            if (changes.length > SYNC_BATCH_SIZE) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
+          }
         }
       } catch (err) {
         console.error(`❌ [Outbound SQL Error]:`, err);
@@ -440,5 +496,5 @@ export function useSyncBridge(
     };
   }, []);
 
-  return { myId, connectedPeers, connectionStatus };
+  return { myId, connectedPeers, connectionStatus, isInitialSyncFinished };
 }

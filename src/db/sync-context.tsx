@@ -6,6 +6,7 @@ export interface SyncContextState {
   myId: string | null;
   connectedPeers: Peer[];
   connectionStatus: ConnectionStatus;
+  isInitialSyncFinished: boolean;
 }
 
 const SyncContext = createContext<SyncContextState | null>(null);
