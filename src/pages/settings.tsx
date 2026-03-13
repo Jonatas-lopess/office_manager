@@ -168,7 +168,7 @@ export default function SettingsPage() {
                     <div className="font-medium">
                       {codenameArray[idx] || `PC ${idx + 1}`}
                       {peer.id === myId && (
-                        <span className="ml-2 text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border border-zinc-200">
+                        <span className="ml-2 whitespace-nowrap text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border border-zinc-200">
                           Este dispositivo
                         </span>
                       )}
