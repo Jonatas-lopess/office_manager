@@ -70,6 +70,7 @@ export function useSyncBridge(
     null,
   );
   const isUnmountingRef = useRef(false);
+  const isSyncingRef = useRef(false);
 
   const [myId, setMyId] = useState<string | null>(null);
   const [connectedPeers, setConnectedPeers] = useState<Peer[]>([]);
@@ -138,31 +139,29 @@ export function useSyncBridge(
       setConnectionStatus("connected");
       reconnectAttemptsRef.current = 0;
 
-      // Ask peers to sync their history with us
-      ws.send(serializeMsg({ type: "request_sync" }));
+      // Query local max versions per site for incremental sync
+      let knowledgeMap: Record<string, string> = {
+        // "hex_site_id": "max_version"
+      };
 
-      // Broadcast our own authored changes right away
-      if (!ctx) return;
       try {
-        const changes = await ctx.execA(
-          `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
-          FROM crsql_changes
-          WHERE site_id = crsql_site_id()
-          ORDER BY db_version, seq`,
+        const siteVersions = await ctx.execA(
+          `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
         );
-        if (changes.length > 0) {
-          console.log(
-            `📤 [Initial Sync] Broadcasting ${changes.length} authored changes.`,
-          );
-          const maxVersion = changes[changes.length - 1][5];
-          if (maxVersion > lastVersionRef.current) {
-            lastVersionRef.current = maxVersion;
-          }
-          ws.send(serializeMsg({ type: "sync", payload: changes }));
+        for (const [siteIdHex, maxVersion] of siteVersions) {
+          knowledgeMap[siteIdHex] = maxVersion.toString();
         }
       } catch (err) {
-        console.error(`❌ [Initial Sync Error]:`, err);
+        console.error(`❌ [Knowledge Map Error]:`, err);
       }
+
+      // Asking peers to sync their history with us INCREMENTALLY
+      ws.send(
+        serializeMsg({
+          type: "request_sync",
+          payload: { knowledgeMap },
+        }),
+      );
     };
 
     ws.onerror = (err) => {
@@ -219,27 +218,88 @@ export function useSyncBridge(
       }
 
       if (message.type === "request_sync") {
+        const theirMap = message.payload?.knowledgeMap || {};
         console.log("📥 [Inbound] Received request_sync");
+
         if (!ctx) return;
         try {
-          const changes = await ctx.execA(
-            `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
-            FROM crsql_changes
-            WHERE site_id = crsql_site_id()
-            ORDER BY db_version, seq`,
+          // Get all sites we know about
+          const ourSites = await ctx.execA(
+            `SELECT hex(site_id) FROM crsql_changes GROUP BY site_id`,
           );
 
-          if (changes.length > 0) {
-            console.log(
-              `📤 [Outbound] Fulfilling request_sync with ${changes.length} authored changes.`,
+          let allChanges: any[] = [];
+
+          for (const [siteIdHex] of ourSites) {
+            const lastKnownVersion = theirMap[siteIdHex]
+              ? BigInt(theirMap[siteIdHex])
+              : -1n;
+
+            const changes = await ctx.execA(
+              `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
+              FROM crsql_changes
+              WHERE site_id = x'${siteIdHex}' AND db_version > ?
+              ORDER BY db_version, seq`,
+              [lastKnownVersion],
             );
-            const maxVersion = changes[changes.length - 1][5];
-            if (maxVersion > lastVersionRef.current) {
-              lastVersionRef.current = maxVersion;
-            }
-            ws.send(serializeMsg({ type: "sync", payload: changes }));
+            allChanges = allChanges.concat(changes);
+          }
+
+          if (allChanges.length > 0) {
+            console.log(
+              `📤 [Outbound] Fulfilling incremental request_sync with ${allChanges.length} changes.`,
+            );
+            // Sort merged changes to maintain causal order across sites (best effort)
+            allChanges.sort((a, b) => {
+              const va = BigInt(a[5]);
+              const vb = BigInt(b[5]);
+              if (va < vb) return -1;
+              if (va > vb) return 1;
+              return Number(BigInt(a[8]) - BigInt(b[8])); // seq
+            });
+
+            ws.send(serializeMsg({ type: "sync", payload: allChanges }));
           } else {
-            console.log("📤 [Outbound] No changes to sync.");
+            console.log("📤 [Outbound] No incremental changes to sync.");
+          }
+
+          // Anti-Entropy Check: Do they have stuff we don't?
+          let weAreMissingData = false;
+          for (const siteIdHex in theirMap) {
+            const theirVersion = BigInt(theirMap[siteIdHex]);
+            const ourRow = ourSites.find((s) => s[0] === siteIdHex);
+            // If they have a site we don't know, or a newer version of a site we do know
+            if (!ourRow) {
+              weAreMissingData = true;
+              break;
+            }
+            // Need to get the actual max version for this site from our DB
+            const [[ourMax]] = await ctx.execA(
+              `SELECT max(db_version) FROM crsql_changes WHERE site_id = x'${siteIdHex}'`,
+            );
+            if (theirVersion > (ourMax || -1n)) {
+              weAreMissingData = true;
+              break;
+            }
+          }
+
+          if (weAreMissingData) {
+            console.log(
+              "🔄 [Anti-Entropy] Peer has newer data. Requesting sync...",
+            );
+            const siteVersions = await ctx.execA(
+              `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
+            );
+            let myKnowledgeMap: Record<string, string> = {};
+            for (const [siteIdHex, maxVersion] of siteVersions) {
+              myKnowledgeMap[siteIdHex] = maxVersion.toString();
+            }
+            ws.send(
+              serializeMsg({
+                type: "request_sync",
+                payload: { knowledgeMap: myKnowledgeMap },
+              }),
+            );
           }
         } catch (err) {
           console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
@@ -317,13 +377,27 @@ export function useSyncBridge(
   useEffect(() => {
     if (!ctx) return;
 
-    const cleanupOnUpdate = ctx.onUpdate(async () => {
-      const ws = wsRef.current;
+    // Initialize local version tracker
+    ctx
+      .execA(
+        `SELECT max(db_version) FROM crsql_changes WHERE site_id = crsql_site_id()`,
+      )
+      .then(([[maxV]]) => {
+        const version = maxV ? BigInt(maxV) : 0n;
+        console.log(`📑 [Init] Initializing version tracker to: ${version}`);
+        lastVersionRef.current = version;
+      })
+      .catch((err) => {
+        console.error(`❌ [Init] Failed to initialize version tracker:`, err);
+      });
 
-      // If the network isn't connected, we just silently skip sending.
-      // The CRDT will naturally catch up on the next successful sync!
+    const cleanupOnUpdate = ctx.onUpdate(async () => {
+      if (isSyncingRef.current) return;
+
+      const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
+      isSyncingRef.current = true;
       try {
         const changes = await ctx.execA(
           `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
@@ -343,6 +417,8 @@ export function useSyncBridge(
         }
       } catch (err) {
         console.error(`❌ [Outbound SQL Error]:`, err);
+      } finally {
+        isSyncingRef.current = false;
       }
     });
 
