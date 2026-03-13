@@ -26,6 +26,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -274,39 +279,51 @@ export default function ServicesPage() {
                     className="flex items-center gap-2"
                     data-testid={`group-service-actions-${s.id}`}
                   >
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openDialog("view", s)}
-                      data-testid={`button-service-view-${s.id}`}
-                      title="View"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openDialog("edit", s)}
-                      data-testid={`button-service-edit-${s.id}`}
-                      title="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setSelectedService(s);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                      data-testid={`button-service-delete-${s.id}`}
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDialog("view", s)}
+                            data-testid={`button-service-view-${s.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Visualizar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDialog("edit", s)}
+                            data-testid={`button-service-edit-${s.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setSelectedService(s);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            data-testid={`button-service-delete-${s.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Excluir</TooltipContent>
+                      </Tooltip>
                   </div>{" "}
                 </div>
               </div>

@@ -46,6 +46,11 @@ import * as Accordion from "@radix-ui/react-accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import ClickToCopy from "@/components/ui/click-to-copy";
 
 type ClientStatus = Client["status"];
@@ -209,39 +214,51 @@ export default function ClientsPage() {
                 className="flex items-center gap-2"
                 data-testid={`group-client-actions-${c.id}`}
               >
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => openDialog("view", c)}
-                  data-testid={`button-client-view-${c.id}`}
-                  title="View"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => openDialog("edit", c)}
-                  data-testid={`button-client-edit-${c.id}`}
-                  title="Edit"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setSelectedClient(c);
-                    setIsDeleteDialogOpen(true);
-                  }}
-                  data-testid={`button-client-delete-${c.id}`}
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => openDialog("view", c)}
+                      data-testid={`button-client-view-${c.id}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Visualizar</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => openDialog("edit", c)}
+                      data-testid={`button-client-edit-${c.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedClient(c);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      data-testid={`button-client-delete-${c.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Excluir</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           ))}
