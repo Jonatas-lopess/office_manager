@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Search, UserPlus, ChevronDown, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, UserPlus, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,12 @@ import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import * as Accordion from "@radix-ui/react-accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
@@ -571,24 +576,21 @@ function ClientDialog({
             </div>
           </div>
 
-          <Accordion.Root
+          <Accordion
             type="single"
             collapsible
             defaultValue="additional"
             className="w-full space-y-4"
           >
             {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item
+            <AccordionItem
               value="additional"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Documentação & Contato principal
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="py-2 text-sm font-semibold hover:no-underline">
+                Documentação & Contato principal
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cpf">
                     <Label htmlFor="client-cpf">CPF</Label>
@@ -741,21 +743,18 @@ function ClientDialog({
                     )}
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
+              </AccordionContent>
+            </AccordionItem>
 
             {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item
+            <AccordionItem
               value="advanced"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Dados Avançados (Gov, IE, NIRF, etc)
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="py-2 text-sm font-semibold hover:no-underline">
+                Dados Avançados (Gov, IE, NIRF, etc)
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-2"
@@ -924,9 +923,9 @@ function ClientDialog({
                     </ClickToCopy>
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
-          </Accordion.Root>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div
             className="flex items-center justify-end gap-2 mt-4"
