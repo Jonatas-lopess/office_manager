@@ -7,6 +7,7 @@ import ClientsPage from "@/pages/clients";
 import ServicesPage from "@/pages/services";
 import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
+
 function Router() {
   return (
     <Switch>
@@ -20,12 +21,7 @@ function Router() {
   );
 }
 
-type AppProps = {
-  hubIp: string | null;
-  isTauri: boolean;
-};
-
-export default function App({ }: AppProps) {
+export default function App() {
   return (
     <TooltipProvider>
       <Toaster />

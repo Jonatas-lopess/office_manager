@@ -10,13 +10,36 @@ import { Loader2 } from "lucide-react";
 
 let isBooting = false;
 
-function AppLoader({
-  hubIp,
-  isTauri,
+function LoadingScreen({
+  message,
+  subMessage,
 }: {
-  hubIp: string | null;
-  isTauri: boolean;
+  message: string;
+  subMessage: string;
 }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-900 p-4">
+      <div className="flex flex-col items-center max-w-md w-full p-8 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 animate-in fade-in zoom-in duration-500">
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full"></div>
+          <Loader2 className="w-16 h-16 text-blue-600 animate-spin relative z-10" />
+        </div>
+
+        <h2 className="text-2xl font-semibold mb-2 tracking-tight text-center">
+          {message}
+        </h2>
+        <p className="text-slate-500 text-center text-sm">{subMessage}</p>
+
+        {/* Progress bar simulation */}
+        <div className="w-full h-1.5 bg-slate-100 rounded-full mt-8 overflow-hidden">
+          <div className="h-full bg-blue-600 w-full animate-pulse rounded-full origin-left scale-x-100 transition-transform duration-1000"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppLoader({ isTauri }: { isTauri: boolean }) {
   const { isInitialSyncFinished, connectionStatus } = useSync();
 
   useEffect(() => {
@@ -51,31 +74,10 @@ function AppLoader({
       subMessage = "No hub connected, using local database only";
     }
 
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-900 p-4">
-        <div className="flex flex-col items-center max-w-md w-full p-8 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 animate-in fade-in zoom-in duration-500">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full"></div>
-            <Loader2 className="w-16 h-16 text-blue-600 animate-spin relative z-10" />
-          </div>
-          
-          <h2 className="text-2xl font-semibold mb-2 tracking-tight text-center">
-            {message}
-          </h2>
-          <p className="text-slate-500 text-center text-sm">
-            {subMessage}
-          </p>
-          
-          {/* Progress bar simulation */}
-          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-8 overflow-hidden">
-            <div className="h-full bg-blue-600 w-full animate-pulse rounded-full origin-left scale-x-100 transition-transform duration-1000"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message={message} subMessage={subMessage} />;
   }
 
-  return <App hubIp={hubIp} isTauri={isTauri} />;
+  return <App />;
 }
 
 function Root() {
@@ -132,16 +134,16 @@ function Root() {
     return <div style={{ color: "red", padding: "2rem" }}>{error}</div>;
   if (!dbState)
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-900">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium tracking-tight">Booting database engines...</p>
-      </div>
+      <LoadingScreen
+        message="Booting database engines..."
+        subMessage="Initializing local storage"
+      />
     );
 
   return (
     <DbProvider db={dbState.db} orm={dbState.orm}>
       <SyncProvider hubIp={hubIp} isTauri={isTauri}>
-        <AppLoader hubIp={hubIp} isTauri={isTauri} />
+        <AppLoader isTauri={isTauri} />
       </SyncProvider>
     </DbProvider>
   );
