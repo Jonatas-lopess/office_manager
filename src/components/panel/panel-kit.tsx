@@ -16,6 +16,20 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -95,114 +109,74 @@ function Topbar({
   );
 }
 
-function NavItem({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: ReactNode;
-  label: string;
-}) {
+function SidebarContent_() {
   const [location] = useLocation();
-  const active = location === href;
+
+  const NAV_ITEMS = [
+    { href: "/", label: "Dashboard", icon: LayoutGrid },
+    { href: "/clients", label: "Clientes", icon: Users },
+    { href: "/services", label: "Serviços", icon: BarChart3 },
+    { href: "/logs", label: "Logs", icon: HistoryIcon },
+    { href: "/settings", label: "Configurações", icon: Settings },
+  ];
 
   return (
-    <Link
-      href={href}
-      className={cn(
-        "group flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground transition",
-        "hover:bg-sidebar-accent hover:text-sidebar-foreground",
-        active && "bg-sidebar-accent text-sidebar-foreground",
-      )}
-      data-testid={`nav-${label.toLowerCase()}`}
-    >
-      <span
-        className={cn(
-          "grid h-8 w-8 place-items-center rounded-lg border bg-card text-muted-foreground transition",
-          active && "border-primary/25 text-primary",
-          "group-hover:border-primary/20 group-hover:text-primary",
-        )}
-        data-testid={`navicon-${label.toLowerCase()}`}
-      >
-        {icon}
-      </span>
-      <span
-        className="truncate"
-        data-testid={`navlabel-${label.toLowerCase()}`}
-      >
-        {label}
-      </span>
-    </Link>
-  );
-}
-
-function Sidebar() {
-  return (
-    <aside
-      className={cn(
-        "sticky top-0 h-dvh w-[280px] shrink-0 border-r bg-sidebar",
-        "hidden lg:block",
-      )}
-      data-testid="sidebar"
-    >
-      <div className="flex h-dvh flex-col" data-testid="sidebar-inner">
-        <div className="p-4" data-testid="sidebar-header">
-          <div className="flex items-center gap-3" data-testid="brand">
+    <Sidebar variant="sidebar" collapsible="icon">
+      <SidebarHeader className="p-4 flex flex-row items-center justify-between group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:hidden" data-testid="brand">
+          <div
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border bg-card"
+            data-testid="brand-mark"
+          >
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
             <div
-              className="grid h-10 w-10 place-items-center rounded-2xl border bg-card"
-              data-testid="brand-mark"
+              className="truncate text-sm font-semibold"
+              data-testid="text-brand-name"
             >
-              <Building2 className="h-5 w-5 text-primary" />
+              Painel de Controle
             </div>
-            <div className="min-w-0" data-testid="brand-text">
-              <div
-                className="truncate text-sm font-semibold"
-                data-testid="text-brand-name"
-              >
-                Painel de Controle
-              </div>
-              <div
-                className="truncate text-xs text-muted-foreground"
-                data-testid="text-brand-subtitle"
-              >
-                Área administrativa
-              </div>
+            <div
+              className="truncate text-xs text-muted-foreground"
+              data-testid="text-brand-subtitle"
+            >
+              Área administrativa
             </div>
           </div>
         </div>
+        <SidebarTrigger className="shrink-0" />
+      </SidebarHeader>
 
-        <div className="px-4" data-testid="sidebar-nav">
-          <div className="grid gap-1" data-testid="nav-list">
-            <NavItem
-              href="/"
-              icon={<LayoutGrid className="h-4 w-4" />}
-              label="Dashboard"
-            />
-            <NavItem
-              href="/clients"
-              icon={<Users className="h-4 w-4" />}
-              label="Clientes"
-            />
-            <NavItem
-              href="/services"
-              icon={<BarChart3 className="h-4 w-4" />}
-              label="Serviços"
-            />
-            <NavItem
-              href="/logs"
-              icon={<HistoryIcon className="h-4 w-4" />}
-              label="Logs"
-            />
-            <NavItem
-              href="/settings"
-              icon={<Settings className="h-4 w-4" />}
-              label="Configurações"
-            />
-          </div>
-        </div>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = location === item.href;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-        <div className="mt-auto p-4" data-testid="sidebar-footer">
+      <SidebarFooter className="p-4 mt-auto">
+        <div className="group-data-[collapsible=icon]:hidden">
           <Separator className="mb-4" />
           <div
             className="rounded-2xl border bg-card p-4"
@@ -238,8 +212,8 @@ function Sidebar() {
             </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
 
@@ -293,20 +267,19 @@ export function AppShell({
   right?: ReactNode;
 }>) {
   return (
-    <div className="app-shell min-h-dvh" data-testid="app-shell">
-      <div
-        className="mx-auto flex w-full max-w-[1280px] gap-6 px-4 py-6"
-        data-testid="layout"
-      >
-        <Sidebar />
-        <main className="min-w-0 flex-1" data-testid="main">
-          <Topbar title={title} subtitle={subtitle} right={right} />
-          <div className="mt-5" data-testid="page-content">
-            {children}
+    <SidebarProvider>
+      <div className="app-shell min-h-svh flex w-full" data-testid="app-shell">
+        <SidebarContent_ />
+        <SidebarInset className="flex-1 min-w-0">
+          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
+            <Topbar title={title} subtitle={subtitle} right={right} />
+            <div className="mt-2" data-testid="page-content">
+              {children}
+            </div>
           </div>
-        </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
@@ -343,22 +316,14 @@ export function StatCard({
               className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight truncate"
               data-testid={`${dataTestId}-value`}
             >
-              {loading ? (
-                <Skeleton className="h-7 w-24 mb-1" />
-              ) : (
-                value
-              )}
+              {loading ? <Skeleton className="h-7 w-24 mb-1" /> : value}
             </div>
             {hint || loading ? (
               <div
                 className="mt-1 text-[10px] sm:text-xs text-muted-foreground truncate"
                 data-testid={`${dataTestId}-hint`}
               >
-                {loading ? (
-                  <Skeleton className="h-3 w-32" />
-                ) : (
-                  hint
-                )}
+                {loading ? <Skeleton className="h-3 w-32" /> : hint}
               </div>
             ) : null}
           </div>

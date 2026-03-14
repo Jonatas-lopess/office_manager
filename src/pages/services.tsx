@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Search, ChevronDown, Check, ChevronsUpDown, Eye, Pencil, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Check,
+  ChevronsUpDown,
+  Eye,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -58,12 +66,26 @@ import {
   insertServiceSchema,
   NewService as NewServiceType,
 } from "@/db/validations";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
-import * as Accordion from "@radix-ui/react-accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
 import ClickToCopy from "@/components/ui/click-to-copy";
@@ -130,13 +152,19 @@ export default function ServicesPage() {
     return base.orderBy(desc(servicesTable.contract_date)).toSQL();
   }, [orm, q, status]);
 
-  const { data: rawServices, loading: servicesLoading } = useLocalQuery<any>(db, servicesQuery);
+  const { data: rawServices, loading: servicesLoading } = useLocalQuery<any>(
+    db,
+    servicesQuery,
+  );
   const services = useMemo(() => rawServices || [], [rawServices]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
-  const { data: rawClients, loading: clientsLoading } = useLocalQuery<any>(db, clientsQuery);
+  const { data: rawClients, loading: clientsLoading } = useLocalQuery<any>(
+    db,
+    clientsQuery,
+  );
   const clients = useMemo(() => rawClients || [], [rawClients]);
 
   const loading = servicesLoading || clientsLoading;
@@ -258,117 +286,128 @@ export default function ServicesPage() {
               </Select>
             </div>
           </div>
-
-          <div className="divide-y" data-testid="list-services">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <ServiceSkeleton key={i} />
-              ))
-            ) : (
-              <>
-                {pendingService &&
-                  !services.some((s) => s.id === pendingService.id) && (
-                    <ServiceSkeleton />
-                  )}
-                {filtered.length > 0 ? (
-                  filtered.map((s) => {
-                    if (pendingService && s.id === pendingService.id) {
-                      return <ServiceSkeleton key={s.id} />;
-                    }
-                    return (
-                      <div
-                        key={s.id}
-                        className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                        data-testid={`row-service-${s.id}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="truncate text-sm font-medium"
-                              data-testid={`text-service-type-${s.id}`}
-                            >
-                              {s.type} {s.description && `- ${s.description}`}
-                            </div>
-                            <StatusBadge status={s.status} />
-                          </div>
+          <ScrollArea className="max-h-[calc(100vh-280px)] pr-4">
+            <div className="divide-y" data-testid="list-services">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <ServiceSkeleton key={i} />
+                ))
+              ) : (
+                <>
+                  {pendingService &&
+                    !services.some((s) => s.id === pendingService.id) && (
+                      <ServiceSkeleton />
+                    )}
+                  {filtered.length > 0
+                    ? filtered.map((s) => {
+                        if (pendingService && s.id === pendingService.id) {
+                          return <ServiceSkeleton key={s.id} />;
+                        }
+                        return (
                           <div
-                            className="mt-0.5 truncate text-xs text-muted-foreground"
-                            data-testid={`text-service-meta-${s.id}`}
+                            key={s.id}
+                            className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                            data-testid={`row-service-${s.id}`}
                           >
-                            {clientsMap[s.client_id]?.name ||
-                              "Cliente desconhecido"}{" "}
-                            &middot;{" "}
-                            {format(parseISO(s.contract_date), "dd/MM/yyyy")}{" "}
-                            &middot; {currency(s.price)}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="truncate text-sm font-medium"
+                                  data-testid={`text-service-type-${s.id}`}
+                                >
+                                  {s.type}{" "}
+                                  {s.description && `- ${s.description}`}
+                                </div>
+                                <StatusBadge status={s.status} />
+                              </div>
+                              <div
+                                className="mt-0.5 truncate text-xs text-muted-foreground"
+                                data-testid={`text-service-meta-${s.id}`}
+                              >
+                                {clientsMap[s.client_id]?.name ||
+                                  "Cliente desconhecido"}{" "}
+                                &middot;{" "}
+                                {format(
+                                  parseISO(s.contract_date),
+                                  "dd/MM/yyyy",
+                                )}{" "}
+                                &middot; {currency(s.price)}
+                              </div>
+                            </div>
+                            <div
+                              className="flex items-center gap-2"
+                              data-testid={`group-service-actions-${s.id}`}
+                            >
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openDialog("view", s)}
+                                    data-testid={`button-service-view-${s.id}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Visualizar</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openDialog("edit", s)}
+                                    data-testid={`button-service-edit-${s.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setSelectedService(s);
+                                      setIsDeleteDialogOpen(true);
+                                    }}
+                                    data-testid={`button-service-delete-${s.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Excluir</TooltipContent>
+                              </Tooltip>
+                            </div>{" "}
                           </div>
-                        </div>
-
-                        <div
-                          className="flex items-center gap-2"
-                          data-testid={`group-service-actions-${s.id}`}
-                        >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openDialog("view", s)}
-                                data-testid={`button-service-view-${s.id}`}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Visualizar</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openDialog("edit", s)}
-                                data-testid={`button-service-edit-${s.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Editar</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setSelectedService(s);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                                data-testid={`button-service-delete-${s.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Excluir</TooltipContent>
-                          </Tooltip>
-                        </div>{" "}
-                      </div>
-                    );
-                  })
-                ) : (
-                  !pendingService && (
-                    <div className="p-8 text-center text-muted-foreground">
-                      Nenhum serviço encontrado para sua busca.
-                    </div>
-                  )
-                )}
-              </>
-            )}
-          </div>
+                        );
+                      })
+                    : !pendingService && (
+                        <Empty className="py-12">
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                              <Search className="size-6" />
+                            </EmptyMedia>
+                            <EmptyTitle>Nenhum serviço encontrado</EmptyTitle>
+                            <EmptyDescription>
+                              Tente ajustar sua busca ou filtros para encontrar
+                              o que procura.
+                            </EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      )}
+                </>
+              )}
+            </div>
+          </ScrollArea>
         </Card>
 
-        <Card className="panel-card" data-testid="card-services-summary">
+        <Card className="panel-card h-fit" data-testid="card-services-summary">
           <div className="p-5">
             <div
               className="text-sm font-medium text-muted-foreground"
@@ -533,10 +572,11 @@ function ServiceDialog({
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
 
-  const { data: clients } = useLocalQuery<{ id: string; name: string }>(
+  const { data: rawClients } = useLocalQuery<{ id: string; name: string }>(
     db,
     clientsQuery,
   );
+  const clients = useMemo(() => rawClients || [], [rawClients]);
 
   const [openDesc, setOpenDesc] = useState(false);
   const [searchDesc, setSearchDesc] = useState("");
@@ -674,7 +714,10 @@ function ServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid="dialog-new-service">
+      <DialogContent 
+        data-testid="dialog-new-service"
+        className="max-h-[85vh] overflow-y-auto max-w-2xl"
+      >
         <DialogHeader>
           <DialogTitle data-testid="text-new-service-title">
             {titles[mode]}
@@ -687,11 +730,11 @@ function ServiceDialog({
         <form
           autoComplete="off"
           onSubmit={form.handleSubmit(onSubmit, onError)}
-          className="grid gap-4"
+          className="grid gap-3"
           data-testid="form-new-service"
         >
           {/* TIER 1: CORE FIELDS */}
-          <div className="grid gap-2" data-testid="field-service-client">
+          <div className="grid gap-1.5" data-testid="field-service-client">
             <Label htmlFor="service-client" data-testid="label-service-client">
               Cliente *
             </Label>
@@ -725,9 +768,9 @@ function ServiceDialog({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div
-              className="grid gap-2 sm:col-span-2"
+              className="grid gap-1.5 sm:col-span-2"
               data-testid="field-service-type"
             >
               <Label htmlFor="service-type" data-testid="label-service-type">
@@ -760,24 +803,27 @@ function ServiceDialog({
               )}
             </div>
 
-            <ClickToCopy
-              enabled={isView}
-              value={form.watch("price")}
-              label="Valor Base"
-            >
-              <Input
-                disabled={isView}
-                id="service-price"
-                type="number"
-                {...form.register("price", { valueAsNumber: true })}
-                inputMode="decimal"
-                data-testid="input-service-price"
-                className={isView ? "pointer-events-none" : ""}
-              />
-            </ClickToCopy>
+            <div className="grid gap-1.5" data-testid="field-service-price">
+              <Label htmlFor="service-price">Valor Base</Label>
+              <ClickToCopy
+                enabled={isView}
+                value={form.watch("price")}
+                label="Valor Base"
+              >
+                <Input
+                  disabled={isView}
+                  id="service-price"
+                  type="number"
+                  {...form.register("price", { valueAsNumber: true })}
+                  inputMode="decimal"
+                  data-testid="input-service-price"
+                  className={isView ? "pointer-events-none" : ""}
+                />
+              </ClickToCopy>
+            </div>
           </div>
 
-          <div className="grid gap-2" data-testid="field-service-desc">
+          <div className="grid gap-1.5" data-testid="field-service-desc">
             <Label htmlFor="service-description">Descrição Resumida</Label>
             <Popover open={openDesc} onOpenChange={setOpenDesc}>
               <PopoverTrigger asChild>
@@ -858,27 +904,23 @@ function ServiceDialog({
             )}
           </div>
 
-          <Accordion.Root
+          <Accordion
             type="single"
             collapsible
             defaultValue="additional"
             className="w-full space-y-4"
           >
-            {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item
-              value="additional"
+            <AccordionItem 
+              value="additional" 
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Status & Contrato
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="hover:no-underline py-2 text-sm font-semibold">
+                Status & Contrato
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-status"
                   >
                     <Label
@@ -930,7 +972,7 @@ function ServiceDialog({
                   </div>
 
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-contract-date"
                   >
                     <Label htmlFor="service-contract-date">
@@ -954,7 +996,7 @@ function ServiceDialog({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-final-date"
                   >
                     <Label htmlFor="service-final-date">Data de Entrega</Label>
@@ -973,7 +1015,7 @@ function ServiceDialog({
                     </ClickToCopy>
                   </div>
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-payment-date"
                   >
                     <Label htmlFor="service-payment-date">
@@ -994,24 +1036,20 @@ function ServiceDialog({
                     </ClickToCopy>
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
+              </AccordionContent>
+            </AccordionItem>
 
-            {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item
-              value="advanced"
+            <AccordionItem 
+              value="advanced" 
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Dados Financeiros e Prazos
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="hover:no-underline py-2 text-sm font-semibold">
+                Dados Financeiros e Prazos
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-payment-method"
                   >
                     <Label htmlFor="service-payment-method">
@@ -1032,7 +1070,7 @@ function ServiceDialog({
                     </ClickToCopy>
                   </div>
                   <div
-                    className="grid gap-2"
+                    className="grid gap-1.5"
                     data-testid="field-service-installments"
                   >
                     <Label htmlFor="service-installments">Nº de Parcelas</Label>
@@ -1055,7 +1093,7 @@ function ServiceDialog({
                 </div>
 
                 <div
-                  className="grid gap-2"
+                  className="grid gap-1.5"
                   data-testid="field-service-observations"
                 >
                   <Label htmlFor="service-observations">
@@ -1075,9 +1113,9 @@ function ServiceDialog({
                     />
                   </ClickToCopy>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
-          </Accordion.Root>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div
             className="flex items-center justify-end gap-2 mt-4"
@@ -1097,6 +1135,9 @@ function ServiceDialog({
                 disabled={form.formState.isSubmitting}
                 data-testid="button-save-new-service"
               >
+                {form.formState.isSubmitting && (
+                  <Spinner className="mr-2 h-4 w-4" />
+                )}
                 {mode === "create" ? "Criar serviço" : "Atualizar serviço"}
               </Button>
             )}

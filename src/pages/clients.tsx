@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Search, UserPlus, ChevronDown, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, UserPlus, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,12 @@ import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import * as Accordion from "@radix-ui/react-accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { maskCPF, maskCNPJ, maskPhone, maskIncra, maskNIRF } from "@/lib/masks";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +58,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ClickToCopy from "@/components/ui/click-to-copy";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ClientStatus = Client["status"];
 
@@ -183,109 +197,120 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        <div className="divide-y" data-testid="list-clients">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <ClientSkeleton key={i} />
-            ))
-          ) : (
-            <>
-              {pendingClient &&
-                !clients.some((c) => c.id === pendingClient.id) && (
-                  <ClientSkeleton />
-                )}
-              {filtered.length > 0 ? (
-                filtered.map((c) => {
-                  if (pendingClient && c.id === pendingClient.id) {
-                    return <ClientSkeleton key={c.id} />;
-                  }
-                  return (
-                    <div
-                      key={c.id}
-                      className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                      data-testid={`row-client-${c.id}`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="truncate text-sm font-medium"
-                            data-testid={`text-client-name-${c.id}`}
-                          >
-                            {c.name}
-                          </div>
-                          <StatusBadge status={c.status} />
-                        </div>
-                        <div
-                          className="mt-0.5 truncate text-xs text-muted-foreground"
-                          data-testid={`text-client-meta-${c.id}`}
-                        >
-                          {c.cpf || c.cnpj} &middot; {c.phone}
-                        </div>
-                      </div>
-
+        <ScrollArea className="max-h-[calc(100vh-280px)] pr-4">
+          <div className="divide-y" data-testid="list-clients">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <ClientSkeleton key={i} />
+              ))
+            ) : (
+              <>
+                {pendingClient &&
+                  !clients.some((c) => c.id === pendingClient.id) && (
+                    <ClientSkeleton />
+                  )}
+                {filtered.length > 0 ? (
+                  filtered.map((c) => {
+                    if (pendingClient && c.id === pendingClient.id) {
+                      return <ClientSkeleton key={c.id} />;
+                    }
+                    return (
                       <div
-                        className="flex items-center gap-2"
-                        data-testid={`group-client-actions-${c.id}`}
+                        key={c.id}
+                        className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                        data-testid={`row-client-${c.id}`}
                       >
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="secondary"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openDialog("view", c)}
-                              data-testid={`button-client-view-${c.id}`}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="truncate text-sm font-medium"
+                              data-testid={`text-client-name-${c.id}`}
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Visualizar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openDialog("edit", c)}
-                              data-testid={`button-client-edit-${c.id}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setSelectedClient(c);
-                                setIsDeleteDialogOpen(true);
-                              }}
-                              data-testid={`button-client-delete-${c.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Excluir</TooltipContent>
-                        </Tooltip>
+                              {c.name}
+                            </div>
+                            <StatusBadge status={c.status} />
+                          </div>
+                          <div
+                            className="mt-0.5 truncate text-xs text-muted-foreground"
+                            data-testid={`text-client-meta-${c.id}`}
+                          >
+                            {c.cpf || c.cnpj} &middot; {c.phone}
+                          </div>
+                        </div>
+
+                        <div
+                          className="flex items-center gap-2"
+                          data-testid={`group-client-actions-${c.id}`}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("view", c)}
+                                data-testid={`button-client-view-${c.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Visualizar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("edit", c)}
+                                data-testid={`button-client-edit-${c.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setSelectedClient(c);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                data-testid={`button-client-delete-${c.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              ) : (
-                !pendingClient && (
-                  <div className="p-8 text-center text-muted-foreground">
-                    Nenhum cliente encontrado para sua busca.
-                  </div>
-                )
-              )}
-            </>
-          )}
-        </div>
+                    );
+                  })
+                ) : (
+                  !pendingClient && (
+                    <Empty className="py-12">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <Search className="size-6" />
+                        </EmptyMedia>
+                        <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
+                        <EmptyDescription>
+                          Tente ajustar sua busca ou filtros para encontrar o que
+                          procura.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </ScrollArea>
       </Card>
 
       <ClientDialog
@@ -571,24 +596,21 @@ function ClientDialog({
             </div>
           </div>
 
-          <Accordion.Root
+          <Accordion
             type="single"
             collapsible
             defaultValue="additional"
             className="w-full space-y-4"
           >
             {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item
+            <AccordionItem
               value="additional"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Documentação & Contato principal
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="py-2 text-sm font-semibold hover:no-underline">
+                Documentação & Contato principal
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cpf">
                     <Label htmlFor="client-cpf">CPF</Label>
@@ -741,21 +763,18 @@ function ClientDialog({
                     )}
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
+              </AccordionContent>
+            </AccordionItem>
 
             {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item
+            <AccordionItem
               value="advanced"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Dados Avançados (Gov, IE, NIRF, etc)
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+              <AccordionTrigger className="py-2 text-sm font-semibold hover:no-underline">
+                Dados Avançados (Gov, IE, NIRF, etc)
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-2"
@@ -924,9 +943,9 @@ function ClientDialog({
                     </ClickToCopy>
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
-          </Accordion.Root>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div
             className="flex items-center justify-end gap-2 mt-4"
@@ -946,6 +965,7 @@ function ClientDialog({
                 disabled={form.formState.isSubmitting}
                 data-testid="button-save-add-client"
               >
+                {form.formState.isSubmitting && <Spinner className="mr-2 h-4 w-4" />}
                 {mode === "create" ? "Salvar cliente" : "Atualizar cliente"}
               </Button>
             )}
