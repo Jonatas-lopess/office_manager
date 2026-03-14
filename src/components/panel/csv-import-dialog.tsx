@@ -64,6 +64,7 @@ export function CSVImportDialog({
   const [csvData, setCsvData] = useState<any[]>([]);
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { myId, connectedPeers } = useSync();
 
@@ -73,6 +74,7 @@ export function CSVImportDialog({
     setCsvData([]);
     setMappings([]);
     setIsProcessing(false);
+    setProcessedCount(0);
   };
 
   const handleFile = (selectedFile: File) => {
@@ -82,6 +84,7 @@ export function CSVImportDialog({
     Papa.parse(selectedFile, {
       header: true,
       skipEmptyLines: true,
+      worker: true,
       complete: (results) => {
         const detectedHeaders = results.meta.fields || [];
         setCsvData(results.data);
@@ -238,11 +241,16 @@ export function CSVImportDialog({
 
     try {
       if (clientsToInsert.length > 0) {
-        await orm.insert(clientsTable).values(clientsToInsert);
+        const BATCH_SIZE = 250;
+        for (let i = 0; i < clientsToInsert.length; i += BATCH_SIZE) {
+          const batch = clientsToInsert.slice(i, i + BATCH_SIZE);
+          await orm.insert(clientsTable).values(batch);
+          setProcessedCount(Math.min(i + BATCH_SIZE, clientsToInsert.length));
+        }
 
         // Register log using helper
         await logAction(orm, {
-          action: `Importação de ${successCount} clientes via CSV. ${file?.name && "Arquivo: " + file?.name}`,
+          action: `Importação de ${successCount} clientes via CSV. ${file?.name ? "Arquivo: " + file.name : ""}`,
           module: "Clientes",
           device:
             connectedPeers.find((p) => p.id === myId)?.ip || "Desconhecido",
@@ -442,7 +450,7 @@ export function CSVImportDialog({
               {isProcessing ? (
                 <>
                   <Spinner className="mr-2 h-4 w-4" />
-                  Salvando {csvData.length} clientes...
+                  Salvando {processedCount} / {csvData.length}...
                 </>
               ) : (
                 <>
