@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Search, ChevronDown, Check, ChevronsUpDown, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Check, ChevronsUpDown, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -58,12 +58,25 @@ import {
   insertServiceSchema,
   NewService as NewServiceType,
 } from "@/db/validations";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
-import * as Accordion from "@radix-ui/react-accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
 import ClickToCopy from "@/components/ui/click-to-copy";
@@ -358,9 +371,18 @@ export default function ServicesPage() {
                   })
                 ) : (
                   !pendingService && (
-                    <div className="p-8 text-center text-muted-foreground">
-                      Nenhum serviço encontrado para sua busca.
-                    </div>
+                    <Empty className="py-12">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <Search className="size-6" />
+                        </EmptyMedia>
+                        <EmptyTitle>Nenhum serviço encontrado</EmptyTitle>
+                        <EmptyDescription>
+                          Tente ajustar sua busca ou filtros para encontrar o que
+                          procura.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
                   )
                 )}
               </>
@@ -858,24 +880,12 @@ function ServiceDialog({
             )}
           </div>
 
-          <Accordion.Root
-            type="single"
-            collapsible
-            defaultValue="additional"
-            className="w-full space-y-4"
-          >
-            {/* TIER 2: ADDITIONAL INFO */}
-            <Accordion.Item
-              value="additional"
-              className="border rounded-md px-4 py-2 bg-muted/20"
-            >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Status & Contrato
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+          <Accordion type="multiple" defaultValue={["additional"]} className="w-full">
+            <AccordionItem value="additional" className="border-b-0">
+              <AccordionTrigger className="hover:no-underline py-2">
+                <span className="text-sm font-semibold">Status & Contrato</span>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-2"
@@ -994,21 +1004,14 @@ function ServiceDialog({
                     </ClickToCopy>
                   </div>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
+              </AccordionContent>
+            </AccordionItem>
 
-            {/* TIER 3: ADVANCED DETAILS */}
-            <Accordion.Item
-              value="advanced"
-              className="border rounded-md px-4 py-2 bg-muted/20"
-            >
-              <Accordion.Header className="flex">
-                <Accordion.Trigger className="flex flex-1 items-center justify-between py-2 text-sm font-semibold hover:underline [&[data-state=open]>svg]:rotate-180">
-                  Dados Financeiros e Prazos
-                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Content className="pt-2 pb-4 space-y-4">
+            <AccordionItem value="advanced" className="border-b-0">
+              <AccordionTrigger className="hover:no-underline py-2">
+                <span className="text-sm font-semibold">Dados Financeiros e Prazos</span>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-2"
@@ -1075,9 +1078,9 @@ function ServiceDialog({
                     />
                   </ClickToCopy>
                 </div>
-              </Accordion.Content>
-            </Accordion.Item>
-          </Accordion.Root>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div
             className="flex items-center justify-end gap-2 mt-4"
@@ -1097,6 +1100,7 @@ function ServiceDialog({
                 disabled={form.formState.isSubmitting}
                 data-testid="button-save-new-service"
               >
+                {form.formState.isSubmitting && <Spinner className="mr-2 h-4 w-4" />}
                 {mode === "create" ? "Criar serviço" : "Atualizar serviço"}
               </Button>
             )}

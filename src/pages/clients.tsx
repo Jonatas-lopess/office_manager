@@ -58,6 +58,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ClickToCopy from "@/components/ui/click-to-copy";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
 
 type ClientStatus = Client["status"];
 
@@ -283,9 +291,18 @@ export default function ClientsPage() {
                 })
               ) : (
                 !pendingClient && (
-                  <div className="p-8 text-center text-muted-foreground">
-                    Nenhum cliente encontrado para sua busca.
-                  </div>
+                  <Empty className="py-12">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Search className="size-6" />
+                      </EmptyMedia>
+                      <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
+                      <EmptyDescription>
+                        Tente ajustar sua busca ou filtros para encontrar o que
+                        procura.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
                 )
               )}
             </>
@@ -945,6 +962,7 @@ function ClientDialog({
                 disabled={form.formState.isSubmitting}
                 data-testid="button-save-add-client"
               >
+                {form.formState.isSubmitting && <Spinner className="mr-2 h-4 w-4" />}
                 {mode === "create" ? "Salvar cliente" : "Atualizar cliente"}
               </Button>
             )}
