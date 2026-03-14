@@ -330,12 +330,12 @@ export function AppShell({
 }>) {
   return (
     <SidebarProvider>
-      <div className="app-shell min-h-svh flex w-full" data-testid="app-shell">
+      <div className="app-shell h-svh flex w-full overflow-hidden" data-testid="app-shell">
         <SidebarContent_ />
-        <SidebarInset className="flex-1 min-w-0">
-          <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
+        <SidebarInset className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
             <Topbar title={title} subtitle={subtitle} right={right} />
-            <div className="mt-2" data-testid="page-content">
+            <div className="mt-2 flex-1 flex flex-col min-h-0" data-testid="page-content">
               {children}
             </div>
           </div>

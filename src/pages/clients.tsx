@@ -144,7 +144,7 @@ export default function ClientsPage() {
         </Button>
       }
     >
-      <Card className="panel-card" data-testid="card-clients">
+      <Card className="panel-card flex-1 flex flex-col min-h-0" data-testid="card-clients">
         <div
           className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
           data-testid="bar-clients-controls"
@@ -197,7 +197,7 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        <ScrollArea className="max-h-[calc(100vh-280px)] pr-4">
+        <ScrollArea className="flex-1 pr-4">
           <div className="divide-y" data-testid="list-clients">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (

@@ -230,8 +230,8 @@ export default function ServicesPage() {
         </Button>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-3" data-testid="grid-services">
-        <Card className="panel-card lg:col-span-2" data-testid="card-services">
+      <div className="flex-1 grid gap-4 lg:grid-cols-3 min-h-0" data-testid="grid-services">
+        <Card className="panel-card flex flex-col min-h-0 lg:col-span-2" data-testid="card-services">
           <div
             className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             data-testid="bar-services-controls"
@@ -286,7 +286,7 @@ export default function ServicesPage() {
               </Select>
             </div>
           </div>
-          <ScrollArea className="max-h-[calc(100vh-280px)] pr-4">
+          <ScrollArea className="flex-1 pr-4">
             <div className="divide-y" data-testid="list-services">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
