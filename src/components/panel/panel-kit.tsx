@@ -10,7 +10,15 @@ import {
   Settings,
   Sparkles,
   Users,
+  Download,
+  Share,
 } from "lucide-react";
+import { useState } from "react";
+import { CSVImportDialog } from "./csv-import-dialog";
+import { useDb } from "@/db/context";
+import { clientsTable } from "@/db/schema";
+import { useToast } from "@/hooks/use-toast";
+import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -176,44 +184,98 @@ function SidebarContent_() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 mt-auto">
-        <div className="group-data-[collapsible=icon]:hidden">
-          <Separator className="mb-4" />
-          <div
-            className="rounded-2xl border bg-card p-4"
-            data-testid="card-sidebar-help"
-          >
-            <div
-              className="text-sm font-semibold"
-              data-testid="text-help-title"
-            >
-              Ações rápidas
-            </div>
-            <div
-              className="mt-1 text-xs text-muted-foreground"
-              data-testid="text-help-desc"
-            >
-              Use a barra lateral para navegar.
-            </div>
-            <div
-              className="mt-3 grid grid-cols-2 gap-2"
-              data-testid="grid-help-actions"
-            >
-              <Button asChild size="sm" data-testid="button-help-clients">
-                <Link href="/clients">Clientes</Link>
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                variant="secondary"
-                data-testid="button-help-services"
-              >
-                <Link href="/services">Serviços</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+        <SidebarDataManagement />
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function SidebarDataManagement() {
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const { orm } = useDb();
+  const { toast } = useToast();
+
+  const handleExportClients = async () => {
+    try {
+      const clients = await orm.select().from(clientsTable);
+      const csv = Papa.unparse(clients);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `clientes_export_${new Date().getTime()}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Exportação concluída",
+        description: "O arquivo CSV dos clientes foi gerado."
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro na exportação",
+        description: "Não foi possível gerar o arquivo CSV."
+      });
+    }
+  };
+
+  return (
+    <div className="group-data-[collapsible=icon]:hidden">
+      <Separator className="mb-4" />
+      <div
+        className="rounded-2xl border bg-card p-4"
+        data-testid="card-sidebar-data"
+      >
+        <div
+          className="text-sm font-semibold"
+          data-testid="text-data-title"
+        >
+          Dados e Arquivos
+        </div>
+        <div
+          className="mt-1 text-xs text-muted-foreground"
+          data-testid="text-data-desc"
+        >
+          Gerencie informações em massa.
+        </div>
+        <div
+          className="mt-3 grid grid-cols-2 gap-2"
+          data-testid="grid-data-actions"
+        >
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="h-8 text-[11px] gap-1.5"
+            onClick={() => setIsImportOpen(true)}
+            data-testid="button-import-clients"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Importar
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 text-[11px] gap-1.5"
+            onClick={handleExportClients}
+            data-testid="button-export-clients"
+          >
+            <Share className="h-3.5 w-3.5" />
+            Exportar
+          </Button>
+        </div>
+      </div>
+
+      <CSVImportDialog 
+        open={isImportOpen} 
+        onOpenChange={setIsImportOpen} 
+        onImportComplete={() => {
+          // No-op for now as local sync handles it
+        }}
+      />
+    </div>
   );
 }
 
