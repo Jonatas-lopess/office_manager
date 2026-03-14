@@ -122,15 +122,15 @@ function SidebarContent_() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="p-4 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-3" data-testid="brand">
+      <SidebarHeader className="p-4 flex flex-row items-center justify-between group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:hidden" data-testid="brand">
           <div
             className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border bg-card"
             data-testid="brand-mark"
           >
             <Building2 className="h-5 w-5 text-primary" />
           </div>
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+          <div className="min-w-0">
             <div
               className="truncate text-sm font-semibold"
               data-testid="text-brand-name"
@@ -316,22 +316,14 @@ export function StatCard({
               className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight truncate"
               data-testid={`${dataTestId}-value`}
             >
-              {loading ? (
-                <Skeleton className="h-7 w-24 mb-1" />
-              ) : (
-                value
-              )}
+              {loading ? <Skeleton className="h-7 w-24 mb-1" /> : value}
             </div>
             {hint || loading ? (
               <div
                 className="mt-1 text-[10px] sm:text-xs text-muted-foreground truncate"
                 data-testid={`${dataTestId}-hint`}
               >
-                {loading ? (
-                  <Skeleton className="h-3 w-32" />
-                ) : (
-                  hint
-                )}
+                {loading ? <Skeleton className="h-3 w-32" /> : hint}
               </div>
             ) : null}
           </div>

@@ -66,6 +66,7 @@ import {
   EmptyMedia,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ClientStatus = Client["status"];
 
@@ -196,118 +197,120 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        <div className="divide-y" data-testid="list-clients">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <ClientSkeleton key={i} />
-            ))
-          ) : (
-            <>
-              {pendingClient &&
-                !clients.some((c) => c.id === pendingClient.id) && (
-                  <ClientSkeleton />
-                )}
-              {filtered.length > 0 ? (
-                filtered.map((c) => {
-                  if (pendingClient && c.id === pendingClient.id) {
-                    return <ClientSkeleton key={c.id} />;
-                  }
-                  return (
-                    <div
-                      key={c.id}
-                      className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                      data-testid={`row-client-${c.id}`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="truncate text-sm font-medium"
-                            data-testid={`text-client-name-${c.id}`}
-                          >
-                            {c.name}
-                          </div>
-                          <StatusBadge status={c.status} />
-                        </div>
-                        <div
-                          className="mt-0.5 truncate text-xs text-muted-foreground"
-                          data-testid={`text-client-meta-${c.id}`}
-                        >
-                          {c.cpf || c.cnpj} &middot; {c.phone}
-                        </div>
-                      </div>
-
+        <ScrollArea className="max-h-[calc(100vh-280px)] pr-4">
+          <div className="divide-y" data-testid="list-clients">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <ClientSkeleton key={i} />
+              ))
+            ) : (
+              <>
+                {pendingClient &&
+                  !clients.some((c) => c.id === pendingClient.id) && (
+                    <ClientSkeleton />
+                  )}
+                {filtered.length > 0 ? (
+                  filtered.map((c) => {
+                    if (pendingClient && c.id === pendingClient.id) {
+                      return <ClientSkeleton key={c.id} />;
+                    }
+                    return (
                       <div
-                        className="flex items-center gap-2"
-                        data-testid={`group-client-actions-${c.id}`}
+                        key={c.id}
+                        className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                        data-testid={`row-client-${c.id}`}
                       >
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="secondary"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openDialog("view", c)}
-                              data-testid={`button-client-view-${c.id}`}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="truncate text-sm font-medium"
+                              data-testid={`text-client-name-${c.id}`}
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Visualizar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openDialog("edit", c)}
-                              data-testid={`button-client-edit-${c.id}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setSelectedClient(c);
-                                setIsDeleteDialogOpen(true);
-                              }}
-                              data-testid={`button-client-delete-${c.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Excluir</TooltipContent>
-                        </Tooltip>
+                              {c.name}
+                            </div>
+                            <StatusBadge status={c.status} />
+                          </div>
+                          <div
+                            className="mt-0.5 truncate text-xs text-muted-foreground"
+                            data-testid={`text-client-meta-${c.id}`}
+                          >
+                            {c.cpf || c.cnpj} &middot; {c.phone}
+                          </div>
+                        </div>
+
+                        <div
+                          className="flex items-center gap-2"
+                          data-testid={`group-client-actions-${c.id}`}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("view", c)}
+                                data-testid={`button-client-view-${c.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Visualizar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("edit", c)}
+                                data-testid={`button-client-edit-${c.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setSelectedClient(c);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                data-testid={`button-client-delete-${c.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              ) : (
-                !pendingClient && (
-                  <Empty className="py-12">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <Search className="size-6" />
-                      </EmptyMedia>
-                      <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
-                      <EmptyDescription>
-                        Tente ajustar sua busca ou filtros para encontrar o que
-                        procura.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                )
-              )}
-            </>
-          )}
-        </div>
+                    );
+                  })
+                ) : (
+                  !pendingClient && (
+                    <Empty className="py-12">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <Search className="size-6" />
+                        </EmptyMedia>
+                        <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
+                        <EmptyDescription>
+                          Tente ajustar sua busca ou filtros para encontrar o que
+                          procura.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </ScrollArea>
       </Card>
 
       <ClientDialog
