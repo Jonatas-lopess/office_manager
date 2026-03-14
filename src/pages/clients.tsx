@@ -76,6 +76,7 @@ export default function ClientsPage() {
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pendingClient, setPendingClient] = useState<Client | null>(null);
 
   const filtered = useMemo(() => {
     return (clients || [])
@@ -185,102 +186,104 @@ export default function ClientsPage() {
         <div className="divide-y" data-testid="list-clients">
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between gap-4 p-4"
-              >
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-64" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-8 w-8 rounded-md" />
-                </div>
-              </div>
-            ))
-          ) : filtered.length > 0 ? (
-            filtered.map((c) => (
-              <div
-                key={c.id}
-                className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                data-testid={`row-client-${c.id}`}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="truncate text-sm font-medium"
-                      data-testid={`text-client-name-${c.id}`}
-                    >
-                      {c.name}
-                    </div>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <div
-                    className="mt-0.5 truncate text-xs text-muted-foreground"
-                    data-testid={`text-client-meta-${c.id}`}
-                  >
-                    {c.cpf || c.cnpj} &middot;{" "}
-                    {c.phone}
-                  </div>
-                </div>
-
-                <div
-                  className="flex items-center gap-2"
-                  data-testid={`group-client-actions-${c.id}`}
-                >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openDialog("view", c)}
-                        data-testid={`button-client-view-${c.id}`}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Visualizar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openDialog("edit", c)}
-                        data-testid={`button-client-edit-${c.id}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Editar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setSelectedClient(c);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        data-testid={`button-client-delete-${c.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Excluir</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
+              <ClientSkeleton key={i} />
             ))
           ) : (
-            <div className="p-8 text-center text-muted-foreground">
-              Nenhum cliente encontrado para sua busca.
-            </div>
+            <>
+              {pendingClient &&
+                !clients.some((c) => c.id === pendingClient.id) && (
+                  <ClientSkeleton />
+                )}
+              {filtered.length > 0 ? (
+                filtered.map((c) => {
+                  if (pendingClient && c.id === pendingClient.id) {
+                    return <ClientSkeleton key={c.id} />;
+                  }
+                  return (
+                    <div
+                      key={c.id}
+                      className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                      data-testid={`row-client-${c.id}`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="truncate text-sm font-medium"
+                            data-testid={`text-client-name-${c.id}`}
+                          >
+                            {c.name}
+                          </div>
+                          <StatusBadge status={c.status} />
+                        </div>
+                        <div
+                          className="mt-0.5 truncate text-xs text-muted-foreground"
+                          data-testid={`text-client-meta-${c.id}`}
+                        >
+                          {c.cpf || c.cnpj} &middot; {c.phone}
+                        </div>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-2"
+                        data-testid={`group-client-actions-${c.id}`}
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openDialog("view", c)}
+                              data-testid={`button-client-view-${c.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Visualizar</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openDialog("edit", c)}
+                              data-testid={`button-client-edit-${c.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSelectedClient(c);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                              data-testid={`button-client-delete-${c.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Excluir</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                !pendingClient && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    Nenhum cliente encontrado para sua busca.
+                  </div>
+                )
+              )}
+            </>
           )}
         </div>
       </Card>
@@ -291,38 +294,46 @@ export default function ClientsPage() {
         mode={dialogMode}
         initialData={selectedClient}
         onSave={async (client) => {
-          if (dialogMode === "create") {
-            await orm.insert(clientsTable).values(client);
-            await logAction(orm, {
-              action: `Novo cliente cadastrado: ${client.name}`,
-              module: "Clientes",
-              device:
-                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-            });
-            toast({
-              variant: "success",
-              title: "Cliente criado",
-              description: `O cliente ${client.name} foi cadastrado com sucesso.`,
-            });
-          } else if (dialogMode === "edit" && selectedClient) {
-            await orm
-              .update(clientsTable)
-              .set(client)
-              .where(eq(clientsTable.id, selectedClient.id));
-            await logAction(orm, {
-              action: `Cliente atualizado: ${client.name}`,
-              module: "Clientes",
-              device:
-                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-            });
-            toast({
-              variant: "success",
-              title: "Cliente atualizado",
-              description: `As informações de ${client.name} foram salvas.`,
-            });
-          }
+          setPendingClient(client);
           setIsDialogOpen(false);
-          setSelectedClient(null);
+
+          try {
+            if (dialogMode === "create") {
+              await orm.insert(clientsTable).values(client);
+              await logAction(orm, {
+                action: `Novo cliente cadastrado: ${client.name}`,
+                module: "Clientes",
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                variant: "success",
+                title: "Cliente criado",
+                description: `O cliente ${client.name} foi cadastrado com sucesso.`,
+              });
+            } else if (dialogMode === "edit" && selectedClient) {
+              await orm
+                .update(clientsTable)
+                .set(client)
+                .where(eq(clientsTable.id, selectedClient.id));
+              await logAction(orm, {
+                action: `Cliente atualizado: ${client.name}`,
+                module: "Clientes",
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                variant: "success",
+                title: "Cliente atualizado",
+                description: `As informações de ${client.name} foram salvas.`,
+              });
+            }
+          } finally {
+            setTimeout(() => {
+              setPendingClient(null);
+              setSelectedClient(null);
+            }, 500);
+          }
         }}
       />
 
@@ -942,5 +953,20 @@ function ClientDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ClientSkeleton() {
+  return (
+    <div className="flex items-center justify-between gap-4 p-4">
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-64" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-16 rounded-full" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
+    </div>
   );
 }

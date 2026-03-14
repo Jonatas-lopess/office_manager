@@ -85,6 +85,7 @@ export default function ServicesPage() {
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pendingService, setPendingService] = useState<any | null>(null);
 
   const servicesQuery = useMemo(() => {
     let base = orm
@@ -261,103 +262,108 @@ export default function ServicesPage() {
           <div className="divide-y" data-testid="list-services">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between gap-4 p-4"
-                >
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-64" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                  </div>
-                </div>
-              ))
-            ) : filtered.length > 0 ? (
-              filtered.map((s) => (
-                <div
-                  key={s.id}
-                  className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                  data-testid={`row-service-${s.id}`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="truncate text-sm font-medium"
-                        data-testid={`text-service-type-${s.id}`}
-                      >
-                        {s.type} {s.description && `- ${s.description}`}
-                      </div>
-                      <StatusBadge status={s.status} />
-                    </div>
-                    <div
-                      className="mt-0.5 truncate text-xs text-muted-foreground"
-                      data-testid={`text-service-meta-${s.id}`}
-                    >
-                      {clientsMap[s.client_id]?.name || "Cliente desconhecido"} &middot;{" "}
-                      {format(parseISO(s.contract_date), "dd/MM/yyyy")} &middot;{" "}
-                      {currency(s.price)}
-                    </div>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-2"
-                    data-testid={`group-service-actions-${s.id}`}
-                  >
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openDialog("view", s)}
-                          data-testid={`button-service-view-${s.id}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Visualizar</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openDialog("edit", s)}
-                          data-testid={`button-service-edit-${s.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Editar</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setSelectedService(s);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                          data-testid={`button-service-delete-${s.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Excluir</TooltipContent>
-                    </Tooltip>
-                  </div>{" "}
-                </div>
+                <ServiceSkeleton key={i} />
               ))
             ) : (
-              <div className="p-8 text-center text-muted-foreground">
-                Nenhum serviço encontrado para sua busca.
-              </div>
+              <>
+                {pendingService &&
+                  !services.some((s) => s.id === pendingService.id) && (
+                    <ServiceSkeleton />
+                  )}
+                {filtered.length > 0 ? (
+                  filtered.map((s) => {
+                    if (pendingService && s.id === pendingService.id) {
+                      return <ServiceSkeleton key={s.id} />;
+                    }
+                    return (
+                      <div
+                        key={s.id}
+                        className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                        data-testid={`row-service-${s.id}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="truncate text-sm font-medium"
+                              data-testid={`text-service-type-${s.id}`}
+                            >
+                              {s.type} {s.description && `- ${s.description}`}
+                            </div>
+                            <StatusBadge status={s.status} />
+                          </div>
+                          <div
+                            className="mt-0.5 truncate text-xs text-muted-foreground"
+                            data-testid={`text-service-meta-${s.id}`}
+                          >
+                            {clientsMap[s.client_id]?.name ||
+                              "Cliente desconhecido"}{" "}
+                            &middot;{" "}
+                            {format(parseISO(s.contract_date), "dd/MM/yyyy")}{" "}
+                            &middot; {currency(s.price)}
+                          </div>
+                        </div>
+
+                        <div
+                          className="flex items-center gap-2"
+                          data-testid={`group-service-actions-${s.id}`}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("view", s)}
+                                data-testid={`button-service-view-${s.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Visualizar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openDialog("edit", s)}
+                                data-testid={`button-service-edit-${s.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setSelectedService(s);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                data-testid={`button-service-delete-${s.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir</TooltipContent>
+                          </Tooltip>
+                        </div>{" "}
+                      </div>
+                    );
+                  })
+                ) : (
+                  !pendingService && (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Nenhum serviço encontrado para sua busca.
+                    </div>
+                  )
+                )}
+              </>
             )}
           </div>
         </Card>
@@ -400,38 +406,46 @@ export default function ServicesPage() {
         mode={dialogMode}
         initialData={selectedService}
         onSave={async (svc) => {
-          if (dialogMode === "create") {
-            await orm.insert(servicesTable).values(svc);
-            await logAction(orm, {
-              action: `Novo serviço criado: ${svc.type}`,
-              module: "Serviços",
-              device:
-                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-            });
-            toast({
-              variant: "success",
-              title: "Serviço criado",
-              description: `O serviço ${svc.type} foi registrado com sucesso.`,
-            });
-          } else if (dialogMode === "edit" && selectedService) {
-            await orm
-              .update(servicesTable)
-              .set(svc)
-              .where(eq(servicesTable.id, selectedService.id));
-            await logAction(orm, {
-              action: `Serviço atualizado: ${svc.type}`,
-              module: "Serviços",
-              device:
-                connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-            });
-            toast({
-              variant: "success",
-              title: "Serviço atualizado",
-              description: `As informações do serviço ${svc.type} foram atualizadas.`,
-            });
-          }
+          setPendingService(svc);
           setIsDialogOpen(false);
-          setSelectedService(null);
+
+          try {
+            if (dialogMode === "create") {
+              await orm.insert(servicesTable).values(svc);
+              await logAction(orm, {
+                action: `Novo serviço criado: ${svc.type}`,
+                module: "Serviços",
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                variant: "success",
+                title: "Serviço criado",
+                description: `O serviço ${svc.type} foi registrado com sucesso.`,
+              });
+            } else if (dialogMode === "edit" && selectedService) {
+              await orm
+                .update(servicesTable)
+                .set(svc)
+                .where(eq(servicesTable.id, selectedService.id));
+              await logAction(orm, {
+                action: `Serviço atualizado: ${svc.type}`,
+                module: "Serviços",
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                variant: "success",
+                title: "Serviço atualizado",
+                description: `As informações do serviço ${svc.type} foram atualizadas.`,
+              });
+            }
+          } finally {
+            setTimeout(() => {
+              setPendingService(null);
+              setSelectedService(null);
+            }, 500);
+          }
         }}
       />
 
@@ -1090,5 +1104,20 @@ function ServiceDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ServiceSkeleton() {
+  return (
+    <div className="flex items-center justify-between gap-4 p-4">
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-64" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-16 rounded-full" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
+    </div>
   );
 }
