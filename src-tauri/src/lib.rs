@@ -103,6 +103,7 @@ pub fn run() {
     let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![find_hub_ip, close_splashscreen])
         .setup(move |app| {

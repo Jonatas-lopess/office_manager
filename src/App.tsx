@@ -7,6 +7,9 @@ import ClientsPage from "@/pages/clients";
 import ServicesPage from "@/pages/services";
 import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
+import { useEffect } from "react";
+import { checkInternalUpdate } from "./lib/updater";
+import { Toaster as SonnerToaster } from "sonner";
 
 function Router() {
   return (
@@ -22,9 +25,14 @@ function Router() {
 }
 
 export default function App() {
+  useEffect(() => {
+    checkInternalUpdate();
+  }, []);
+
   return (
     <TooltipProvider>
       <Toaster />
+      <SonnerToaster position="top-right" richColors />
       <Router />
     </TooltipProvider>
   );

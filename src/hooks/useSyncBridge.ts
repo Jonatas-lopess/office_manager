@@ -145,7 +145,7 @@ export function useSyncBridge(
       reconnectAttemptsRef.current = 0;
 
       // Query local max versions per site for incremental sync
-      let knowledgeMap: Record<string, string> = {
+      const knowledgeMap: Record<string, string> = {
         // "hex_site_id": "max_version"
       };
 
@@ -313,7 +313,7 @@ export function useSyncBridge(
             const siteVersions = await ctx.execA(
               `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
             );
-            let myKnowledgeMap: Record<string, string> = {};
+            const myKnowledgeMap: Record<string, string> = {};
             for (const [siteIdHex, maxVersion] of siteVersions) {
               myKnowledgeMap[siteIdHex] = maxVersion.toString();
             }
