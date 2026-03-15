@@ -20,7 +20,7 @@ export async function checkInternalUpdate() {
 
     // 2. Read remote version file
     // Assumes version.txt is in the root of the update path
-    const remoteVersionPath = `${updatePath}/version.txt`;
+    const remoteVersionPath = `${updatePath}\\version.txt`;
     const remoteVersion = (await readTextFile(remoteVersionPath)).trim();
 
     console.log(
@@ -35,7 +35,7 @@ export async function checkInternalUpdate() {
           label: "Atualizar Agora",
           onClick: async () => {
             try {
-              const installerPath = `${updatePath}/office_manager_installer.msi`;
+              const installerPath = `${updatePath}\\office_manager_installer.msi`;
               await openPath(installerPath);
               // Optionally close the app after launching installer
               // await exit();
