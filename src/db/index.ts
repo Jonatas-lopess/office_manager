@@ -6,10 +6,29 @@ import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
 
 const createDrizzle = (ctx: DB) => {
   return drizzle(
-    async (sql, params) => {
+    async (sql, params, method) => {
       try {
-        const rows = await ctx.execO(sql, params);
+        if (method === "all" || method === "values") {
+          const rows = await ctx.execA(sql, params);
+          return { rows };
+        }
+        if (method === "get") {
+          const rows = await ctx.execA(sql, params);
+          return { rows: rows[0] };
+        }
+        if (method === "run") {
+          await ctx.exec(sql, params);
+          const changes = await ctx.execA("SELECT changes()");
+          const lastRowId = await ctx.execA("SELECT last_insert_rowid()");
+          return {
+            rows: {
+              insertId: Number(lastRowId[0][0]),
+              changes: Number(changes[0][0]),
+            },
+          } as any;
+        }
 
+        const rows = await ctx.execA(sql, params);
         return { rows };
       } catch (e) {
         console.error("Error executing Drizzle query:", e);

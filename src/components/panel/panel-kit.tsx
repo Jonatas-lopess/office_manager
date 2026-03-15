@@ -131,7 +131,10 @@ function SidebarContent_() {
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="p-4 flex flex-row items-center justify-between group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-        <div className="flex items-center gap-3 group-data-[collapsible=icon]:hidden" data-testid="brand">
+        <div
+          className="flex items-center gap-3 group-data-[collapsible=icon]:hidden"
+          data-testid="brand"
+        >
           <div
             className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border bg-card"
             data-testid="brand-mark"
@@ -203,21 +206,24 @@ function SidebarDataManagement() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `clientes_export_${new Date().getTime()}.csv`);
+      link.setAttribute(
+        "download",
+        `clientes_export_${new Date().getTime()}.csv`,
+      );
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast({
         title: "Exportação concluída",
-        description: "O arquivo CSV dos clientes foi gerado."
+        description: "O arquivo CSV dos clientes foi gerado.",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erro na exportação",
-        description: "Não foi possível gerar o arquivo CSV."
+        description: "Não foi possível gerar o arquivo CSV.",
       });
     }
   };
@@ -229,10 +235,7 @@ function SidebarDataManagement() {
         className="rounded-2xl border bg-card p-4"
         data-testid="card-sidebar-data"
       >
-        <div
-          className="text-sm font-semibold"
-          data-testid="text-data-title"
-        >
+        <div className="text-sm font-semibold" data-testid="text-data-title">
           Dados e Arquivos
         </div>
         <div
@@ -245,8 +248,8 @@ function SidebarDataManagement() {
           className="mt-3 grid grid-cols-2 gap-2"
           data-testid="grid-data-actions"
         >
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             className="h-8 text-[11px] gap-1.5"
             onClick={() => setIsImportOpen(true)}
@@ -268,9 +271,9 @@ function SidebarDataManagement() {
         </div>
       </div>
 
-      <CSVImportDialog 
-        open={isImportOpen} 
-        onOpenChange={setIsImportOpen} 
+      <CSVImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
         onImportComplete={() => {
           // No-op for now as local sync handles it
         }}
@@ -330,12 +333,18 @@ export function AppShell({
 }>) {
   return (
     <SidebarProvider>
-      <div className="app-shell h-svh flex w-full overflow-hidden" data-testid="app-shell">
+      <div
+        className="app-shell h-svh flex w-full overflow-hidden"
+        data-testid="app-shell"
+      >
         <SidebarContent_ />
         <SidebarInset className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
             <Topbar title={title} subtitle={subtitle} right={right} />
-            <div className="mt-2 flex-1 flex flex-col min-h-0" data-testid="page-content">
+            <div
+              className="mt-2 flex-1 flex flex-col min-h-0"
+              data-testid="page-content"
+            >
               {children}
             </div>
           </div>
