@@ -3,5 +3,5 @@
 
 #[tokio::main]
 async fn main() {
-    office_manager_lib::run()
+    managerdesk_lib::run()
 }
