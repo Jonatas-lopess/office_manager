@@ -12,14 +12,14 @@ When two or more machines are on the same LAN, they discover each other and merg
 
 ### Key Features
 
-| Feature | What It Means |
-|---|---|
-| ✏️ **Offline-First** | Read & write data with zero latency — no server or internet needed. |
-| 🔄 **Auto-Sync** | Changes travel between machines automatically when a LAN connection exists. |
+| Feature                     | What It Means                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| ✏️ **Offline-First**        | Read & write data with zero latency — no server or internet needed.                     |
+| 🔄 **Auto-Sync**            | Changes travel between machines automatically when a LAN connection exists.             |
 | 🧠 **Conflict-Free Merges** | Simultaneous offline edits are resolved mathematically — no manual conflict resolution. |
-| 📡 **LAN Hub Discovery** | On startup, each device scans the local network to find (or become) the sync hub. |
-| 💡 **Dynamic Failover** | If the hub machine goes offline, another device automatically takes over. |
-| 👥 **Live Presence** | See how many devices are currently connected to the sync network. |
+| 📡 **LAN Hub Discovery**    | On startup, each device scans the local network to find (or become) the sync hub.       |
+| 💡 **Dynamic Failover**     | If the hub machine goes offline, another device automatically takes over.               |
+| 👥 **Live Presence**        | See how many devices are currently connected to the sync network.                       |
 
 ---
 
@@ -28,11 +28,10 @@ When two or more machines are on the same LAN, they discover each other and merg
 The app follows a **"Hub and Spoke"** model:
 
 ```
-  ┌──────────┐          ┌──────────┐
-  │ Spoke A  │◄────────►│   Hub    │◄────────►┌──────────┐
-  │ (SQLite) │  WS/LAN  │ (SQLite) │  WS/LAN  │ Spoke B  │
-  └──────────┘          └──────────┘          │ (SQLite) │
-                                              └──────────┘
+  ┌──────────┐          ┌──────────┐          ┌──────────┐
+  │ Spoke A  │◄────────►│   Hub    │◄────────►│ Spoke B  │
+  │ (SQLite) │  WS/LAN  │ (SQLite) │  WS/LAN  │ (SQLite) │
+  └──────────┘          └──────────┘          └──────────┘
 ```
 
 1. **Every device** runs the full app with its own SQLite database.
@@ -46,16 +45,17 @@ The app follows a **"Hub and Spoke"** model:
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19 · TypeScript · Vite 7 |
-| Desktop Shell | Tauri v2 (Rust) |
-| Routing | Wouter |
-| UI Components | Radix UI · Tailwind CSS v4 · Framer Motion |
-| Database | SQLite + [cr-sqlite](https://github.com/vlcn-io/cr-sqlite) (CRDT extension) via WebAssembly |
-| ORM | Drizzle ORM + Zod validation |
-| Networking | Axum 0.7 WebSockets (Rust) · `tokio::sync::broadcast` |
-| Hub Discovery | Custom LAN scanner via Tauri commands (Rust → `local-ip-address` crate) |
+| Layer            | Technology                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Frontend         | React 19 · TypeScript · Vite 7                                                              |
+| Desktop Shell    | Tauri v2 (Rust)                                                                             |
+| Routing          | Wouter                                                                                      |
+| UI Components    | Radix UI · Tailwind CSS v4 · Framer Motion                                                  |
+| Database         | SQLite + [cr-sqlite](https://github.com/vlcn-io/cr-sqlite) (CRDT extension) via WebAssembly |
+| ORM              | Drizzle ORM + Zod validation                                                                |
+| Networking       | Axum 0.7 WebSockets (Rust) · `tokio::sync::broadcast`                                       |
+| Hub Discovery    | Custom LAN scanner via Tauri commands (Rust → `local-ip-address` crate)                     |
+| Internal Updater | Network share sync (@tauri-apps/plugin-fs · @tauri-apps/plugin-opener)                      |
 
 ---
 
@@ -88,9 +88,11 @@ office_manager/
 │   │   └── panel/                # Layout panels
 │   └── lib/
 │       ├── utils.ts              # General utility functions
-│       └── masks.ts              # Input masks (CPF, CNPJ, phone, etc.)
+│       ├── masks.ts              # Input masks (CPF, CNPJ, phone, etc.)
+│       └── updater.ts            # Internal network-share update logic
 │
 ├── src-tauri/                    # Backend (Rust / Tauri)
+│   ├── capabilities/             # Tauri v2 security & permission policies
 │   ├── src/
 │   │   ├── main.rs               # Tauri entry point
 │   │   └── lib.rs                # WebSocket hub server & LAN scanner
@@ -114,7 +116,7 @@ The backend is a small but critical piece. It does **two things**:
 - **Runs the WebSocket Hub** — An Axum server on `0.0.0.0:1234` that accepts WebSocket connections, assigns each one a UUID, and relays messages between clients.
 - **Scans the LAN** — The `find_hub_ip` Tauri command pings every IP on the local subnet (`x.x.x.1` → `x.x.x.255`) to find an existing Hub.
 
-**Echo Cancellation:** When a device sends a change, the Hub broadcasts it to *every* connected device — but the Hub skips sending the message back to the device that sent it. This prevents infinite sync loops, using the per-connection UUID as the identifier.
+**Echo Cancellation:** When a device sends a change, the Hub broadcasts it to _every_ connected device — but the Hub skips sending the message back to the device that sent it. This prevents infinite sync loops, using the per-connection UUID as the identifier.
 
 **Graceful Shutdown:** When you close the app window, the Rust side sends a `oneshot` signal that cleanly stops the WebSocket server before the process exits.
 
@@ -124,11 +126,11 @@ The backend is a small but critical piece. It does **two things**:
 
 This React hook is the networking brain. It manages three separate concerns:
 
-| Effect | What It Does |
-|---|---|
-| **Connection Manager** | Opens/reconnects the WebSocket. On disconnect, uses exponential backoff + random jitter to avoid reconnection storms. Calls `find_hub_ip` to discover a new Hub or promotes `localhost`. |
-| **Database Listener** | Listens for local writes via `ctx.onUpdate()`. Any new changes (`WHERE db_version > lastVersion`) are serialized and sent up the WebSocket. |
-| **Server Error Logger** | Listens for Tauri events (`server-error`) in case port `1234` is already in use. |
+| Effect                  | What It Does                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Connection Manager**  | Opens/reconnects the WebSocket. On disconnect, uses exponential backoff + random jitter to avoid reconnection storms. Calls `find_hub_ip` to discover a new Hub or promotes `localhost`. |
+| **Database Listener**   | Listens for local writes via `ctx.onUpdate()`. Any new changes (`WHERE db_version > lastVersion`) are serialized and sent up the WebSocket.                                              |
+| **Server Error Logger** | Listens for Tauri events (`server-error`) in case port `1234` is already in use.                                                                                                         |
 
 **Custom Serializers:** SQLite operations involve `BigInt` and `Uint8Array` values, which standard `JSON.stringify` cannot handle. The hook includes custom `serializeMsg` / `deserializeMsg` functions that wrap these types safely.
 
@@ -142,13 +144,13 @@ A lightweight hook that wraps `useSyncExternalStore` (React 19) around the cr-sq
 
 ### 4. Database Layer — `src/db/`
 
-| File | Purpose |
-|---|---|
-| `schema.ts` | Drizzle table definitions for `clients` and `services` (with Brazilian-specific fields like CPF, CNPJ, NIRF). |
-| `index.ts` | Initializes the cr-sqlite WASM module, opens the local database, runs migrations, and wraps it in a Drizzle proxy driver. |
-| `migrator.ts` | Applies schema migrations to keep the database structure up to date. |
-| `validations.ts` | Zod schemas generated from Drizzle for form-level validation. |
-| `context.tsx` | A React context that exposes both the raw `DB` handle and the Drizzle `orm` instance to the entire component tree. |
+| File             | Purpose                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `schema.ts`      | Drizzle table definitions for `clients` and `services` (with Brazilian-specific fields like CPF, CNPJ, NIRF).             |
+| `index.ts`       | Initializes the cr-sqlite WASM module, opens the local database, runs migrations, and wraps it in a Drizzle proxy driver. |
+| `migrator.ts`    | Applies schema migrations to keep the database structure up to date.                                                      |
+| `validations.ts` | Zod schemas generated from Drizzle for form-level validation.                                                             |
+| `context.tsx`    | A React context that exposes both the raw `DB` handle and the Drizzle `orm` instance to the entire component tree.        |
 
 ---
 
@@ -158,95 +160,33 @@ When the app starts, the following happens in order:
 
 1. **Initialize the WASM database** — cr-sqlite is loaded and the local `.db` file is opened.
 2. **Detect environment** — The app checks for `window.__TAURI_INTERNALS__` to know if it is running inside Tauri (desktop) or a plain browser.
-3. **Scan the LAN** *(Tauri only)* — Calls `find_hub_ip` to discover an existing Hub on the network.
-4. **Render the app** — Passes the database context and hub IP down to `<App>`, which activates the sync bridge.
+3. **Scan the LAN** _(Tauri only)_ — Calls `find_hub_ip` to discover an existing Hub on the network.
+4. **Check for Updates** _(Tauri only)_ — Compares local version with `version.txt` on the network share.
+5. **Render the app** — Passes the database context and hub IP down to `<App>`, which activates the sync bridge.
 
 > In a browser (non-Tauri), the app defaults to `ws://localhost:1234/ws` and operates as a Spoke connected to a locally running Hub.
 
 ---
 
-## Getting Started
+## Internal Office Updates
 
-### Prerequisites
+Office Manager includes a simplified update mechanism for corporate environments using shared network drives (like OneDrive or a local NAS).
 
-| Tool | Version | Install Link |
-|---|---|---|
-| **Node.js** | v18+ | [nodejs.org](https://nodejs.org/) |
-| **Rust** | stable (latest) | [rustup.rs](https://rustup.rs/) |
-| **Tauri CLI** | v2 | Included in `devDependencies` |
+### How It Works
 
-### Install & Run
+1. The app checks the path defined in `VITE_UPDATE_PATH` (from the `.env` file).
+2. It compares the local app version with the content of `version.txt` on the share.
+3. If a new version is found, a notification appears with an "Update Now" action.
+4. Clicking update launches the `.msi` installer directly from the network path.
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/Jonatas-lopess/office_manager.git
-cd office_manager
+### Environment Setup
 
-# 2. Install Node dependencies
-npm install
+Required `.env` variables:
 
-# 3. Run the app in development mode (launches Tauri + Vite)
-npm run tauri dev
+```env
+# Path to the shared folder containing version.txt and the .msi installer
+VITE_UPDATE_PATH=\\SERVER\AppUpdate
 ```
-
-That's it. The app will:
-- Compile the Rust backend.
-- Start the Vite dev server on `http://localhost:1420`.
-- Open the Tauri window.
-- Start the WebSocket hub on port `1234`.
-- Scan the LAN for other instances.
-
-### Useful Scripts
-
-| Command | What It Does |
-|---|---|
-| `npm run dev` | Start only the Vite frontend (no Tauri). |
-| `npm run tauri dev` | Start the full desktop app in dev mode. |
-| `npm run build` | Build the TypeScript + Vite production bundle. |
-| `npm run tauri build` | Build the production desktop installer. |
-| `npm run lint` | Run ESLint across the project. |
-| `npm run db:generate` | Generate Drizzle migration files from `schema.ts`. |
-| `npm run db:studio` | Open Drizzle Studio to visually browse the database. |
-
----
-
-## Pages Overview
-
-| Page | Route | Description |
-|---|---|---|
-| Dashboard | `/` | High-level overview of clients and services. |
-| Clients | `/clients` | Full CRUD for client records (CPF, CNPJ, contact info, MEI details). |
-| Services | `/services` | Full CRUD for services linked to clients (tax declarations, filings, invoices). |
-| Logs | `/logs` | View activity and event logs. |
-| Settings | `/settings` | Network status, connected peers, and app configuration. |
-
----
-
-## FAQ
-
-<details>
-<summary><strong>Does it need the internet?</strong></summary>
-
-No. Everything runs on your local network (LAN). You don't need an internet connection at all — not even for sync.
-</details>
-
-<details>
-<summary><strong>What happens when two people edit the same client offline?</strong></summary>
-
-Both edits are preserved. cr-sqlite uses CRDTs, which mathematically merge changes at the column level. The "last write wins" per field, based on a logical clock — so no data is ever silently dropped.
-</details>
-
-<details>
-<summary><strong>Can I run it in a browser instead of the desktop app?</strong></summary>
-
-Partially. Running `npm run dev` gives you the frontend in a browser with a local WASM-powered database. However, the LAN scanning and hub discovery features require the Tauri desktop shell. In the browser, the app will try to connect to `ws://localhost:1234/ws`, so you need at least one Tauri instance running as the Hub.
-</details>
-
-<details>
-<summary><strong>What if the Hub machine shuts down?</strong></summary>
-
-The remaining Spoke devices will automatically detect the disconnection, scan the LAN, and promote one of themselves to the new Hub. This happens within a few seconds using exponential backoff with random jitter to avoid race conditions.
-</details>
 
 ---
 
