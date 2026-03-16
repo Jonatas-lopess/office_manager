@@ -42,7 +42,7 @@ import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import {
   Accordion,
   AccordionContent,
@@ -90,6 +90,9 @@ export default function ClientsPage() {
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [resetInput, setResetInput] = useState("");
   const [pendingClient, setPendingClient] = useState<Client | null>(null);
 
   const filtered = useMemo(() => {
@@ -123,10 +126,62 @@ export default function ClientsPage() {
     setSelectedClient(null);
   };
 
+  const handleFullReset = async () => {
+    await orm.delete(clientsTable);
+    await logAction(orm, {
+      action: `BASE REINICIADA: Todos os clientes foram excluídos`,
+      module: "Clientes",
+      status: "Warning",
+      device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+    });
+    toast({
+      variant: "destructive",
+      title: "Base reiniciada",
+      description: `Todos os registros de clientes foram removidos com sucesso.`,
+    });
+    setIsResetDialogOpen(false);
+    setResetInput("");
+  };
+
+  const openResetDialog = () => {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setResetCode(code);
+    setResetInput("");
+    setIsResetDialogOpen(true);
+  };
+
   const openDialog = (mode: "create" | "edit" | "view", client?: Client) => {
     setDialogMode(mode);
     setSelectedClient(client || null);
     setIsDialogOpen(true);
+  };
+
+  const checkExistingClient = async (client: Client) => {
+    if (client.cpf) {
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(
+          and(eq(clientsTable.cpf, client.cpf), ne(clientsTable.id, client.id)),
+        )
+        .limit(1);
+
+      if (existing.length > 0) return true;
+    }
+
+    if (client.cnpj) {
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(
+          and(eq(clientsTable.cnpj, client.cnpj), ne(clientsTable.id, client.id)),
+        )
+        .limit(1);
+
+      if (existing.length > 0) return true;
+    }
+
+    return false;
   };
 
   return (
@@ -134,17 +189,31 @@ export default function ClientsPage() {
       title="Clientes"
       subtitle="Contatos, detalhes da empresa e status."
       right={
-        <Button
-          onClick={() => openDialog("create")}
-          className="gap-2 cursor-pointer"
-          data-testid="button-add-client-top"
-        >
-          <UserPlus className="h-4 w-4" />
-          Adicionar cliente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={openResetDialog}
+            className="gap-2 text-destructive hover:bg-destructive/10 cursor-pointer"
+            data-testid="button-reset-clients"
+          >
+            <Trash2 className="h-4 w-4" />
+            Reiniciar Base
+          </Button>
+          <Button
+            onClick={() => openDialog("create")}
+            className="gap-2 cursor-pointer"
+            data-testid="button-add-client-top"
+          >
+            <UserPlus className="h-4 w-4" />
+            Adicionar cliente
+          </Button>
+        </div>
       }
     >
-      <Card className="panel-card flex-1 flex flex-col min-h-0" data-testid="card-clients">
+      <Card
+        className="panel-card flex-1 flex flex-col min-h-0"
+        data-testid="card-clients"
+      >
         <div
           className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
           data-testid="bar-clients-controls"
@@ -209,104 +278,102 @@ export default function ClientsPage() {
                   !clients.some((c) => c.id === pendingClient.id) && (
                     <ClientSkeleton />
                   )}
-                {filtered.length > 0 ? (
-                  filtered.map((c) => {
-                    if (pendingClient && c.id === pendingClient.id) {
-                      return <ClientSkeleton key={c.id} />;
-                    }
-                    return (
-                      <div
-                        key={c.id}
-                        className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                        data-testid={`row-client-${c.id}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="truncate text-sm font-medium"
-                              data-testid={`text-client-name-${c.id}`}
-                            >
-                              {c.name}
-                            </div>
-                            <StatusBadge status={c.status} />
-                          </div>
-                          <div
-                            className="mt-0.5 truncate text-xs text-muted-foreground"
-                            data-testid={`text-client-meta-${c.id}`}
-                          >
-                            {c.cpf || c.cnpj} &middot; {c.phone}
-                          </div>
-                        </div>
-
+                {filtered.length > 0
+                  ? filtered.map((c) => {
+                      if (pendingClient && c.id === pendingClient.id) {
+                        return <ClientSkeleton key={c.id} />;
+                      }
+                      return (
                         <div
-                          className="flex items-center gap-2"
-                          data-testid={`group-client-actions-${c.id}`}
+                          key={c.id}
+                          className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                          data-testid={`row-client-${c.id}`}
                         >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openDialog("view", c)}
-                                data-testid={`button-client-view-${c.id}`}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="truncate text-sm font-medium"
+                                data-testid={`text-client-name-${c.id}`}
                               >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Visualizar</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openDialog("edit", c)}
-                                data-testid={`button-client-edit-${c.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Editar</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setSelectedClient(c);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                                data-testid={`button-client-delete-${c.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Excluir</TooltipContent>
-                          </Tooltip>
+                                {c.name}
+                              </div>
+                              <StatusBadge status={c.status} />
+                            </div>
+                            <div
+                              className="mt-0.5 truncate text-xs text-muted-foreground"
+                              data-testid={`text-client-meta-${c.id}`}
+                            >
+                              {c.cpf || c.cnpj} &middot; {c.phone}
+                            </div>
+                          </div>
+
+                          <div
+                            className="flex items-center gap-2"
+                            data-testid={`group-client-actions-${c.id}`}
+                          >
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => openDialog("view", c)}
+                                  data-testid={`button-client-view-${c.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Visualizar</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => openDialog("edit", c)}
+                                  data-testid={`button-client-edit-${c.id}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Editar</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setSelectedClient(c);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                  data-testid={`button-client-delete-${c.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Excluir</TooltipContent>
+                            </Tooltip>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  !pendingClient && (
-                    <Empty className="py-12">
-                      <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                          <Search className="size-6" />
-                        </EmptyMedia>
-                        <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
-                        <EmptyDescription>
-                          Tente ajustar sua busca ou filtros para encontrar o que
-                          procura.
-                        </EmptyDescription>
-                      </EmptyHeader>
-                    </Empty>
-                  )
-                )}
+                      );
+                    })
+                  : !pendingClient && (
+                      <Empty className="py-12">
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Search className="size-6" />
+                          </EmptyMedia>
+                          <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
+                          <EmptyDescription>
+                            Tente ajustar sua busca ou filtros para encontrar o
+                            que procura.
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
+                    )}
               </>
             )}
           </div>
@@ -319,6 +386,15 @@ export default function ClientsPage() {
         mode={dialogMode}
         initialData={selectedClient}
         onSave={async (client) => {
+          if (await checkExistingClient(client)) {
+            toast({
+              variant: "destructive",
+              title: "Documento já cadastrado",
+              description: `Um cliente com o CPF ou CNPJ ${client.cpf || client.cnpj} já está cadastrado em outro registro.`,
+            });
+            return;
+          }
+
           setPendingClient(client);
           setIsDialogOpen(false);
 
@@ -385,6 +461,49 @@ export default function ClientsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Reiniciar Base de Clientes
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é <span className="font-bold underline">irreversível</span> e excluirá todos os clientes cadastrados.
+              <br />
+              <br />
+              Para confirmar, digite o código abaixo:
+              <div className="mt-2 flex justify-center">
+                <span className="bg-muted px-3 py-1 font-mono text-lg font-bold tracking-widest rounded-md border text-foreground select-none">
+                  {resetCode}
+                </span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              value={resetInput}
+              onChange={(e) => setResetInput(e.target.value.toUpperCase())}
+              placeholder="Digite o código acima..."
+              className="text-center font-mono uppercase"
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetInput !== resetCode}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                handleFullReset();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Excluir Tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -965,7 +1084,9 @@ function ClientDialog({
                 disabled={form.formState.isSubmitting}
                 data-testid="button-save-add-client"
               >
-                {form.formState.isSubmitting && <Spinner className="mr-2 h-4 w-4" />}
+                {form.formState.isSubmitting && (
+                  <Spinner className="mr-2 h-4 w-4" />
+                )}
                 {mode === "create" ? "Salvar cliente" : "Atualizar cliente"}
               </Button>
             )}

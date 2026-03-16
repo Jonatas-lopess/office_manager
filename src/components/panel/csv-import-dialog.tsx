@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from "react";
 import Papa from "papaparse";
 import { v7 as uuidv7 } from "uuid";
 import { parse, isValid, format } from "date-fns";
-import { insertClientSchema } from "@/db/validations";
+import { Client, insertClientSchema } from "@/db/validations";
 import {
   Upload,
   FileText,
@@ -36,6 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { eq } from "drizzle-orm";
 
 interface FieldMapping {
   csvHeader: string;
@@ -203,6 +204,40 @@ export function CSVImportDialog({
     return clean; // Fallback to original string if not recognized
   };
 
+  const normalizeCpf = (cpf: string) => {
+    if (!cpf) return "";
+    if (cpf.length < 11) {
+      const zeros = 11 - cpf.length;
+      return cpf.concat("0".repeat(zeros));
+    }
+
+    return cpf;
+  };
+
+  const checkExistingClient = async (client: Partial<Client>) => {
+    if (client.cpf) {
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(eq(clientsTable.cpf, client.cpf))
+        .limit(1);
+
+      if (existing.length > 0) return true;
+    }
+
+    if (client.cnpj) {
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(eq(clientsTable.cnpj, client.cnpj))
+        .limit(1);
+
+      if (existing.length > 0) return true;
+    }
+
+    return false;
+  };
+
   const handleConfirm = async () => {
     setIsProcessing(true);
 
@@ -212,7 +247,7 @@ export function CSVImportDialog({
 
     const clientsToInsert: any[] = [];
 
-    csvData.forEach((row) => {
+    csvData.forEach(async (row) => {
       const data: any = {};
 
       mappings.forEach((m) => {
@@ -224,6 +259,11 @@ export function CSVImportDialog({
             val = normalizeDate(val);
           }
 
+          // CPF normalization
+          if (m.dbField === "cpf") {
+            val = normalizeCpf(val);
+          }
+
           data[m.dbField] = val;
         }
       });
@@ -231,6 +271,11 @@ export function CSVImportDialog({
       // Run local validation
       try {
         const validated = insertClientSchema.parse(data);
+        if (await checkExistingClient(validated)) {
+          errorCount++;
+          return;
+        }
+
         clientsToInsert.push({
           ...validated,
           id: uuidv7(),
