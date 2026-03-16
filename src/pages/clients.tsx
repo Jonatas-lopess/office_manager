@@ -90,9 +90,6 @@ export default function ClientsPage() {
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const [resetCode, setResetCode] = useState("");
-  const [resetInput, setResetInput] = useState("");
   const [pendingClient, setPendingClient] = useState<Client | null>(null);
 
   const filtered = useMemo(() => {
@@ -126,29 +123,7 @@ export default function ClientsPage() {
     setSelectedClient(null);
   };
 
-  const handleFullReset = async () => {
-    await orm.delete(clientsTable);
-    await logAction(orm, {
-      action: `BASE REINICIADA: Todos os clientes foram excluídos`,
-      module: "Clientes",
-      status: "Warning",
-      device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-    });
-    toast({
-      variant: "destructive",
-      title: "Base reiniciada",
-      description: `Todos os registros de clientes foram removidos com sucesso.`,
-    });
-    setIsResetDialogOpen(false);
-    setResetInput("");
-  };
 
-  const openResetDialog = () => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setResetCode(code);
-    setResetInput("");
-    setIsResetDialogOpen(true);
-  };
 
   const openDialog = (mode: "create" | "edit" | "view", client?: Client) => {
     setDialogMode(mode);
@@ -190,15 +165,7 @@ export default function ClientsPage() {
       subtitle="Contatos, detalhes da empresa e status."
       right={
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={openResetDialog}
-            className="gap-2 text-destructive hover:bg-destructive/10 cursor-pointer"
-            data-testid="button-reset-clients"
-          >
-            <Trash2 className="h-4 w-4" />
-            Reiniciar Base
-          </Button>
+
           <Button
             onClick={() => openDialog("create")}
             className="gap-2 cursor-pointer"
@@ -466,48 +433,7 @@ export default function ClientsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              Reiniciar Base de Clientes
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação é <span className="font-bold underline">irreversível</span> e excluirá todos os clientes cadastrados.
-              <br />
-              <br />
-              Para confirmar, digite o código abaixo:
-              <div className="mt-2 flex justify-center">
-                <span className="bg-muted px-3 py-1 font-mono text-lg font-bold tracking-widest rounded-md border text-foreground select-none">
-                  {resetCode}
-                </span>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-2">
-            <Input
-              value={resetInput}
-              onChange={(e) => setResetInput(e.target.value.toUpperCase())}
-              placeholder="Digite o código acima..."
-              className="text-center font-mono uppercase"
-              autoComplete="off"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={resetInput !== resetCode}
-              onClick={(e: React.MouseEvent) => {
-                e.preventDefault();
-                handleFullReset();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Excluir Tudo
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </AppShell>
   );
 }

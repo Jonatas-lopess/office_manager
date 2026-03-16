@@ -1,7 +1,18 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium, Loader2, WifiOff } from "lucide-react";
+import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // import { Switch } from "@/components/ui/switch";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
@@ -12,11 +23,45 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSync } from "@/db/sync-context";
+import { useDb } from "@/db/context";
+import { useToast } from "@/hooks/use-toast";
+import { clientsTable, servicesTable } from "@/db/schema";
+import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
 
 export default function SettingsPage() {
+  const { orm } = useDb();
   const { myId, connectedPeers, connectionStatus } = useSync();
+  const { toast } = useToast();
   const [dark, setDark] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [resetInput, setResetInput] = useState("");
+
+  const handleFullReset = async () => {
+    await orm.delete(servicesTable);
+    await orm.delete(clientsTable);
+    await logAction(orm, {
+      action: `BASE REINICIADA: Todos os clientes e serviços foram excluídos`,
+      module: "Configurações",
+      status: "Warning",
+      device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+    });
+    toast({
+      variant: "destructive",
+      title: "Base reiniciada",
+      description: `Todos os registros de clientes e serviços foram removidos com sucesso.`,
+    });
+    setIsResetDialogOpen(false);
+    setResetInput("");
+  };
+
+  const openResetDialog = () => {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setResetCode(code);
+    setResetInput("");
+    setIsResetDialogOpen(true);
+  };
   // const [compact, setCompact] = useState(false);
 
   const codenameArray = [
@@ -264,8 +309,89 @@ export default function SettingsPage() {
               </div>
             </div>
           </TableCard>
+
+          <Card
+            className="panel-card border-destructive/20 bg-destructive/5 lg:col-span-2"
+            data-testid="card-danger-zone"
+          >
+            <div className="p-5">
+              <div
+                className="text-sm font-semibold text-destructive flex items-center gap-2"
+                data-testid="text-danger-zone-title"
+              >
+                <Trash2 className="h-4 w-4" />
+                Zona de Perigo
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Ações irreversíveis que afetam todos os dados do sistema.
+              </p>
+              
+              <div className="mt-4 pt-4 border-t border-destructive/10">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-medium">Reiniciar Base Total</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Exclui todos os clientes e serviços cadastrados.
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={openResetDialog}
+                    className="gap-2 shrink-0"
+                    data-testid="button-reset-total"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Reiniciar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       </ScrollArea>
+
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Reiniciar Base de Dados
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é <span className="font-bold underline">irreversível</span> e excluirá <span className="font-bold text-foreground">todos os clientes e serviços</span> cadastrados.
+              <br />
+              <br />
+              Para confirmar, digite o código abaixo:
+              <div className="mt-2 flex justify-center">
+                <span className="bg-muted px-3 py-1 font-mono text-lg font-bold tracking-widest rounded-md border text-foreground select-none">
+                  {resetCode}
+                </span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              value={resetInput}
+              onChange={(e) => setResetInput(e.target.value.toUpperCase())}
+              placeholder="Digite o código acima..."
+              className="text-center font-mono uppercase"
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetInput !== resetCode}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                handleFullReset();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Excluir Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
