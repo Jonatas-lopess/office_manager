@@ -1,4 +1,4 @@
-# 🏢 Office Manager
+# 🏢 ManagerDesk
 
 > A desktop business-management app that works **offline by default** and syncs automatically across every computer on your local network — no cloud required.
 
@@ -6,7 +6,7 @@
 
 ## What Does It Do?
 
-Office Manager lets you manage **Clients** and **Services** (think: tax declarations, MEI filings, invoices) from any device in your office. Every copy of the app keeps its own local database, so you can read and write data **instantly** — even if the network cable is unplugged.
+ManagerDesk lets you manage **Clients** and **Services** (think: tax declarations, MEI filings, invoices) from any device in your office. Every copy of the app keeps its own local database, so you can read and write data **instantly** — even if the network cable is unplugged.
 
 When two or more machines are on the same LAN, they discover each other and merge their data in real-time using a technology called **CRDTs** (Conflict-free Replicated Data Types). This means two people can edit the same record on different computers while offline, and the app will merge both versions without losing anything. No "sync conflict" pop-ups, ever.
 
@@ -170,7 +170,7 @@ When the app starts, the following happens in order:
 
 ## Internal Office Updates
 
-Office Manager includes a simplified update mechanism for corporate environments using shared network drives (like OneDrive or a local NAS).
+ManagerDesk includes a simplified update mechanism for corporate environments using shared network drives (like OneDrive or a local NAS).
 
 ### How It Works
 
