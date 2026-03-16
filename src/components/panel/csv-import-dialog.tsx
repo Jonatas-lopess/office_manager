@@ -304,18 +304,16 @@ export function CSVImportDialog({
         }
       }}
     >
-      <DialogContent
-        className="max-w-2xl max-h-[90vh] flex flex-col p-0"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
+      <DialogContent className="max-w-2xl max-h-[90vh] grid grid-rows-[auto_1fr_auto] p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
             Importar Clientes (CSV)
-            <Tooltip delayDuration={0}>
+            <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
+                  tabIndex={-1}
                   className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
                   <Info className="h-4 w-4" />
@@ -362,7 +360,7 @@ export function CSVImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden p-6 pt-2">
+        <div className="flex flex-col min-h-0 overflow-hidden p-6 pt-2">
           {step === "upload" && (
             <div
               onClick={() => fileInputRef.current?.click()}
@@ -397,7 +395,7 @@ export function CSVImportDialog({
           )}
 
           {step === "map" && (
-            <div className="space-y-4 flex flex-col h-full overflow-hidden">
+            <div className="space-y-4 flex flex-col flex-1 min-h-0 overflow-hidden">
               <div className="bg-muted/30 border rounded-lg p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <FileText className="h-5 w-5 text-muted-foreground" />
@@ -413,7 +411,10 @@ export function CSVImportDialog({
                 </Button>
               </div>
 
-              <ScrollArea className="flex-1 border rounded-lg bg-card">
+              <ScrollArea
+                className="flex-1 min-h-0 border rounded-lg bg-card"
+                type="always"
+              >
                 <div className="p-4 space-y-3">
                   {mappings.map((m, idx) => (
                     <div

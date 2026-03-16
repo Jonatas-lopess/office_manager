@@ -834,6 +834,7 @@ function ServiceDialog({
                 >
                   <Button
                     id="service-description"
+                    type="button"
                     variant="outline"
                     role="combobox"
                     disabled={isView}
@@ -984,7 +985,7 @@ function ServiceDialog({
                       label="Data do Contrato"
                     >
                       <Input
-                        id="service-date"
+                        id="service-contract-date"
                         type="date"
                         {...form.register("contract_date")}
                         disabled={isView}
