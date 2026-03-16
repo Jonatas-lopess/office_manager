@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Database,
   Check,
+  Info,
 } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +31,11 @@ import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useSync } from "@/db/sync-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface FieldMapping {
   csvHeader: string;
@@ -298,11 +304,54 @@ export function CSVImportDialog({
         }
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] flex flex-col p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
             Importar Clientes (CSV)
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-xs p-4 bg-card text-card-foreground border shadow-xl"
+              >
+                <div className="space-y-2">
+                  <p className="font-bold text-primary">Campos Esperados:</p>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                      Obrigatório
+                    </p>
+                    <p>• Nome Completo</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                      Opcionais
+                    </p>
+                    <ul className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      <li>• CPF</li>
+                      <li>• CNPJ</li>
+                      <li>• Início CNPJ</li>
+                      <li>• Email</li>
+                      <li>• Telefone</li>
+                      <li>• Fonte Pagadora</li>
+                      <li>• Senha Gov</li>
+                      <li>• Data Nasc.</li>
+                      <li>• Observações</li>
+                    </ul>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </DialogTitle>
           <DialogDescription>
             {step === "upload" && "Selecione um arquivo CSV para começar."}
