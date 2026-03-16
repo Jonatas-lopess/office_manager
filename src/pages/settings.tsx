@@ -6,6 +6,11 @@ import { Card } from "@/components/ui/card";
 // import { Switch } from "@/components/ui/switch";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSync } from "@/db/sync-context";
 import packageJson from "../../package.json";
 
@@ -134,31 +139,44 @@ export default function SettingsPage() {
                   Nenhum dispositivo conectado.
                 </div>
               ) : (
-                connectedPeers.map((peer, idx) => (
-                  <div
-                    key={peer.id}
-                    className="flex items-center justify-between"
-                    data-testid={`row-device-${idx + 1}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                connectedPeers.map((peer, idx) => {
+                  const isMe = peer.id === myId;
+                  const pingIndicator = (
+                    <div className="relative">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {isMe && (
                         <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
-                      </div>
-                      <div className="font-medium">
-                        {codenameArray[idx] || `PC ${idx + 1}`}
-                        {peer.id === myId && (
-                          <span className="ml-2 whitespace-nowrap text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border border-zinc-200">
-                            Este dispositivo
-                          </span>
+                      )}
+                    </div>
+                  );
+
+                  return (
+                    <div
+                      key={peer.id}
+                      className="flex items-center justify-between"
+                      data-testid={`row-device-${idx + 1}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isMe ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {pingIndicator}
+                            </TooltipTrigger>
+                            <TooltipContent>Este Dispositivo</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          pingIndicator
                         )}
+                        <div className="font-medium">
+                          {codenameArray[idx] || `PC ${idx + 1}`}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono">
+                        {peer.ip}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground font-mono">
-                      {peer.ip}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </TableCard>
@@ -168,7 +186,10 @@ export default function SettingsPage() {
             description="Padrões deste protótipo"
             dataTestId="card-workspace"
           >
-            <div className="grid gap-3 p-4 text-sm" data-testid="list-workspace">
+            <div
+              className="grid gap-3 p-4 text-sm"
+              data-testid="list-workspace"
+            >
               <div
                 className="flex items-center justify-between"
                 data-testid="row-workspace-status"
