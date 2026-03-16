@@ -1,7 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { exit } from "process";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
 /**
@@ -39,7 +39,7 @@ export async function checkInternalUpdate() {
               const installerPath = `${updatePath}\\ManagerDesk_${remoteVersion}_x64_en-US.msi`;
               await openPath(installerPath);
               // Optionally close the app after launching installer
-              await exit();
+              await getCurrentWindow().close();
             } catch (err) {
               console.error("Failed to open installer:", err);
               toast.error(
