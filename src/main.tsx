@@ -39,25 +39,10 @@ function LoadingScreen({
   );
 }
 
-function AppLoader({ isTauri }: { isTauri: boolean }) {
+function AppLoader() {
   const { isInitialSyncFinished, connectionStatus } = useSync();
 
-  useEffect(() => {
-    // As soon as this component mounts (meaning DB is ready and we can show the loading UI),
-    // we close the splashscreen and reveal the main window.
-    if (isTauri) {
-      async function transitionWindows() {
-        try {
-          // Add a tiny delay to ensure React has painted the first frame of the loading UI
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          await invoke("close_splashscreen");
-        } catch (err) {
-          console.error("Failed to transition windows:", err);
-        }
-      }
-      transitionWindows();
-    }
-  }, [isTauri]);
+
 
   if (!isInitialSyncFinished) {
     let message = "Synchronizing data...";
@@ -94,26 +79,20 @@ function Root() {
       try {
         // 1. Initialize the database first
         const dbContext = await initDb();
+        
         let discoveredIp = null;
         let isTauriEnv = false;
 
         // 2. Safely attempt the network scan ONLY if running inside Tauri
         try {
-          // Tauri injects an internal object into the window.
-          // If it exists, we know we are in the desktop app!
           if ((window as any).__TAURI_INTERNALS__) {
             discoveredIp = await invoke<string | null>("find_hub_ip");
             isTauriEnv = true;
           } else {
             console.log("Running in standard browser. Skipping TCP scan.");
-            // For local browser testing, we just leave discoveredIp as null,
-            // which tells App.tsx to connect to ws://localhost:1234
           }
         } catch (invokeErr) {
-          console.warn(
-            "Tauri invoke failed (likely not in Tauri environment):",
-            invokeErr,
-          );
+          console.warn("Tauri invoke failed (likely not in Tauri environment):", invokeErr);
         }
 
         // 3. Set the state
@@ -124,6 +103,12 @@ function Root() {
         console.error("Failed to initialize database:", err);
         setError("Failed to start the local-first environment. Check console.");
       }
+    }
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      invoke("close_splashscreen").catch((err) =>
+        console.error("Failed to close splashscreen:", err),
+      );
     }
 
     bootSequence();
@@ -143,7 +128,7 @@ function Root() {
   return (
     <DbProvider db={dbState.db} orm={dbState.orm}>
       <SyncProvider hubIp={hubIp} isTauri={isTauri}>
-        <AppLoader isTauri={isTauri} />
+        <AppLoader />
       </SyncProvider>
     </DbProvider>
   );
