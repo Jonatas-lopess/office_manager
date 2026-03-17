@@ -361,11 +361,11 @@ export default function SettingsPage() {
               <br />
               <br />
               Para confirmar, digite o código abaixo:
-              <div className="mt-2 flex justify-center">
+              <span className="mt-2 flex justify-center">
                 <span className="bg-muted px-3 py-1 font-mono text-lg font-bold tracking-widest rounded-md border text-foreground select-none">
                   {resetCode}
                 </span>
-              </div>
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
