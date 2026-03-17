@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { eq } from "drizzle-orm";
+import { ZodError } from "zod";
 
 interface FieldMapping {
   csvHeader: string;
@@ -73,6 +74,7 @@ export function CSVImportDialog({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentParseId = useRef(0);
   const { myId, connectedPeers } = useSync();
 
   const reset = () => {
@@ -82,73 +84,128 @@ export function CSVImportDialog({
     setMappings([]);
     setIsProcessing(false);
     setProcessedCount(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    currentParseId.current++; // Invalidate any pending parse
   };
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.name.endsWith(".csv")) return;
     setFile(selectedFile);
 
+    const parseId = ++currentParseId.current;
+    const usedHeaders = new Set<string>();
+    const renamedHeaders: string[] = [];
+
     Papa.parse(selectedFile, {
-      header: true,
+      header: false,
       skipEmptyLines: true,
       worker: true,
       complete: (results) => {
-        const detectedHeaders = results.meta.fields || [];
-        setCsvData(results.data);
+        // Only update if this is still the current active parse
+        if (parseId !== currentParseId.current) return;
+
+        if (!results.data || results.data.length === 0) return;
+
+        const rawRows = results.data as string[][];
+        const rawHeaders = rawRows[0];
+        const dataRows = rawRows.slice(1);
+
+        // Process headers (handle duplicates)
+        const processedHeaders: string[] = [];
+        rawHeaders.forEach((header) => {
+          let h = header?.trim() || "Coluna Sem Nome";
+          const original = h;
+          let count = 1;
+
+          while (usedHeaders.has(h)) {
+            h = `${original} (${++count})`;
+          }
+
+          if (h !== original) {
+            renamedHeaders.push(`${original} -> ${h}`);
+          }
+
+          usedHeaders.add(h);
+          processedHeaders.push(h);
+        });
+
+        // Map data rows to objects
+        const formattedData = dataRows.map((row) => {
+          const obj: any = {};
+          processedHeaders.forEach((header, index) => {
+            obj[header] = row[index];
+          });
+          return obj;
+        });
+
+        setCsvData(formattedData);
+
+        if (renamedHeaders.length > 0) {
+          toast({
+            variant: "warning",
+            title: "Cabeçalhos duplicados encontrados",
+            description: `Colunas duplicadas foram renomeadas automaticamente: ${renamedHeaders.slice(0, 3).join(", ")}${renamedHeaders.length > 3 ? "..." : ""}`,
+          });
+        }
 
         // Smart Mapping Logic
-        const initialMappings: FieldMapping[] = detectedHeaders.map(
+        const initialMappings: FieldMapping[] = processedHeaders.map(
           (header) => {
             const lowerHeader = header.toLowerCase().trim();
+            const isPlaceholder = lowerHeader.includes("coluna sem nome");
 
-            // Fuzzy match logic
+            // Fuzzy match logic - Skip if it is a placeholder name
             let dbField = "";
-            if (
-              lowerHeader.includes("nome") ||
-              lowerHeader === "name" ||
-              lowerHeader === "cliente"
-            )
-              dbField = "name";
-            else if (lowerHeader.includes("cpf")) dbField = "cpf";
-            else if (
-              lowerHeader.includes("cnpj") &&
-              !lowerHeader.includes("data")
-            )
-              dbField = "cnpj";
-            else if (
-              lowerHeader.includes("cnpj") &&
-              lowerHeader.includes("data")
-            )
-              dbField = "cnpj_begin_date";
-            else if (lowerHeader.includes("email") || lowerHeader === "e-mail")
-              dbField = "email";
-            else if (
-              lowerHeader.includes("tel") ||
-              lowerHeader.includes("cel") ||
-              lowerHeader.includes("phone")
-            )
-              dbField = "phone";
-            else if (
-              lowerHeader.includes("pagadora") ||
-              lowerHeader.includes("fonte")
-            )
-              dbField = "payment_source";
-            else if (
-              lowerHeader.includes("gov") ||
-              lowerHeader.includes("senha")
-            )
-              dbField = "gov_password";
-            else if (
-              lowerHeader.includes("nasc") ||
-              lowerHeader.includes("birth") ||
-              lowerHeader === "data"
-            )
-              dbField = "birth_date";
-            else if (
-              lowerHeader.includes("obs") ||
-              lowerHeader.includes("nota")
-            )
-              dbField = "observations";
+            if (!isPlaceholder) {
+              if (
+                lowerHeader.includes("nome") ||
+                lowerHeader === "name" ||
+                lowerHeader === "cliente"
+              )
+                dbField = "name";
+              else if (lowerHeader.includes("cpf")) dbField = "cpf";
+              else if (
+                lowerHeader.includes("cnpj") &&
+                !lowerHeader.includes("data")
+              )
+                dbField = "cnpj";
+              else if (
+                lowerHeader.includes("cnpj") &&
+                lowerHeader.includes("data")
+              )
+                dbField = "cnpj_begin_date";
+              else if (lowerHeader.includes("email") || lowerHeader === "e-mail")
+                dbField = "email";
+              else if (
+                lowerHeader.includes("tel") ||
+                lowerHeader.includes("cel") ||
+                lowerHeader.includes("phone")
+              )
+                dbField = "phone";
+              else if (
+                lowerHeader.includes("pagadora") ||
+                lowerHeader.includes("fonte")
+              )
+                dbField = "payment_source";
+              else if (
+                lowerHeader.includes("gov") ||
+                lowerHeader.includes("senha")
+              )
+                dbField = "gov_password";
+              else if (
+                lowerHeader.includes("nasc") ||
+                lowerHeader.includes("birth") ||
+                lowerHeader === "data"
+              )
+                dbField = "birth_date";
+              else if (
+                lowerHeader.includes("obs") ||
+                lowerHeader.includes("nota")
+              )
+                dbField = "observations";
+            }
 
             return {
               csvHeader: header,
@@ -206,35 +263,43 @@ export function CSVImportDialog({
 
   const normalizeCpf = (cpf: string) => {
     if (!cpf) return "";
-    if (cpf.length < 11) {
-      const zeros = 11 - cpf.length;
-      return cpf.concat("0".repeat(zeros));
+    const clean = cpf.trim();
+    if (!clean) return "";
+
+    if (clean.length < 11) {
+      const zeros = 11 - clean.length;
+      return clean.concat("0".repeat(zeros));
     }
 
-    return cpf;
+    return clean;
   };
 
   const checkExistingClient = async (client: Partial<Client>) => {
     if (client.cpf) {
-      const existing = await orm
-        .select()
-        .from(clientsTable)
-        .where(eq(clientsTable.cpf, client.cpf))
-        .limit(1);
+      try {
+        const existing = await orm
+          .select()
+          .from(clientsTable)
+          .where(eq(clientsTable.cpf, client.cpf));
 
-      if (existing.length > 0) return true;
+        return existing.length > 0;
+      } catch (error) {
+        throw error;
+      }
     }
 
     if (client.cnpj) {
-      const existing = await orm
-        .select()
-        .from(clientsTable)
-        .where(eq(clientsTable.cnpj, client.cnpj))
-        .limit(1);
+      try {
+        const existing = await orm
+          .select()
+          .from(clientsTable)
+          .where(eq(clientsTable.cnpj, client.cnpj));
 
-      if (existing.length > 0) return true;
+        return existing.length > 0;
+      } catch (error) {
+        throw error;
+      }
     }
-
     return false;
   };
 
@@ -245,9 +310,10 @@ export function CSVImportDialog({
     let successCount = 0;
     let errorCount = 0;
 
+    const errors: string[] = [];
     const clientsToInsert: any[] = [];
 
-    csvData.forEach(async (row) => {
+    for (const row of csvData) {
       const data: any = {};
 
       mappings.forEach((m) => {
@@ -271,9 +337,12 @@ export function CSVImportDialog({
       // Run local validation
       try {
         const validated = insertClientSchema.parse(data);
-        if (await checkExistingClient(validated)) {
+        const clientExists = await checkExistingClient(validated);
+
+        if (clientExists) {
           errorCount++;
-          return;
+          errors.push(`CPF/CNPJ already exists: ${data.cpf || data.cnpj || "Sem ID"}`);
+          continue;
         }
 
         clientsToInsert.push({
@@ -284,11 +353,19 @@ export function CSVImportDialog({
           updated_at: nowIso,
         });
         successCount++;
-      } catch (err) {
-        console.error("Validation failed for row:", row, err);
+      } catch (err: any) {
+        if (err instanceof ZodError) {
+          errors.push(
+            `${err.issues.map((e) => e.message).join(", ")} at row ${JSON.stringify(row)}`,
+          );
+        } else {
+          errors.push(`${err.message} at row ${JSON.stringify(row)}`);
+        }
         errorCount++;
       }
-    });
+    }
+
+    console.error("Validation errors:", errors);
 
     try {
       if (clientsToInsert.length > 0) {
