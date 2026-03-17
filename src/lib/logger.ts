@@ -17,7 +17,7 @@ export const logAction = async (
       module: data.module,
       status: data.status || "Success",
       device: data.device || "Unknown",
-      created_at: new Date().toISOString(),
+      created_at: new Date(),
     });
   } catch (err) {
     console.error("[Logger] Failed to write log:", err);
