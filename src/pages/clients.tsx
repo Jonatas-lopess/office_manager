@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { format, isValid } from "date-fns";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Search, UserPlus, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -448,10 +449,10 @@ function ClientDialog({
       phone: "",
       cpf: "",
       cnpj: "",
-      birth_date: "",
+      birth_date: null,
       payment_source: "",
       gov_password: "",
-      cnpj_begin_date: "",
+      cnpj_begin_date: null,
       mei_type: null,
       nirf: "",
       cib: "",
@@ -465,7 +466,11 @@ function ClientDialog({
   useEffect(() => {
     if (open) {
       if (initialData) {
-        form.reset(initialData as any);
+        form.reset({
+          ...initialData,
+          birth_date: initialData.birth_date ? new Date(initialData.birth_date) : null,
+          cnpj_begin_date: initialData.cnpj_begin_date ? new Date(initialData.cnpj_begin_date) : null,
+        } as any);
       } else {
         form.reset({
           name: "",
@@ -475,10 +480,10 @@ function ClientDialog({
           phone: "",
           cpf: "",
           cnpj: "",
-          birth_date: "",
+          birth_date: null,
           payment_source: "",
           gov_password: "",
-          cnpj_begin_date: "",
+          cnpj_begin_date: null,
           mei_type: null,
           nirf: "",
           cib: "",
@@ -489,6 +494,20 @@ function ClientDialog({
     }
   }, [open, initialData, form]);
 
+  const cnpj = form.watch("cnpj");
+  const name = form.watch("name");
+  const email = form.watch("email");
+  const phone = form.watch("phone");
+  const paymentSource = form.watch("payment_source");
+  const ie = form.watch("estadual_inscription");
+  const nirf = form.watch("nirf");
+  const cib = form.watch("cib");
+  const incra = form.watch("incra");
+  const govPassword = form.watch("gov_password");
+  const observations = form.watch("observations");
+  const meiType = form.watch("mei_type");
+  const clientStatus = form.watch("status");
+
   const onSubmit = async (data: NewClientType) => {
     if (isView) return;
 
@@ -498,8 +517,8 @@ function ClientDialog({
       status: data.status || "Active",
       name: data.name || "",
       id: initialData?.id || uuidv7(),
-      created_at: initialData?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: initialData?.created_at || new Date(),
+      updated_at: new Date(),
       email: data.email || null,
       observations: data.observations || null,
       phone: data.phone || null,
@@ -568,7 +587,7 @@ function ClientDialog({
               </Label>
               <ClickToCopy
                 enabled={isView}
-                value={form.watch("name")}
+                value={name || ""}
                 label="Nome Completo"
               >
                 <Input
@@ -593,7 +612,7 @@ function ClientDialog({
               </Label>
               <Select
                 disabled={isView}
-                value={form.watch("status") ?? undefined}
+                value={clientStatus ?? undefined}
                 onValueChange={(v) =>
                   form.setValue("status", v as ClientStatus)
                 }
@@ -648,7 +667,7 @@ function ClientDialog({
                     <Label htmlFor="client-cpf">CPF</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("cpf")}
+                      value={form.watch("cpf") || ""}
                       label="CPF"
                     >
                       <Input
@@ -673,7 +692,7 @@ function ClientDialog({
                     <Label htmlFor="client-cnpj">CNPJ</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("cnpj")}
+                      value={cnpj || ""}
                       label="CNPJ"
                     >
                       <Input
@@ -696,7 +715,7 @@ function ClientDialog({
                   </div>
                 </div>
 
-                {(form.watch("cnpj")?.length ?? 0) > 0 && (
+                {(cnpj?.length ?? 0) > 0 && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div
                       className="grid gap-2"
@@ -705,19 +724,38 @@ function ClientDialog({
                       <Label htmlFor="client-cnpj-date">
                         Data de Início do CNPJ
                       </Label>
-                      <ClickToCopy
-                        enabled={isView}
-                        value={form.watch("cnpj_begin_date")}
-                        label="Data de Início do CNPJ"
-                      >
-                        <Input
-                          id="client-cnpj-date"
-                          type="date"
-                          {...form.register("cnpj_begin_date")}
-                          disabled={isView}
-                          className={isView ? "pointer-events-none" : ""}
-                        />
-                      </ClickToCopy>
+                      <Controller
+                        control={form.control}
+                        name="cnpj_begin_date"
+                        render={({ field }) => (
+                          <ClickToCopy
+                            enabled={isView}
+                            value={
+                              field.value instanceof Date && isValid(field.value)
+                                ? format(field.value as Date, "dd/MM/yyyy")
+                                : ""
+                            }
+                            label="Data de Início do CNPJ"
+                          >
+                            <Input
+                              id="client-cnpj-date"
+                              type="date"
+                              {...field}
+                              value={
+                                field.value instanceof Date && isValid(field.value)
+                                  ? format(field.value as Date, "yyyy-MM-dd")
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                field.onChange(val ? new Date(val + "T12:00:00") : null);
+                              }}
+                              disabled={isView}
+                              className={isView ? "pointer-events-none" : ""}
+                            />
+                          </ClickToCopy>
+                        )}
+                      />
                     </div>
                     <div
                       className="grid gap-2"
@@ -726,7 +764,7 @@ function ClientDialog({
                       <Label htmlFor="client-mei-type">Tipo de MEI</Label>
                       <Select
                         disabled={isView}
-                        value={form.watch("mei_type") ?? undefined}
+                        value={meiType ?? undefined}
                         onValueChange={(v) =>
                           form.setValue("mei_type", v as any)
                         }
@@ -752,7 +790,7 @@ function ClientDialog({
                     <Label htmlFor="client-email">Email</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("email")}
+                      value={email || ""}
                       label="Email"
                     >
                       <Input
@@ -773,7 +811,7 @@ function ClientDialog({
                     <Label htmlFor="client-phone">Telefone</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("phone")}
+                      value={phone || ""}
                       label="Telefone"
                     >
                       <Input
@@ -813,19 +851,38 @@ function ClientDialog({
                     data-testid="field-client-birthdate"
                   >
                     <Label htmlFor="client-birthdate">Data de Nascimento</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("birth_date")}
-                      label="Data de Nascimento"
-                    >
-                      <Input
-                        id="client-birthdate"
-                        type="date"
-                        {...form.register("birth_date")}
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
+                    <Controller
+                      control={form.control}
+                      name="birth_date"
+                      render={({ field }) => (
+                        <ClickToCopy
+                          enabled={isView}
+                          value={
+                            field.value instanceof Date && isValid(field.value)
+                              ? format(field.value as Date, "dd/MM/yyyy")
+                              : ""
+                          }
+                          label="Data de Nascimento"
+                        >
+                          <Input
+                            id="client-birthdate"
+                            type="date"
+                            {...field}
+                            value={
+                              field.value instanceof Date && isValid(field.value)
+                                ? format(field.value as Date, "yyyy-MM-dd")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val + "T12:00:00") : null);
+                            }}
+                            disabled={isView}
+                            className={isView ? "pointer-events-none" : ""}
+                          />
+                        </ClickToCopy>
+                      )}
+                    />
                   </div>
                   <div
                     className="grid gap-2"
@@ -836,7 +893,7 @@ function ClientDialog({
                     </Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("payment_source")}
+                      value={paymentSource || ""}
                       label="Fonte Pagadora"
                     >
                       <Input
@@ -855,7 +912,7 @@ function ClientDialog({
                     <Label htmlFor="client-ie">Inscrição Estadual</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("estadual_inscription")}
+                      value={ie || ""}
                       label="Inscrição Estadual"
                     >
                       <Input
@@ -871,7 +928,7 @@ function ClientDialog({
                     <Label htmlFor="client-nirf">NIRF</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("nirf")}
+                      value={nirf || ""}
                       label="NIRF"
                     >
                       <Input
@@ -899,7 +956,7 @@ function ClientDialog({
                     <Label htmlFor="client-cib">CIB</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("cib")}
+                      value={cib || ""}
                       label="CIB"
                     >
                       <Input
@@ -915,7 +972,7 @@ function ClientDialog({
                     <Label htmlFor="client-incra">INCRA</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("incra")}
+                      value={incra || ""}
                       label="INCRA"
                     >
                       <Input
@@ -941,7 +998,7 @@ function ClientDialog({
                     <Label htmlFor="client-gov-pass">Senha Gov</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("gov_password")}
+                      value={govPassword || ""}
                       label="Senha Gov"
                     >
                       <Input
@@ -962,7 +1019,7 @@ function ClientDialog({
                     </Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("observations")}
+                      value={observations || ""}
                       label="Observações Livres"
                     >
                       <Input

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
-import { useForm } from "react-hook-form";
+import { format } from "date-fns";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus,
@@ -328,7 +328,7 @@ export default function ServicesPage() {
                       >
                         {clientsMap[s.client_id]?.name ||
                           "Cliente desconhecido"}{" "}
-                        &middot; {format(parseISO(s.contract_date), "dd/MM/yyyy")}{" "}
+                        &middot; {format(s.contract_date as Date, "dd/MM/yyyy")}{" "}
                         &middot; {currency(s.price)}
                       </div>
                     </div>
@@ -591,9 +591,9 @@ function ServiceDialog({
       price: 0,
       description: "",
       client_id: "",
-      contract_date: format(new Date(), "yyyy-MM-dd"),
-      final_date: "",
-      payment_date: "",
+      contract_date: new Date(),
+      final_date: null,
+      payment_date: null,
       payment_method: "",
       installments: 1,
       observations: "",
@@ -612,10 +612,15 @@ function ServiceDialog({
           status: initialData.status || "Draft",
           price: initialData.price || 0,
           description: initialData.description || "",
-          contract_date:
-            initialData.contract_date || format(new Date(), "yyyy-MM-dd"),
-          final_date: initialData.final_date || "",
-          payment_date: initialData.payment_date || "",
+          contract_date: initialData.contract_date
+            ? new Date(initialData.contract_date)
+            : new Date(),
+          final_date: initialData.final_date
+            ? new Date(initialData.final_date)
+            : null,
+          payment_date: initialData.payment_date
+            ? new Date(initialData.payment_date)
+            : null,
           payment_method: initialData.payment_method || "",
           installments: initialData.installments || 1,
           observations: initialData.observations || "",
@@ -627,9 +632,9 @@ function ServiceDialog({
           price: 0,
           description: "",
           client_id: "",
-          contract_date: format(new Date(), "yyyy-MM-dd"),
-          final_date: "",
-          payment_date: "",
+          contract_date: new Date(),
+          final_date: null,
+          payment_date: null,
           payment_method: "",
           installments: 1,
           observations: "",
@@ -643,7 +648,7 @@ function ServiceDialog({
   const paymentDate = form.watch("payment_date");
 
   useEffect(() => {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = new Date();
     if (status === "Delivered" && !finalDate) {
       form.setValue("final_date", today);
     } else if (status === "Invoiced" && !paymentDate) {
@@ -653,7 +658,7 @@ function ServiceDialog({
 
   const onSubmit = async (data: NewServiceType) => {
     if (isView) return;
-    const nowIso = new Date().toISOString();
+    const now = new Date();
     const svc: Service = {
       ...(initialData || {}),
       ...data,
@@ -661,14 +666,14 @@ function ServiceDialog({
       type: data.type || "Outros",
       description: data.description || null,
       id: initialData?.id || uuidv7(),
-      contract_date: data.contract_date || format(new Date(), "yyyy-MM-dd"),
+      contract_date: data.contract_date || new Date(),
       final_date: data.final_date || null,
       payment_date: data.payment_date || null,
       payment_method: data.payment_method || null,
       installments: data.installments || null,
       observations: data.observations || null,
-      created_at: initialData?.created_at || nowIso,
-      updated_at: nowIso,
+      created_at: initialData?.created_at || now,
+      updated_at: now,
     };
 
     await onSave(svc);
@@ -961,19 +966,38 @@ function ServiceDialog({
                     <Label htmlFor="service-contract-date">
                       Data de Contrato
                     </Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("contract_date")}
-                      label="Data do Contrato"
-                    >
-                      <Input
-                        id="service-contract-date"
-                        type="date"
-                        {...form.register("contract_date")}
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
+                    <Controller
+                      control={form.control}
+                      name="contract_date"
+                      render={({ field }) => (
+                        <ClickToCopy
+                          enabled={isView}
+                          value={
+                            field.value instanceof Date
+                              ? format(field.value as Date, "dd/MM/yyyy")
+                              : ""
+                          }
+                          label="Data do Contrato"
+                        >
+                          <Input
+                            id="service-contract-date"
+                            type="date"
+                            {...field}
+                            value={
+                              field.value instanceof Date
+                                ? format(field.value as Date, "yyyy-MM-dd")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val + "T12:00:00") : null);
+                            }}
+                            disabled={isView}
+                            className={isView ? "pointer-events-none" : ""}
+                          />
+                        </ClickToCopy>
+                      )}
+                    />
                   </div>
                 </div>
 
@@ -983,19 +1007,38 @@ function ServiceDialog({
                     data-testid="field-service-final-date"
                   >
                     <Label htmlFor="service-final-date">Data de Entrega</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("final_date")}
-                      label="Data de Entrega"
-                    >
-                      <Input
-                        id="service-final-date"
-                        type="date"
-                        {...form.register("final_date")}
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
+                    <Controller
+                      control={form.control}
+                      name="final_date"
+                      render={({ field }) => (
+                        <ClickToCopy
+                          enabled={isView}
+                          value={
+                            field.value instanceof Date
+                              ? format(field.value as Date, "dd/MM/yyyy")
+                              : ""
+                          }
+                          label="Data de Entrega"
+                        >
+                          <Input
+                            id="service-final-date"
+                            type="date"
+                            {...field}
+                            value={
+                              field.value instanceof Date
+                                ? format(field.value as Date, "yyyy-MM-dd")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val + "T12:00:00") : null);
+                            }}
+                            disabled={isView}
+                            className={isView ? "pointer-events-none" : ""}
+                          />
+                        </ClickToCopy>
+                      )}
+                    />
                   </div>
                   <div
                     className="grid gap-1.5"
@@ -1004,19 +1047,38 @@ function ServiceDialog({
                     <Label htmlFor="service-payment-date">
                       Data de Pagamento
                     </Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("payment_date")}
-                      label="Data de Pagamento"
-                    >
-                      <Input
-                        id="service-payment-date"
-                        type="date"
-                        {...form.register("payment_date")}
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
+                    <Controller
+                      control={form.control}
+                      name="payment_date"
+                      render={({ field }) => (
+                        <ClickToCopy
+                          enabled={isView}
+                          value={
+                            field.value instanceof Date
+                              ? format(field.value as Date, "dd/MM/yyyy")
+                              : ""
+                          }
+                          label="Data de Pagamento"
+                        >
+                          <Input
+                            id="service-payment-date"
+                            type="date"
+                            {...field}
+                            value={
+                              field.value instanceof Date
+                                ? format(field.value as Date, "yyyy-MM-dd")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val ? new Date(val + "T12:00:00") : null);
+                            }}
+                            disabled={isView}
+                            className={isView ? "pointer-events-none" : ""}
+                          />
+                        </ClickToCopy>
+                      )}
+                    />
                   </div>
                 </div>
               </AccordionContent>
