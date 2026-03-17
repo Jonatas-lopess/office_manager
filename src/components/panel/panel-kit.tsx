@@ -304,6 +304,7 @@ export function StatusBadge({ status }: { status: string }) {
     "In progress": "Em andamento",
     Delivered: "Entregue",
     Invoiced: "Faturado",
+    Inactive: "Inativo",
   };
 
   const displayLabel = labels[status] || status;

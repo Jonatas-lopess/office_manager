@@ -271,6 +271,7 @@ export default function ServicesPage() {
                       "In progress": "Em andamento",
                       Delivered: "Entregue",
                       Invoiced: "Faturado",
+                      Inactive: "Inativo",
                     };
                     return (
                       <SelectItem
@@ -328,7 +329,7 @@ export default function ServicesPage() {
                       >
                         {clientsMap[s.client_id]?.name ||
                           "Cliente desconhecido"}{" "}
-                        &middot; {format(s.contract_date as Date, "dd/MM/yyyy")}{" "}
+                        &middot; {format(new Date(s.contract_date), "dd/MM/yyyy")}{" "}
                         &middot; {currency(s.price)}
                       </div>
                     </div>

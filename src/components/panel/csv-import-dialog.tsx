@@ -269,15 +269,18 @@ export function CSVImportDialog({
 
   const normalizeCpf = (cpf: string) => {
     if (!cpf) return "";
-    const clean = cpf.trim();
+    const clean = cpf.toString().replace(/\D/g, "");
     if (!clean) return "";
 
-    if (clean.length < 11) {
-      const zeros = 11 - clean.length;
-      return clean.concat("0".repeat(zeros));
-    }
+    return clean.padStart(11, "0");
+  };
 
-    return clean;
+  const normalizeCnpj = (cnpj: string) => {
+    if (!cnpj) return "";
+    const clean = cnpj.toString().replace(/\D/g, "");
+    if (!clean) return "";
+
+    return clean.padStart(14, "0");
   };
 
   const checkExistingClient = async (client: Partial<Client>) => {
@@ -328,6 +331,11 @@ export function CSVImportDialog({
             val = normalizeCpf(val);
           }
 
+          // CNPJ normalization
+          if (m.dbField === "cnpj") {
+            val = normalizeCnpj(val);
+          }
+
           data[m.dbField] = val;
         }
       });
@@ -375,22 +383,29 @@ export function CSVImportDialog({
           await orm.insert(clientsTable).values(batch);
           setProcessedCount(Math.min(i + BATCH_SIZE, clientsToInsert.length));
         }
-
-        // Register log using helper
-        await logAction(orm, {
-          action: `Importação de ${successCount} clientes via CSV. ${file?.name ? "Arquivo: " + file.name : ""}`,
-          module: "Clientes",
-          device:
-            connectedPeers.find((p) => p.id === myId)?.ip || "Desconhecido",
-          status: "Success",
-        });
       }
 
-      if (errorCount > 0) {
+      // Definir status do log e toast
+      const logStatus = errorCount > 0 ? (successCount > 0 ? "Warning" : "Error") : "Success";
+      
+      await logAction(orm, {
+        action: `Importação de CSV: ${successCount} sucessos, ${errorCount} falhas. ${file?.name ? "Arquivo: " + file.name : ""}`,
+        module: "Clientes",
+        device: connectedPeers.find((p) => p.id === myId)?.ip || "Desconhecido",
+        status: logStatus,
+      });
+
+      if (successCount === 0 && errorCount > 0) {
         toast({
           variant: "warning",
-          title: "Importação concluída com avisos",
-          description: `${successCount} clientes importados. ${errorCount} registros ignorados por erro de validação.`,
+          title: "Falha na importação",
+          description: `Nenhum registro foi importado. ${errorCount} itens já existem ou são inválidos.`,
+        });
+      } else if (errorCount > 0) {
+        toast({
+          variant: "warning",
+          title: "Importação parcial",
+          description: `${successCount} clientes importados. ${errorCount} registros ignorados (duplicados ou inválidos).`,
         });
       } else {
         toast({

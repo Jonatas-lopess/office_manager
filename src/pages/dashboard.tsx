@@ -5,7 +5,7 @@ import {
   endOfDay,
   format,
   isWithinInterval,
-  parseISO,
+  isSameDay,
   startOfDay,
 } from "date-fns";
 import {
@@ -94,7 +94,7 @@ export default function Dashboard() {
     const start = startOfDay(addDays(new Date(), -selected.days + 1));
 
     const servicesInRange = services.filter((s) => {
-      const d = startOfDay(parseISO(s.contract_date));
+      const d = startOfDay(new Date(s.contract_date));
       return isWithinInterval(d, { start, end });
     });
 
@@ -105,9 +105,9 @@ export default function Dashboard() {
 
     const chart = Array.from({ length: selected.days }, (_, i) => {
       const d = addDays(start, i);
-      const dayKey = format(d, "yyyy-MM-dd");
+
       const revenueDay = servicesInRange
-        .filter((s) => s.contract_date === dayKey && s.status === "Invoiced")
+        .filter((s) => isSameDay(new Date(s.contract_date), d) && s.status === "Invoiced")
         .reduce((acc, s) => acc + s.price, 0);
       return {
         day: format(d, "MMM d"),
@@ -377,7 +377,7 @@ export default function Dashboard() {
                           data-testid={`text-service-meta-${s.id}`}
                         >
                           {s.client_name} &middot;{" "}
-                          {format(parseISO(s.contract_date), "MMM d, yyyy")}
+                          {format(new Date(s.contract_date), "MMM d, yyyy")}
                         </div>
                       </div>
                       <div className="text-right">
