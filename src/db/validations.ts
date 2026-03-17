@@ -6,13 +6,16 @@ import { NIRFvalidator } from "@/lib/utils";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
   name: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
-  email: () => z.email("E-mail inválido").or(z.literal("")),
-  phone: () => z.string().min(10, "Telefone inválido").or(z.literal("")),
+  email: () => z.email("E-mail inválido").or(z.literal("")).optional().nullable(),
+  phone: () =>
+    z.string().min(10, "Telefone inválido").or(z.literal("")).optional().nullable(),
   cpf: () =>
     z
       .string()
       .refine((val) => val === "" || cpfValidator.isValid(val), "CPF Inválido")
-      .or(z.literal("")),
+      .or(z.literal(""))
+      .optional()
+      .nullable(),
   cnpj: () =>
     z
       .string()
@@ -20,13 +23,22 @@ export const insertClientSchema = createInsertSchema(clientsTable, {
         (val) => val === "" || cnpjValidator.isValid(val),
         "CNPJ Inválido",
       )
-      .or(z.literal("")),
+      .or(z.literal(""))
+      .optional()
+      .nullable(),
   nirf: () =>
     z
       .string()
       .refine((val) => val === "" || NIRFvalidator(val), "NIRF inválido")
-      .or(z.literal("")),
-}).omit({ id: true, created_at: true, updated_at: true });
+      .or(z.literal(""))
+      .optional()
+      .nullable(),
+})
+  .extend({
+    birth_date: z.date().nullable().optional(),
+    cnpj_begin_date: z.date().nullable().optional(),
+  })
+  .omit({ id: true, created_at: true, updated_at: true });
 
 export const selectClientSchema = createSelectSchema(clientsTable);
 
@@ -37,7 +49,13 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
   client_id: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
   price: (schema) =>
     schema.pipe(z.number().min(0, "Preço deve ser maior ou igual a 0")),
-}).omit({ id: true, created_at: true, updated_at: true });
+})
+  .extend({
+    contract_date: z.date().optional(),
+    final_date: z.date().nullable().optional(),
+    payment_date: z.date().nullable().optional(),
+  })
+  .omit({ id: true, created_at: true, updated_at: true });
 
 export const selectServiceSchema = createSelectSchema(servicesTable);
 

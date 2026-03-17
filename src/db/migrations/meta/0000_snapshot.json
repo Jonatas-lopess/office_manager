@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f2fb4bea-4dda-45f9-8630-d86e24f5e5c3",
+  "id": "14b64c12-ef65-4d73-9aac-782142359b52",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "clients": {
@@ -39,7 +39,7 @@
         },
         "birth_date": {
           "name": "birth_date",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -81,7 +81,7 @@
         },
         "cnpj_begin_date": {
           "name": "cnpj_begin_date",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -130,65 +130,78 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "''"
+          "default": "(strftime('%s', 'now') * 1000)"
         },
         "updated_at": {
           "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "logs": {
+      "name": "logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "device": {
+          "name": "device",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'Success'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now') * 1000)"
         }
       },
-      "indexes": {
-        "clients_cpf_unique": {
-          "name": "clients_cpf_unique",
-          "columns": [
-            "cpf"
-          ],
-          "isUnique": true
-        },
-        "clients_cnpj_unique": {
-          "name": "clients_cnpj_unique",
-          "columns": [
-            "cnpj"
-          ],
-          "isUnique": true
-        },
-        "clients_nirf_unique": {
-          "name": "clients_nirf_unique",
-          "columns": [
-            "nirf"
-          ],
-          "isUnique": true
-        },
-        "clients_cib_unique": {
-          "name": "clients_cib_unique",
-          "columns": [
-            "cib"
-          ],
-          "isUnique": true
-        },
-        "clients_incra_unique": {
-          "name": "clients_incra_unique",
-          "columns": [
-            "incra"
-          ],
-          "isUnique": true
-        },
-        "clients_estadual_inscription_unique": {
-          "name": "clients_estadual_inscription_unique",
-          "columns": [
-            "estadual_inscription"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -225,7 +238,8 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "''"
         },
         "description": {
           "name": "description",
@@ -236,15 +250,15 @@
         },
         "contract_date": {
           "name": "contract_date",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "''"
+          "default": "(strftime('%s', 'now') * 1000)"
         },
         "final_date": {
           "name": "final_date",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -259,7 +273,7 @@
         },
         "payment_date": {
           "name": "payment_date",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -287,19 +301,19 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "''"
+          "default": "(strftime('%s', 'now') * 1000)"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "text",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "''"
+          "default": "(strftime('%s', 'now') * 1000)"
         }
       },
       "indexes": {
@@ -311,21 +325,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "services_client_id_clients_id_fk": {
-          "name": "services_client_id_clients_id_fk",
-          "tableFrom": "services",
-          "tableTo": "clients",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
