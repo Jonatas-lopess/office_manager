@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import {
   Select,
   SelectContent,
@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, StatusBadge } from "@/components/panel/panel-kit";
+import { AppShell, StatusBadge, InfiniteList } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
   Client,
@@ -67,7 +67,6 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 type ClientStatus = Client["status"];
 
@@ -104,11 +103,6 @@ export default function ClientsPage() {
       })
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [clients, q, status]);
-
-  const { items: visibleClients, lastElementRef } = useInfiniteScroll(
-    filtered,
-    20,
-  );
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -241,115 +235,101 @@ export default function ClientsPage() {
 
         <ScrollArea className="flex-1 pr-4">
           <div className="divide-y" data-testid="list-clients">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <ClientSkeleton key={i} />
-              ))
-            ) : (
-              <>
-                {pendingClient &&
-                  !clients.some((c) => c.id === pendingClient.id) && (
-                    <ClientSkeleton />
-                  )}
-                {visibleClients.length > 0
-                  ? visibleClients.map((c) => {
-                      if (pendingClient && c.id === pendingClient.id) {
-                        return <ClientSkeleton key={c.id} />;
-                      }
-                      return (
-                        <div
-                          key={c.id}
-                          className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                          data-testid={`row-client-${c.id}`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="truncate text-sm font-medium"
-                                data-testid={`text-client-name-${c.id}`}
-                              >
-                                {c.name}
-                              </div>
-                              <StatusBadge status={c.status} />
-                            </div>
-                            <div
-                              className="mt-0.5 truncate text-xs text-muted-foreground"
-                              data-testid={`text-client-meta-${c.id}`}
-                            >
-                              {c.cpf || c.cnpj} &middot; {c.phone}
-                            </div>
-                          </div>
+            <InfiniteList
+              data={filtered}
+              loading={loading}
+              pendingItem={pendingClient}
+              emptyState={
+                <Empty className="py-12">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Search className="size-6" />
+                    </EmptyMedia>
+                    <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
+                    <EmptyDescription>
+                      Tente ajustar sua busca ou filtros para encontrar o que
+                      procura.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              }
+              renderItem={(c) => (
+                <div
+                  key={c.id}
+                  className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                  data-testid={`row-client-${c.id}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="truncate text-sm font-medium"
+                        data-testid={`text-client-name-${c.id}`}
+                      >
+                        {c.name}
+                      </div>
+                      <StatusBadge status={c.status} />
+                    </div>
+                    <div
+                      className="mt-0.5 truncate text-xs text-muted-foreground"
+                      data-testid={`text-client-meta-${c.id}`}
+                    >
+                      {c.cpf || c.cnpj} &middot; {c.phone}
+                    </div>
+                  </div>
 
-                          <div
-                            className="flex items-center gap-2"
-                            data-testid={`group-client-actions-${c.id}`}
-                          >
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="secondary"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => openDialog("view", c)}
-                                  data-testid={`button-client-view-${c.id}`}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Visualizar</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => openDialog("edit", c)}
-                                  data-testid={`button-client-edit-${c.id}`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Editar</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    setSelectedClient(c);
-                                    setIsDeleteDialogOpen(true);
-                                  }}
-                                  data-testid={`button-client-delete-${c.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Excluir</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      );
-                    })
-                  : !pendingClient && (
-                      <Empty className="py-12">
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Search className="size-6" />
-                          </EmptyMedia>
-                          <EmptyTitle>Nenhum cliente encontrado</EmptyTitle>
-                          <EmptyDescription>
-                            Tente ajustar sua busca ou filtros para encontrar o
-                            que procura.
-                          </EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    )}
-                <div ref={lastElementRef} className="h-4" />
-              </>
-            )}
+                  <div
+                    className="flex items-center gap-2"
+                    data-testid={`group-client-actions-${c.id}`}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openDialog("view", c)}
+                          data-testid={`button-client-view-${c.id}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Visualizar</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openDialog("edit", c)}
+                          data-testid={`button-client-edit-${c.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Editar</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setSelectedClient(c);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          data-testid={`button-client-delete-${c.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Excluir</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              )}
+            />
           </div>
         </ScrollArea>
       </Card>
@@ -1030,17 +1010,4 @@ function ClientDialog({
   );
 }
 
-function ClientSkeleton() {
-  return (
-    <div className="flex items-center justify-between gap-4 p-4">
-      <div className="flex-1 space-y-2">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-3 w-64" />
-      </div>
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-      </div>
-    </div>
-  );
-}
+

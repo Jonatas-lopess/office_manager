@@ -1,6 +1,7 @@
 import { PropsWithChildren, ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import {
   ArrowLeft,
   BarChart3,
@@ -460,3 +461,83 @@ export function TableCard({
     </Card>
   );
 }
+
+export function RowSkeleton({
+  count = 1,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            "flex items-center justify-between gap-4 p-4 border-b last:border-0 h-[72px]",
+            className,
+          )}
+        >
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-[40%] bg-muted" />
+            <Skeleton className="h-3 w-[60%] bg-muted/60" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-8 rounded-md bg-muted" />
+            <Skeleton className="h-8 w-8 rounded-md bg-muted" />
+            <Skeleton className="h-8 w-8 rounded-md bg-muted" />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+export function InfiniteList<T>({
+  data,
+  renderItem,
+  loading,
+  pendingItem,
+  pageSize = 20,
+  emptyState,
+  className,
+}: {
+  data: T[];
+  renderItem: (item: T) => ReactNode;
+  loading?: boolean;
+  pendingItem?: T | null;
+  pageSize?: number;
+  emptyState?: ReactNode;
+  className?: string;
+}) {
+  const { items, lastElementRef } = useInfiniteScroll(data, pageSize);
+
+  if (loading && items.length === 0) {
+    return <RowSkeleton count={5} />;
+  }
+
+  return (
+    <div className={cn("divide-y", className)}>
+      {pendingItem &&
+        !data.some((item: any) => item.id === (pendingItem as any).id) && (
+          <RowSkeleton count={1} />
+        )}
+
+      {items.length > 0 ? (
+        <>
+          {items.map((item, i) => {
+            if (pendingItem && (item as any).id === (pendingItem as any).id) {
+              return <RowSkeleton key={(item as any).id || i} count={1} />;
+            }
+            return <div key={(item as any).id || i}>{renderItem(item)}</div>;
+          })}
+          <div ref={lastElementRef} className="h-4 pt-4" />
+        </>
+      ) : (
+        !pendingItem && emptyState
+      )}
+    </div>
+  );
+}
+

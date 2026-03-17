@@ -40,7 +40,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -59,7 +59,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, currency, StatusBadge } from "@/components/panel/panel-kit";
+import { AppShell, currency, StatusBadge, InfiniteList } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
   Service,
@@ -75,7 +75,6 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
@@ -178,11 +177,6 @@ export default function ServicesPage() {
   }, [clients]);
 
   const filtered = services;
-
-  const { items: visibleServices, lastElementRef } = useInfiniteScroll(
-    filtered,
-    20,
-  );
 
   const totalRevenue = useMemo(() => {
     return services
@@ -294,122 +288,103 @@ export default function ServicesPage() {
           </div>
           <ScrollArea className="flex-1 pr-4">
             <div className="divide-y" data-testid="list-services">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <ServiceSkeleton key={i} />
-                ))
-              ) : (
-                <>
-                  {pendingService &&
-                    !services.some((s) => s.id === pendingService.id) && (
-                      <ServiceSkeleton />
-                    )}
-                  {visibleServices.length > 0
-                    ? visibleServices.map((s) => {
-                        if (pendingService && s.id === pendingService.id) {
-                          return <ServiceSkeleton key={s.id} />;
-                        }
-                        return (
-                          <div
-                            key={s.id}
-                            className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
-                            data-testid={`row-service-${s.id}`}
+              <InfiniteList
+                data={filtered}
+                loading={loading}
+                pendingItem={pendingService}
+                emptyState={
+                  <Empty className="py-12">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Search className="size-6" />
+                      </EmptyMedia>
+                      <EmptyTitle>Nenhum serviço encontrado</EmptyTitle>
+                      <EmptyDescription>
+                        Tente ajustar sua busca ou filtros para encontrar o que
+                        procura.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                }
+                renderItem={(s) => (
+                  <div
+                    key={s.id}
+                    className="group flex items-center justify-between gap-4 p-4 hover:bg-muted/30 transition-colors"
+                    data-testid={`row-service-${s.id}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="truncate text-sm font-medium"
+                          data-testid={`text-service-type-${s.id}`}
+                        >
+                          {s.type} {s.description && `- ${s.description}`}
+                        </div>
+                        <StatusBadge status={s.status} />
+                      </div>
+                      <div
+                        className="mt-0.5 truncate text-xs text-muted-foreground"
+                        data-testid={`text-service-meta-${s.id}`}
+                      >
+                        {clientsMap[s.client_id]?.name ||
+                          "Cliente desconhecido"}{" "}
+                        &middot; {format(parseISO(s.contract_date), "dd/MM/yyyy")}{" "}
+                        &middot; {currency(s.price)}
+                      </div>
+                    </div>
+                    <div
+                      className="flex items-center gap-2"
+                      data-testid={`group-service-actions-${s.id}`}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDialog("view", s)}
+                            data-testid={`button-service-view-${s.id}`}
                           >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="truncate text-sm font-medium"
-                                  data-testid={`text-service-type-${s.id}`}
-                                >
-                                  {s.type}{" "}
-                                  {s.description && `- ${s.description}`}
-                                </div>
-                                <StatusBadge status={s.status} />
-                              </div>
-                              <div
-                                className="mt-0.5 truncate text-xs text-muted-foreground"
-                                data-testid={`text-service-meta-${s.id}`}
-                              >
-                                {clientsMap[s.client_id]?.name ||
-                                  "Cliente desconhecido"}{" "}
-                                &middot;{" "}
-                                {format(
-                                  parseISO(s.contract_date),
-                                  "dd/MM/yyyy",
-                                )}{" "}
-                                &middot; {currency(s.price)}
-                              </div>
-                            </div>
-                            <div
-                              className="flex items-center gap-2"
-                              data-testid={`group-service-actions-${s.id}`}
-                            >
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => openDialog("view", s)}
-                                    data-testid={`button-service-view-${s.id}`}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Visualizar</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => openDialog("edit", s)}
-                                    data-testid={`button-service-edit-${s.id}`}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Editar</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => {
-                                      setSelectedService(s);
-                                      setIsDeleteDialogOpen(true);
-                                    }}
-                                    data-testid={`button-service-delete-${s.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Excluir</TooltipContent>
-                              </Tooltip>
-                            </div>{" "}
-                          </div>
-                        );
-                      })
-                    : !pendingService && (
-                        <Empty className="py-12">
-                          <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                              <Search className="size-6" />
-                            </EmptyMedia>
-                            <EmptyTitle>Nenhum serviço encontrado</EmptyTitle>
-                            <EmptyDescription>
-                              Tente ajustar sua busca ou filtros para encontrar
-                              o que procura.
-                            </EmptyDescription>
-                          </EmptyHeader>
-                        </Empty>
-                      )}
-                  <div ref={lastElementRef} className="h-4" />
-                </>
-              )}
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Visualizar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDialog("edit", s)}
+                            data-testid={`button-service-edit-${s.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setSelectedService(s);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            data-testid={`button-service-delete-${s.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Excluir</TooltipContent>
+                      </Tooltip>
+                    </div>{" "}
+                  </div>
+                )}
+              />
             </div>
           </ScrollArea>
         </Card>
@@ -1156,17 +1131,4 @@ function ServiceDialog({
   );
 }
 
-function ServiceSkeleton() {
-  return (
-    <div className="flex items-center justify-between gap-4 p-4">
-      <div className="flex-1 space-y-2">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-3 w-64" />
-      </div>
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-      </div>
-    </div>
-  );
-}
+
