@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2026-03-17
+
+### Fixed
+
+- **Importação CSV**: Corrigida a lógica de preenchimento de zeros (padding) em CPFs e CNPJs para adicionar à esquerda, garantindo a integridade dos dados exportados pelo Excel.
+- **Normalização de Dados**: Adicionada extração de apenas dígitos durante a importação para evitar falhas de validação por formatação.
+- **Atualizador Interno**: Corrigida a falha na abertura do instalador MSI via permissões de "opener" do Tauri.
+- **Logs de Depuração**: Adicionado rastreamento de caminho do instalador no console para diagnosticar problemas de rede.
+
+### Changed
+
+- **Logs de Auditoria**: Refatorado o registro de logs de importação para garantir que todas as tentativas sejam registradas, incluindo falhas e registros duplicados.
+- **Feedback Visual**: Melhoradas as mensagens de notificação (Toasts) após a importação de CSV para refletir com mais precisão o resultado da operação.
+
 ## [2.0.0] - 2026-03-17
 
 ### Added
