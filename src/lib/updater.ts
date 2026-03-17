@@ -37,6 +37,7 @@ export async function checkInternalUpdate() {
           onClick: async () => {
             try {
               const installerPath = `${updatePath}\\ManagerDesk_${remoteVersion}_x64_en-US.msi`;
+              console.log("Attempting to open installer at:", installerPath);
               await openPath(installerPath);
               // Optionally close the app after launching installer
               await getCurrentWindow().close();
