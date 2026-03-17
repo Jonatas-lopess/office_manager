@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 type ClientStatus = Client["status"];
 
@@ -103,6 +104,11 @@ export default function ClientsPage() {
       })
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [clients, q, status]);
+
+  const { items: visibleClients, lastElementRef } = useInfiniteScroll(
+    filtered,
+    20,
+  );
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -245,8 +251,8 @@ export default function ClientsPage() {
                   !clients.some((c) => c.id === pendingClient.id) && (
                     <ClientSkeleton />
                   )}
-                {filtered.length > 0
-                  ? filtered.map((c) => {
+                {visibleClients.length > 0
+                  ? visibleClients.map((c) => {
                       if (pendingClient && c.id === pendingClient.id) {
                         return <ClientSkeleton key={c.id} />;
                       }
@@ -341,6 +347,7 @@ export default function ClientsPage() {
                         </EmptyHeader>
                       </Empty>
                     )}
+                <div ref={lastElementRef} className="h-4" />
               </>
             )}
           </div>

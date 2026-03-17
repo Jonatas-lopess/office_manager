@@ -75,6 +75,7 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
@@ -177,6 +178,11 @@ export default function ServicesPage() {
   }, [clients]);
 
   const filtered = services;
+
+  const { items: visibleServices, lastElementRef } = useInfiniteScroll(
+    filtered,
+    20,
+  );
 
   const totalRevenue = useMemo(() => {
     return services
@@ -298,8 +304,8 @@ export default function ServicesPage() {
                     !services.some((s) => s.id === pendingService.id) && (
                       <ServiceSkeleton />
                     )}
-                  {filtered.length > 0
-                    ? filtered.map((s) => {
+                  {visibleServices.length > 0
+                    ? visibleServices.map((s) => {
                         if (pendingService && s.id === pendingService.id) {
                           return <ServiceSkeleton key={s.id} />;
                         }
@@ -401,6 +407,7 @@ export default function ServicesPage() {
                           </EmptyHeader>
                         </Empty>
                       )}
+                  <div ref={lastElementRef} className="h-4" />
                 </>
               )}
             </div>
