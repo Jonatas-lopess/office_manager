@@ -220,7 +220,7 @@ function SidebarDataManagement() {
         title: "Exportação concluída",
         description: "O arquivo CSV dos clientes foi gerado.",
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Erro na exportação",
@@ -540,4 +540,3 @@ export function InfiniteList<T>({
     </div>
   );
 }
-

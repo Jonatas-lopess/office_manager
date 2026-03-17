@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import Papa from "papaparse";
 import { v7 as uuidv7 } from "uuid";
-import { parse, isValid, format } from "date-fns";
+import { parse, isValid } from "date-fns";
 import { Client, insertClientSchema } from "@/db/validations";
 import {
   Upload,
@@ -115,16 +115,18 @@ export function CSVImportDialog({
         // Process headers (handle duplicates)
         const processedHeaders: string[] = [];
         rawHeaders.forEach((header) => {
-          let h = header?.trim() || "Coluna Sem Nome";
-          const original = h;
+          const originalTrimmed = header?.trim() || "";
+          const isPlaceholder = originalTrimmed === "";
+          let h = originalTrimmed || "Coluna Sem Nome";
+          const baseName = h;
           let count = 1;
 
           while (usedHeaders.has(h)) {
-            h = `${original} (${++count})`;
+            h = `${baseName} (${++count})`;
           }
 
-          if (h !== original) {
-            renamedHeaders.push(`${original} -> ${h}`);
+          if (h !== baseName && !isPlaceholder) {
+            renamedHeaders.push(`${baseName} -> ${h}`);
           }
 
           usedHeaders.add(h);
@@ -176,7 +178,10 @@ export function CSVImportDialog({
                 lowerHeader.includes("data")
               )
                 dbField = "cnpj_begin_date";
-              else if (lowerHeader.includes("email") || lowerHeader === "e-mail")
+              else if (
+                lowerHeader.includes("email") ||
+                lowerHeader === "e-mail"
+              )
                 dbField = "email";
               else if (
                 lowerHeader.includes("tel") ||
@@ -242,23 +247,24 @@ export function CSVImportDialog({
   const { orm } = useDb();
   const { toast } = useToast();
 
-  const normalizeDate = (value: string) => {
-    if (!value) return "";
+  const normalizeDate = (value: string | null | undefined): Date | null => {
+    if (!value) return null;
     const clean = value.trim();
-    if (!clean) return "";
-
-    // If already YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    if (!clean) return null;
 
     // Try DD/MM/YYYY
     const parsedDMY = parse(clean, "dd/MM/yyyy", new Date());
-    if (isValid(parsedDMY)) return format(parsedDMY, "yyyy-MM-dd");
+    if (isValid(parsedDMY)) return parsedDMY;
 
     // Try DD-MM-YYYY
     const parsedDMYDash = parse(clean, "dd-MM-yyyy", new Date());
-    if (isValid(parsedDMYDash)) return format(parsedDMYDash, "yyyy-MM-dd");
+    if (isValid(parsedDMYDash)) return parsedDMYDash;
 
-    return clean; // Fallback to original string if not recognized
+    // Fallback to native Date (handles YYYY-MM-DD and others)
+    const fallback = new Date(clean);
+    if (isValid(fallback)) return fallback;
+
+    return null;
   };
 
   const normalizeCpf = (cpf: string) => {
@@ -276,29 +282,21 @@ export function CSVImportDialog({
 
   const checkExistingClient = async (client: Partial<Client>) => {
     if (client.cpf) {
-      try {
-        const existing = await orm
-          .select()
-          .from(clientsTable)
-          .where(eq(clientsTable.cpf, client.cpf));
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(eq(clientsTable.cpf, client.cpf));
 
-        return existing.length > 0;
-      } catch (error) {
-        throw error;
-      }
+      return existing.length > 0;
     }
 
     if (client.cnpj) {
-      try {
-        const existing = await orm
-          .select()
-          .from(clientsTable)
-          .where(eq(clientsTable.cnpj, client.cnpj));
+      const existing = await orm
+        .select()
+        .from(clientsTable)
+        .where(eq(clientsTable.cnpj, client.cnpj));
 
-        return existing.length > 0;
-      } catch (error) {
-        throw error;
-      }
+      return existing.length > 0;
     }
     return false;
   };
@@ -306,7 +304,7 @@ export function CSVImportDialog({
   const handleConfirm = async () => {
     setIsProcessing(true);
 
-    const nowIso = new Date().toISOString();
+    const now = new Date();
     let successCount = 0;
     let errorCount = 0;
 
@@ -341,7 +339,9 @@ export function CSVImportDialog({
 
         if (clientExists) {
           errorCount++;
-          errors.push(`CPF/CNPJ already exists: ${data.cpf || data.cnpj || "Sem ID"}`);
+          errors.push(
+            `CPF/CNPJ already exists: ${data.cpf || data.cnpj || "Sem ID"}`,
+          );
           continue;
         }
 
@@ -349,8 +349,8 @@ export function CSVImportDialog({
           ...validated,
           id: uuidv7(),
           status: "Active",
-          created_at: nowIso,
-          updated_at: nowIso,
+          created_at: now,
+          updated_at: now,
         });
         successCount++;
       } catch (err: any) {
