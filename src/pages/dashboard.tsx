@@ -74,19 +74,32 @@ export default function Dashboard() {
       .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
       .toSQL();
   }, [orm]);
-  const { data: servicesRaw, loading: servicesLoading } = useLocalQuery<any>(db, servicesQuery);
+  const { data: servicesRaw, loading: servicesLoading } = useLocalQuery<any>(
+    db,
+    servicesQuery,
+  );
   const services = useMemo(() => servicesRaw || [], [servicesRaw]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
-  const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<any>(db, clientsQuery);
+  const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<any>(
+    db,
+    clientsQuery,
+  );
   const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
 
   const paymentsQuery = useMemo(() => {
-    return orm.select().from(paymentsTable).orderBy(desc(paymentsTable.payment_date)).toSQL();
+    return orm
+      .select()
+      .from(paymentsTable)
+      .orderBy(desc(paymentsTable.payment_date))
+      .toSQL();
   }, [orm]);
-  const { data: paymentsRaw, loading: paymentsLoading } = useLocalQuery<any>(db, paymentsQuery);
+  const { data: paymentsRaw, loading: paymentsLoading } = useLocalQuery<any>(
+    db,
+    paymentsQuery,
+  );
   const payments = useMemo(() => paymentsRaw || [], [paymentsRaw]);
 
   const loading = servicesLoading || clientsLoading || paymentsLoading;
@@ -210,7 +223,7 @@ export default function Dashboard() {
           <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
 
           <div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
             data-testid="grid-stats"
           >
             <StatCard
@@ -308,7 +321,10 @@ export default function Dashboard() {
                 ) : (
                   <ChartContainer
                     config={{
-                      revenue: { label: "Income", color: "hsl(var(--chart-1))" },
+                      revenue: {
+                        label: "Income",
+                        color: "hsl(var(--chart-1))",
+                      },
                     }}
                     className="h-[260px] w-full"
                   >
@@ -538,7 +554,10 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2" data-testid="list-top-services">
+                <div
+                  className="mt-4 grid gap-2"
+                  data-testid="list-top-services"
+                >
                   {data.services.slice(0, 3).map((s) => (
                     <div
                       key={s.id}

@@ -97,6 +97,7 @@ import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
 import ClickToCopy from "@/components/ui/click-to-copy";
+import { maskCurrency, parseCurrencyToNumber } from "@/lib/masks";
 
 type ServiceStatus = Service["status"];
 
@@ -382,17 +383,25 @@ function ServiceDialog({
               <Label htmlFor="service-price">Valor Base</Label>
               <ClickToCopy
                 enabled={isView}
-                value={form.watch("price")}
+                value={form.watch("price") || 0}
                 label="Valor Base"
               >
-                <Input
-                  disabled={isView}
-                  id="service-price"
-                  type="number"
-                  {...form.register("price", { valueAsNumber: true })}
-                  inputMode="decimal"
-                  data-testid="input-service-price"
-                  className={isView ? "pointer-events-none" : ""}
+                <Controller
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <Input
+                      disabled={isView}
+                      id="service-price"
+                      value={maskCurrency(field.value || 0)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(parseCurrencyToNumber(val));
+                      }}
+                      className={isView ? "pointer-events-none" : ""}
+                      data-testid="input-service-price"
+                    />
+                  )}
                 />
               </ClickToCopy>
             </div>
@@ -784,9 +793,8 @@ function FinancialDialog({
             <div className="grid gap-1.5">
               <Label className="text-[10px] uppercase font-bold">Valor</Label>
               <Input
-                type="number"
-                value={newAmount}
-                onChange={(e) => setNewAmount(Number(e.target.value))}
+                value={maskCurrency(newAmount)}
+                onChange={(e) => setNewAmount(parseCurrencyToNumber(e.target.value))}
                 className="h-8 text-xs"
               />
             </div>
