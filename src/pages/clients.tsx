@@ -911,44 +911,6 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-2"
-                    data-testid="field-client-birthdate"
-                  >
-                    <Label htmlFor="client-birthdate">Data de Nascimento</Label>
-                    <Controller
-                      control={form.control}
-                      name="birth_date"
-                      render={({ field }) => (
-                        <ClickToCopy
-                          enabled={isView}
-                          value={
-                            field.value instanceof Date && isValid(field.value)
-                              ? format(field.value as Date, "dd/MM/yyyy")
-                              : ""
-                          }
-                          label="Data de Nascimento"
-                        >
-                          <Input
-                            id="client-birthdate"
-                            type="date"
-                            {...field}
-                            value={
-                              field.value instanceof Date && isValid(field.value)
-                                ? format(field.value as Date, "yyyy-MM-dd")
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val ? new Date(val + "T12:00:00") : null);
-                            }}
-                            disabled={isView}
-                            className={isView ? "pointer-events-none" : ""}
-                          />
-                        </ClickToCopy>
-                      )}
-                    />
-                  </div>
-                  <div
-                    className="grid gap-2"
                     data-testid="field-client-payment-source"
                   >
                     <Label htmlFor="client-payment-source">
@@ -963,6 +925,25 @@ function ClientDialog({
                         id="client-payment-source"
                         {...form.register("payment_source")}
                         placeholder="Ex: Nome da Empresa"
+                        disabled={isView}
+                        className={isView ? "pointer-events-none" : ""}
+                      />
+                    </ClickToCopy>
+                  </div>
+                  <div
+                    className="grid gap-2"
+                    data-testid="field-client-gov-pass"
+                  >
+                    <Label htmlFor="client-gov-pass">Senha Gov</Label>
+                    <ClickToCopy
+                      enabled={isView}
+                      value={govPassword || ""}
+                      label="Senha Gov"
+                    >
+                      <Input
+                        id="client-gov-pass"
+                        {...form.register("gov_password")}
+                        placeholder="Senha do portal"
                         disabled={isView}
                         className={isView ? "pointer-events-none" : ""}
                       />
@@ -1053,47 +1034,26 @@ function ClientDialog({
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div
-                    className="grid gap-2"
-                    data-testid="field-client-gov-pass"
+                <div
+                  className="grid gap-2"
+                  data-testid="field-client-observations"
+                >
+                  <Label htmlFor="client-observations">
+                    Observações Livres
+                  </Label>
+                  <ClickToCopy
+                    enabled={isView}
+                    value={observations || ""}
+                    label="Observações Livres"
                   >
-                    <Label htmlFor="client-gov-pass">Senha Gov</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={govPassword || ""}
-                      label="Senha Gov"
-                    >
-                      <Input
-                        id="client-gov-pass"
-                        {...form.register("gov_password")}
-                        placeholder="Senha do portal"
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
-                  </div>
-                  <div
-                    className="grid gap-2"
-                    data-testid="field-client-observations"
-                  >
-                    <Label htmlFor="client-observations">
-                      Observações Livres
-                    </Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={observations || ""}
-                      label="Observações Livres"
-                    >
-                      <Input
-                        id="client-observations"
-                        {...form.register("observations")}
-                        placeholder="Notas gerais..."
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
-                  </div>
+                    <Input
+                      id="client-observations"
+                      {...form.register("observations")}
+                      placeholder="Notas gerais..."
+                      disabled={isView}
+                      className={isView ? "pointer-events-none" : ""}
+                    />
+                  </ClickToCopy>
                 </div>
               </AccordionContent>
             </AccordionItem>
