@@ -42,11 +42,10 @@ import {
   currency,
 } from "@/components/panel/panel-kit";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { type Client } from "@/db/validations";
 import { useDb } from "@/db/context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
-import { clientsTable, servicesTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { clientsTable, servicesTable, paymentsTable } from "@/db/schema";
+import { eq, sql, desc } from "drizzle-orm";
 
 const PERIODS = [
   { id: "7d", label: "Últimos 7 dias", days: 7 },
@@ -81,10 +80,16 @@ export default function Dashboard() {
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
   }, [orm]);
-  const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<Client>(db, clientsQuery);
+  const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<any>(db, clientsQuery);
   const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
 
-  const loading = servicesLoading || clientsLoading;
+  const paymentsQuery = useMemo(() => {
+    return orm.select().from(paymentsTable).orderBy(desc(paymentsTable.payment_date)).toSQL();
+  }, [orm]);
+  const { data: paymentsRaw, loading: paymentsLoading } = useLocalQuery<any>(db, paymentsQuery);
+  const payments = useMemo(() => paymentsRaw || [], [paymentsRaw]);
+
+  const loading = servicesLoading || clientsLoading || paymentsLoading;
 
   const [period, setPeriod] = useState<PeriodId>("30d");
 
@@ -93,26 +98,35 @@ export default function Dashboard() {
     const end = endOfDay(new Date());
     const start = startOfDay(addDays(new Date(), -selected.days + 1));
 
-    const servicesInRange = services.filter((s) => {
+    const servicesInRange = services.filter((s: any) => {
       const d = startOfDay(new Date(s.contract_date));
       return isWithinInterval(d, { start, end });
     });
 
-    const revenue = servicesInRange
-      .filter((s) => s.status === "Invoiced")
-      .reduce((acc, s) => acc + s.price, 0);
-    const profit = revenue;
+    const paymentsInRange = payments.filter((p) => {
+      const d = startOfDay(new Date(p.payment_date));
+      return isWithinInterval(d, { start, end });
+    });
+
+    const revenue = paymentsInRange.reduce((acc, p) => acc + p.amount, 0);
+
+    const toReceive = services.reduce((acc, s) => {
+      const paidForSvc = payments
+        .filter((p) => p.service_id === s.id)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const balance = s.price - paidForSvc;
+      return acc + (balance > 0 ? balance : 0);
+    }, 0);
 
     const chart = Array.from({ length: selected.days }, (_, i) => {
       const d = addDays(start, i);
 
-      const revenueDay = servicesInRange
-        .filter((s) => isSameDay(new Date(s.contract_date), d) && s.status === "Invoiced")
-        .reduce((acc, s) => acc + s.price, 0);
+      const revenueDay = paymentsInRange
+        .filter((p) => isSameDay(new Date(p.payment_date), d))
+        .reduce((acc, p) => acc + p.amount, 0);
       return {
         day: format(d, "MMM d"),
         revenue: Math.round(revenueDay),
-        profit: Math.round(revenueDay),
       };
     });
 
@@ -121,11 +135,11 @@ export default function Dashboard() {
       services,
       servicesInRange,
       revenue,
-      profit,
+      toReceive,
       rangeLabel: `${format(start, "MMM d")} – ${format(end, "MMM d")}`,
       chart,
     };
-  }, [period, clients, services]);
+  }, [period, clients, services, payments]);
 
   const recent = useMemo(() => {
     const list = [...data.services]
@@ -218,11 +232,19 @@ export default function Dashboard() {
               loading={loading}
             />
             <StatCard
-              label="Renda"
+              label="Receita"
               value={currency(data.revenue)}
               hint={data.rangeLabel}
               icon={<BadgeDollarSign className="h-4 w-4" />}
               dataTestId="stat-income"
+              loading={loading}
+            />
+            <StatCard
+              label="A Receber"
+              value={currency(data.toReceive)}
+              hint="Saldo total pendente"
+              icon={<CalendarClock className="h-4 w-4" />}
+              dataTestId="stat-receivables"
               loading={loading}
             />
           </div>

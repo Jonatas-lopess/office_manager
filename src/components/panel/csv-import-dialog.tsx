@@ -55,6 +55,7 @@ const DB_FIELDS = [
   { key: "payment_source", label: "Fonte Pagadora", required: false },
   { key: "gov_password", label: "Senha Gov", required: false },
   { key: "birth_date", label: "Data Nasc.", required: false },
+  { key: "has_serious_illness", label: "Doença Grave", required: false },
   { key: "observations", label: "Observações", required: false },
 ];
 
@@ -210,6 +211,11 @@ export function CSVImportDialog({
                 lowerHeader.includes("nota")
               )
                 dbField = "observations";
+              else if (
+                lowerHeader.includes("grave") ||
+                lowerHeader.includes("doen")
+              )
+                dbField = "has_serious_illness";
             }
 
             return {
@@ -336,6 +342,12 @@ export function CSVImportDialog({
             val = normalizeCnpj(val);
           }
 
+          // Boolean normalization for serious illness
+          if (m.dbField === "has_serious_illness") {
+            const lowerVal = val.toString().toLowerCase().trim();
+            val = ["sim", "yes", "1", "true", "s"].includes(lowerVal);
+          }
+
           data[m.dbField] = val;
         }
       });
@@ -386,8 +398,9 @@ export function CSVImportDialog({
       }
 
       // Definir status do log e toast
-      const logStatus = errorCount > 0 ? (successCount > 0 ? "Warning" : "Error") : "Success";
-      
+      const logStatus =
+        errorCount > 0 ? (successCount > 0 ? "Warning" : "Error") : "Success";
+
       await logAction(orm, {
         action: `Importação de CSV: ${successCount} sucessos, ${errorCount} falhas. ${file?.name ? "Arquivo: " + file.name : ""}`,
         module: "Clientes",
@@ -481,6 +494,7 @@ export function CSVImportDialog({
                       <li>• Fonte Pagadora</li>
                       <li>• Senha Gov</li>
                       <li>• Data Nasc.</li>
+                      <li>• Doença Grave</li>
                       <li>• Observações</li>
                     </ul>
                   </div>

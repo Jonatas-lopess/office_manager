@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -10,7 +10,10 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Receipt,
+  CalendarClock,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -59,7 +62,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, currency, StatusBadge, InfiniteList } from "@/components/panel/panel-kit";
+import {
+  AppShell,
+  currency,
+  StatusBadge,
+  InfiniteList,
+} from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
   Service,
@@ -78,7 +86,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
-import { servicesTable, serviceTypesArray, clientsTable } from "@/db/schema";
+import {
+  servicesTable,
+  serviceTypesArray,
+  clientsTable,
+  paymentsTable,
+} from "@/db/schema";
 import { and, desc, eq, like, or, isNotNull, ne, sql } from "drizzle-orm";
 import {
   Accordion,
@@ -96,7 +109,7 @@ export default function ServicesPage() {
   const { db, orm } = useDb();
   const { myId, connectedPeers } = useSync();
   const { toast } = useToast();
-  const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
+  const STATUS = ["Draft", "In progress", "Delivered"];
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ServiceStatus>("all");
@@ -120,14 +133,18 @@ export default function ServicesPage() {
         contract_date: servicesTable.contract_date,
         price: servicesTable.price,
         final_date: servicesTable.final_date,
-        payment_date: servicesTable.payment_date,
         payment_method: servicesTable.payment_method,
         installments: servicesTable.installments,
         observations: servicesTable.observations,
         client_name: sql<string>`${clientsTable.name}`.as("client_name"),
+        total_paid: sql<number>`COALESCE(SUM(${paymentsTable.amount}), 0)`.as(
+          "total_paid",
+        ),
       })
       .from(servicesTable)
-      .innerJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id));
+      .leftJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
+      .leftJoin(paymentsTable, eq(servicesTable.id, paymentsTable.service_id))
+      .groupBy(servicesTable.id);
 
     const conditions = [];
 
@@ -142,7 +159,13 @@ export default function ServicesPage() {
     }
 
     if (status !== "all") {
-      conditions.push(eq(servicesTable.status, status));
+      // Invoiced is now automated
+      if (status === ("Invoiced" as any)) {
+        // This won't work perfectly via SQL status since we removed it from enum
+        // but let's keep it if we can find another way, or just filter via JS.
+      } else {
+        conditions.push(eq(servicesTable.status, status));
+      }
     }
 
     if (conditions.length > 0) {
@@ -179,15 +202,19 @@ export default function ServicesPage() {
   const filtered = services;
 
   const totalRevenue = useMemo(() => {
-    return services
-      .filter((s: any) => s.status === "Invoiced")
-      .reduce((acc: number, s: any) => acc + s.price, 0);
+    return services.reduce(
+      (acc: number, s: any) => acc + (s.total_paid || 0),
+      0,
+    );
   }, [services]);
 
   const totalToReceive = useMemo(() => {
     return services
-      .filter((s: any) => s.status !== "Invoiced" && s.status !== "Draft")
-      .reduce((acc: number, s: any) => acc + s.price, 0);
+      .filter((s: any) => s.status !== "Draft")
+      .reduce((acc: number, s: any) => {
+        const balance = s.price - (s.total_paid || 0);
+        return acc + (balance > 0 ? balance : 0);
+      }, 0);
   }, [services]);
 
   const handleDelete = async () => {
@@ -209,9 +236,16 @@ export default function ServicesPage() {
     setSelectedService(null);
   };
 
-  const openDialog = (mode: "create" | "edit" | "view", service?: any) => {
+  const [openToPayments, setOpenToPayments] = useState(false);
+
+  const openDialog = (
+    mode: "create" | "edit" | "view",
+    service?: any,
+    openPayments = false,
+  ) => {
     setDialogMode(mode);
     setSelectedService(service || null);
+    setOpenToPayments(openPayments);
     setIsDialogOpen(true);
   };
 
@@ -230,8 +264,14 @@ export default function ServicesPage() {
         </Button>
       }
     >
-      <div className="flex-1 grid gap-4 lg:grid-cols-3 min-h-0" data-testid="grid-services">
-        <Card className="panel-card flex flex-col min-h-0 lg:col-span-2" data-testid="card-services">
+      <div
+        className="flex-1 grid gap-4 lg:grid-cols-3 min-h-0"
+        data-testid="grid-services"
+      >
+        <Card
+          className="panel-card flex flex-col min-h-0 lg:col-span-2"
+          data-testid="card-services"
+        >
           <div
             className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             data-testid="bar-services-controls"
@@ -322,6 +362,11 @@ export default function ServicesPage() {
                           {s.type} {s.description && `- ${s.description}`}
                         </div>
                         <StatusBadge status={s.status} />
+                        {s.total_paid >= s.price && s.price > 0 && (
+                          <Badge className="bg-green-600 hover:bg-green-700 h-5 text-[10px] ml-1">
+                            Faturado
+                          </Badge>
+                        )}
                       </div>
                       <div
                         className="mt-0.5 truncate text-xs text-muted-foreground"
@@ -329,7 +374,8 @@ export default function ServicesPage() {
                       >
                         {clientsMap[s.client_id]?.name ||
                           "Cliente desconhecido"}{" "}
-                        &middot; {format(new Date(s.contract_date), "dd/MM/yyyy")}{" "}
+                        &middot;{" "}
+                        {format(new Date(s.contract_date), "dd/MM/yyyy")}{" "}
                         &middot; {currency(s.price)}
                       </div>
                     </div>
@@ -350,6 +396,20 @@ export default function ServicesPage() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Visualizar</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600"
+                            onClick={() => openDialog("edit", s, true)}
+                            data-testid={`button-service-payments-${s.id}`}
+                          >
+                            <Receipt className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Pagamentos</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -427,6 +487,7 @@ export default function ServicesPage() {
         onOpenChange={setIsDialogOpen}
         mode={dialogMode}
         initialData={selectedService}
+        openToPayments={openToPayments}
         onSave={async (svc) => {
           setPendingService(svc);
           setIsDialogOpen(false);
@@ -542,12 +603,14 @@ function ServiceDialog({
   mode,
   initialData,
   onSave,
+  openToPayments = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit" | "view";
   initialData: any | null;
   onSave: (service: any) => Promise<void>;
+  openToPayments?: boolean;
 }) {
   const { db, orm } = useDb();
 
@@ -584,6 +647,32 @@ function ServiceDialog({
     return rawDesc.map((d: any) => d.description);
   }, [rawDesc]);
 
+  const [payments, setPayments] = useState<any[]>([]);
+  const fetchPayments = async () => {
+    if (initialData?.id) {
+      const p = await orm
+        .select()
+        .from(paymentsTable)
+        .where(eq(paymentsTable.service_id, initialData.id))
+        .orderBy(desc(paymentsTable.payment_date));
+      setPayments(p);
+    } else {
+      setPayments([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, [initialData?.id]);
+
+  const [accordionValue, setAccordionValue] = useState<string>("additional");
+
+  useEffect(() => {
+    if (open) {
+      setAccordionValue(openToPayments ? "advanced" : "additional");
+    }
+  }, [open, openToPayments]);
+
   const form = useForm<NewServiceType>({
     resolver: zodResolver(insertServiceSchema),
     defaultValues: initialData || {
@@ -594,8 +683,7 @@ function ServiceDialog({
       client_id: "",
       contract_date: new Date(),
       final_date: null,
-      payment_date: null,
-      payment_method: "",
+      payment_method: "In_Cash",
       installments: 1,
       observations: "",
     },
@@ -619,10 +707,7 @@ function ServiceDialog({
           final_date: initialData.final_date
             ? new Date(initialData.final_date)
             : null,
-          payment_date: initialData.payment_date
-            ? new Date(initialData.payment_date)
-            : null,
-          payment_method: initialData.payment_method || "",
+          payment_method: initialData.payment_method || "In_Cash",
           installments: initialData.installments || 1,
           observations: initialData.observations || "",
         });
@@ -635,8 +720,7 @@ function ServiceDialog({
           client_id: "",
           contract_date: new Date(),
           final_date: null,
-          payment_date: null,
-          payment_method: "",
+          payment_method: "In_Cash",
           installments: 1,
           observations: "",
         });
@@ -646,16 +730,13 @@ function ServiceDialog({
 
   const status = form.watch("status");
   const finalDate = form.watch("final_date");
-  const paymentDate = form.watch("payment_date");
 
   useEffect(() => {
     const today = new Date();
     if (status === "Delivered" && !finalDate) {
       form.setValue("final_date", today);
-    } else if (status === "Invoiced" && !paymentDate) {
-      form.setValue("payment_date", today);
     }
-  }, [status, form, finalDate, paymentDate]);
+  }, [status, form, finalDate]);
 
   const onSubmit = async (data: NewServiceType) => {
     if (isView) return;
@@ -669,8 +750,7 @@ function ServiceDialog({
       id: initialData?.id || uuidv7(),
       contract_date: data.contract_date || new Date(),
       final_date: data.final_date || null,
-      payment_date: data.payment_date || null,
-      payment_method: data.payment_method || null,
+      payment_method: data.payment_method || "In_Cash",
       installments: data.installments || null,
       observations: data.observations || null,
       created_at: initialData?.created_at || now,
@@ -678,6 +758,32 @@ function ServiceDialog({
     };
 
     await onSave(svc);
+  };
+
+  const totalPaid = useMemo(
+    () => payments.reduce((acc, p) => acc + p.amount, 0),
+    [payments],
+  );
+  const balance = form.watch("price") - totalPaid;
+
+  const handleAddPayment = async () => {
+    if (!initialData?.id) return;
+    const newPayment = {
+      id: uuidv7(),
+      service_id: initialData.id,
+      amount: balance > 0 ? balance : 0,
+      payment_method: form.getValues("payment_method") || "In_Cash",
+      payment_date: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    await orm.insert(paymentsTable).values(newPayment);
+    fetchPayments();
+  };
+
+  const handleDeletePayment = async (pid: string) => {
+    await orm.delete(paymentsTable).where(eq(paymentsTable.id, pid));
+    fetchPayments();
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -702,7 +808,7 @@ function ServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent 
+      <DialogContent
         data-testid="dialog-new-service"
         className="max-h-[85vh] overflow-y-auto max-w-2xl"
       >
@@ -896,11 +1002,12 @@ function ServiceDialog({
           <Accordion
             type="single"
             collapsible
-            defaultValue="additional"
+            value={accordionValue}
+            onValueChange={setAccordionValue}
             className="w-full space-y-4"
           >
-            <AccordionItem 
-              value="additional" 
+            <AccordionItem
+              value="additional"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
               <AccordionTrigger className="hover:no-underline py-2 text-sm font-semibold">
@@ -950,12 +1057,6 @@ function ServiceDialog({
                         >
                           Entregue
                         </SelectItem>
-                        <SelectItem
-                          value="Invoiced"
-                          data-testid="option-new-service-status-Invoiced"
-                        >
-                          Faturado
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -991,88 +1092,9 @@ function ServiceDialog({
                             }
                             onChange={(e) => {
                               const val = e.target.value;
-                              field.onChange(val ? new Date(val + "T12:00:00") : null);
-                            }}
-                            disabled={isView}
-                            className={isView ? "pointer-events-none" : ""}
-                          />
-                        </ClickToCopy>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div
-                    className="grid gap-1.5"
-                    data-testid="field-service-final-date"
-                  >
-                    <Label htmlFor="service-final-date">Data de Entrega</Label>
-                    <Controller
-                      control={form.control}
-                      name="final_date"
-                      render={({ field }) => (
-                        <ClickToCopy
-                          enabled={isView}
-                          value={
-                            field.value instanceof Date
-                              ? format(field.value as Date, "dd/MM/yyyy")
-                              : ""
-                          }
-                          label="Data de Entrega"
-                        >
-                          <Input
-                            id="service-final-date"
-                            type="date"
-                            {...field}
-                            value={
-                              field.value instanceof Date
-                                ? format(field.value as Date, "yyyy-MM-dd")
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val ? new Date(val + "T12:00:00") : null);
-                            }}
-                            disabled={isView}
-                            className={isView ? "pointer-events-none" : ""}
-                          />
-                        </ClickToCopy>
-                      )}
-                    />
-                  </div>
-                  <div
-                    className="grid gap-1.5"
-                    data-testid="field-service-payment-date"
-                  >
-                    <Label htmlFor="service-payment-date">
-                      Data de Pagamento
-                    </Label>
-                    <Controller
-                      control={form.control}
-                      name="payment_date"
-                      render={({ field }) => (
-                        <ClickToCopy
-                          enabled={isView}
-                          value={
-                            field.value instanceof Date
-                              ? format(field.value as Date, "dd/MM/yyyy")
-                              : ""
-                          }
-                          label="Data de Pagamento"
-                        >
-                          <Input
-                            id="service-payment-date"
-                            type="date"
-                            {...field}
-                            value={
-                              field.value instanceof Date
-                                ? format(field.value as Date, "yyyy-MM-dd")
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val ? new Date(val + "T12:00:00") : null);
+                              field.onChange(
+                                val ? new Date(val + "T12:00:00") : null,
+                              );
                             }}
                             disabled={isView}
                             className={isView ? "pointer-events-none" : ""}
@@ -1085,8 +1107,8 @@ function ServiceDialog({
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem 
-              value="advanced" 
+            <AccordionItem
+              value="advanced"
               className="border rounded-md px-4 py-2 bg-muted/20"
             >
               <AccordionTrigger className="hover:no-underline py-2 text-sm font-semibold">
@@ -1096,45 +1118,189 @@ function ServiceDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div
                     className="grid gap-1.5"
-                    data-testid="field-service-payment-method"
+                    data-testid="field-payment-method"
                   >
-                    <Label htmlFor="service-payment-method">
-                      Método de Pagamento
-                    </Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("payment_method")}
-                      label="Meio de Pagamento"
+                    <Label>Método de Pagamento</Label>
+                    <Select
+                      disabled={isView}
+                      value={form.watch("payment_method") || "In_Cash"}
+                      onValueChange={(v) =>
+                        form.setValue("payment_method", v as any)
+                      }
                     >
-                      <Input
-                        id="service-payment-method"
-                        {...form.register("payment_method")}
-                        placeholder="Ex: Pix, Cartão…"
-                        disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
-                      />
-                    </ClickToCopy>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolha o método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="In_Cash">À Vista</SelectItem>
+                        <SelectItem value="Installments">Parcelado</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div
-                    className="grid gap-1.5"
-                    data-testid="field-service-installments"
-                  >
-                    <Label htmlFor="service-installments">Nº de Parcelas</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={form.watch("installments")}
-                      label="Parcelas"
+                  {form.watch("payment_method") === "Installments" && (
+                    <div
+                      className="grid gap-1.5"
+                      data-testid="field-installments"
                     >
+                      <Label htmlFor="installments">
+                        Número de Parcelas (Máx 6x)
+                      </Label>
                       <Input
-                        id="service-installments"
+                        id="installments"
                         type="number"
+                        min={1}
+                        max={6}
                         {...form.register("installments", {
                           valueAsNumber: true,
                         })}
                         disabled={isView}
-                        className={isView ? "pointer-events-none" : ""}
                       />
-                    </ClickToCopy>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-bold">
+                      Histórico de Pagamentos
+                    </Label>
+                    {!isView && (
+                      <div className="flex gap-2">
+                        {form.watch("payment_method") === "Installments" &&
+                          (form.watch("installments") || 1) > 1 &&
+                          payments.length === 0 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={async () => {
+                                if (!initialData?.id) return;
+                                const count =
+                                  form.getValues("installments") || 1;
+                                const amount = form.getValues("price") / count;
+                                for (let i = 0; i < count; i++) {
+                                  await orm.insert(paymentsTable).values({
+                                    id: uuidv7(),
+                                    service_id: initialData.id,
+                                    amount: amount,
+                                    payment_method: "Installments",
+                                    payment_date: addDays(new Date(), i * 30),
+                                    created_at: new Date(),
+                                    updated_at: new Date(),
+                                  });
+                                }
+                                fetchPayments();
+                              }}
+                              className="h-7 text-xs gap-1"
+                            >
+                              <CalendarClock className="h-3 w-3" /> Gerar
+                              Parcelas
+                            </Button>
+                          )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddPayment}
+                          className="h-7 text-xs gap-1"
+                        >
+                          <Plus className="h-3 w-3" /> Adicionar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-md border bg-background overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted text-muted-foreground uppercase tracking-wider text-[10px]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">
+                            Data
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium">
+                            Forma
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium">
+                            Valor
+                          </th>
+                          {!isView && <th className="px-3 py-2 w-10"></th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {payments.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-3 py-4 text-center text-muted-foreground italic"
+                            >
+                              Nenhum pagamento registrado.
+                            </td>
+                          </tr>
+                        ) : (
+                          payments.map((p) => (
+                            <tr
+                              key={p.id}
+                              className="hover:bg-muted/50 transition-colors"
+                            >
+                              <td className="px-3 py-2 whitespace-nowrap">
+                                {format(new Date(p.payment_date), "dd/MM/yyyy")}
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap">
+                                {p.payment_method === "In_Cash"
+                                  ? "À Vista"
+                                  : "Parcelado"}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap font-medium">
+                                {currency(p.amount)}
+                              </td>
+                              {!isView && (
+                                <td className="px-3 py-2 text-right">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive"
+                                    onClick={() => handleDeletePayment(p.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Total do Serviço</span>
+                      <span>{currency(form.watch("price"))}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground border-b pb-2">
+                      <span>Total Pago</span>
+                      <span className="text-green-600 font-medium">
+                        {currency(totalPaid)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold pt-1">
+                      <span>Saldo Restante</span>
+                      <div className="flex items-center gap-2">
+                        {balance <= 0 && (
+                          <Badge className="bg-green-600 hover:bg-green-700 text-[10px] h-4">
+                            PAGO
+                          </Badge>
+                        )}
+                        <span
+                          className={
+                            balance > 0 ? "text-destructive" : "text-green-600"
+                          }
+                        >
+                          {currency(Math.max(0, balance))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1193,5 +1359,3 @@ function ServiceDialog({
     </Dialog>
   );
 }
-
-

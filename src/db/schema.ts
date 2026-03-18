@@ -31,6 +31,9 @@ export const clientsTable = sqliteTable("clients", {
   incra: text("incra"),
   estadual_inscription: text("estadual_inscription"),
   observations: text("observations"),
+  has_serious_illness: integer("has_serious_illness", { mode: "boolean" })
+    .notNull()
+    .default(false),
   created_at: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s', 'now') * 1000)`),
@@ -64,7 +67,7 @@ export const servicesTable = sqliteTable(
   {
     id: text("id").primaryKey(),
     status: text("status", {
-      enum: ["Draft", "In progress", "Delivered", "Invoiced"],
+      enum: ["Draft", "In progress", "Delivered"],
     })
       .notNull()
       .default("Draft"),
@@ -76,8 +79,9 @@ export const servicesTable = sqliteTable(
       .default(sql`(strftime('%s', 'now') * 1000)`),
     final_date: integer("final_date", { mode: "timestamp_ms" }),
     price: real("price").notNull().default(0),
-    payment_date: integer("payment_date", { mode: "timestamp_ms" }),
-    payment_method: text("payment_method"),
+    payment_method: text("payment_method", {
+      enum: ["In_Cash", "Installments"],
+    }),
     installments: integer("installments"),
     observations: text("observations"),
     created_at: integer("created_at", { mode: "timestamp_ms" })
@@ -104,3 +108,27 @@ export const logsTable = sqliteTable("logs", {
     .notNull()
     .default(sql`(strftime('%s', 'now') * 1000)`),
 });
+
+export const paymentsTable = sqliteTable(
+  "payments",
+  {
+    id: text("id").primaryKey(),
+    service_id: text("service_id").notNull().default(""),
+    payment_date: integer("payment_date", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s', 'now') * 1000)`),
+    payment_method: text("payment_method", {
+      enum: ["In_Cash", "Installments"],
+    })
+      .notNull()
+      .default("In_Cash"),
+    amount: real("amount").notNull().default(0),
+    created_at: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s', 'now') * 1000)`),
+    updated_at: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s', 'now') * 1000)`),
+  },
+  (table) => [index("service_id_idx").on(table.service_id)],
+);

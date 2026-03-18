@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Select,
@@ -269,6 +271,14 @@ export default function ClientsPage() {
                         {c.name}
                       </div>
                       <StatusBadge status={c.status} />
+                      {c.has_serious_illness && (
+                        <Badge
+                          variant="destructive"
+                          className="bg-red-500 hover:bg-red-600 px-1 py-0 h-4 text-[10px] items-center"
+                        >
+                          Grave
+                        </Badge>
+                      )}
                     </div>
                     <div
                       className="mt-0.5 truncate text-xs text-muted-foreground"
@@ -458,6 +468,7 @@ function ClientDialog({
       cib: "",
       incra: "",
       estadual_inscription: "",
+      has_serious_illness: false,
     },
   });
 
@@ -489,6 +500,7 @@ function ClientDialog({
           cib: "",
           incra: "",
           estadual_inscription: "",
+          has_serious_illness: false,
         });
       }
     }
@@ -533,6 +545,7 @@ function ClientDialog({
       cib: data.cib || null,
       incra: data.incra || null,
       estadual_inscription: data.estadual_inscription || null,
+      has_serious_illness: !!data.has_serious_illness,
     };
 
     await onSave(client);
@@ -644,6 +657,56 @@ function ClientDialog({
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2" data-testid="field-client-birth-date">
+              <Label htmlFor="client-birth-date">Data de Nascimento</Label>
+              <Controller
+                control={form.control}
+                name="birth_date"
+                render={({ field }) => (
+                  <ClickToCopy
+                    enabled={isView}
+                    value={
+                      field.value instanceof Date && isValid(field.value)
+                        ? format(field.value as Date, "dd/MM/yyyy")
+                        : ""
+                    }
+                    label="Data de Nascimento"
+                  >
+                    <Input
+                      id="client-birth-date"
+                      type="date"
+                      {...field}
+                      value={
+                        field.value instanceof Date && isValid(field.value)
+                          ? format(field.value as Date, "yyyy-MM-dd")
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val ? new Date(val + "T12:00:00") : null);
+                      }}
+                      disabled={isView}
+                      className={isView ? "pointer-events-none" : ""}
+                    />
+                  </ClickToCopy>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 mt-auto pb-2" data-testid="field-client-serious-illness">
+              <Switch
+                id="client-serious-illness"
+                checked={form.watch("has_serious_illness")}
+                onCheckedChange={(checked) => form.setValue("has_serious_illness", checked)}
+                disabled={isView}
+              />
+              <Label htmlFor="client-serious-illness" className="cursor-pointer">
+                Portador de Doença Grave
+              </Label>
             </div>
           </div>
 

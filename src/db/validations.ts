@@ -1,6 +1,6 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { clientsTable, logsTable, servicesTable } from "./schema";
+import { clientsTable, logsTable, servicesTable, paymentsTable } from "./schema";
 import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { NIRFvalidator } from "@/lib/utils";
 
@@ -33,6 +33,7 @@ export const insertClientSchema = createInsertSchema(clientsTable, {
       .or(z.literal(""))
       .optional()
       .nullable(),
+  has_serious_illness: (schema) => schema.pipe(z.boolean()).optional(),
 })
   .extend({
     birth_date: z.date().nullable().optional(),
@@ -53,7 +54,6 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
   .extend({
     contract_date: z.date().optional(),
     final_date: z.date().nullable().optional(),
-    payment_date: z.date().nullable().optional(),
   })
   .omit({ id: true, created_at: true, updated_at: true });
 
@@ -72,3 +72,14 @@ export const selectLogSchema = createSelectSchema(logsTable);
 
 export type Log = z.infer<typeof selectLogSchema>;
 export type NewLog = z.infer<typeof insertLogSchema>;
+
+export const insertPaymentSchema = createInsertSchema(paymentsTable, {
+  service_id: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
+  amount: (schema) =>
+    schema.pipe(z.number().min(0, "Valor deve ser maior ou igual a 0")),
+}).omit({ id: true, created_at: true, updated_at: true });
+
+export const selectPaymentSchema = createSelectSchema(paymentsTable);
+
+export type Payment = z.infer<typeof selectPaymentSchema>;
+export type NewPayment = z.infer<typeof insertPaymentSchema>;
