@@ -24,9 +24,7 @@ export async function checkInternalUpdate() {
     const remoteVersionPath = `${updatePath}\\version.txt`;
     const remoteVersion = (await readTextFile(remoteVersionPath)).trim();
 
-    console.log(
-      `Current version: ${currentVersion}, Remote version: ${remoteVersion}`,
-    );
+    // console.log(`Current version: ${currentVersion}, Remote version: ${remoteVersion}`);
 
     // 3. Compare versions (simple string comparison for now, can be improved)
     if (remoteVersion !== currentVersion) {

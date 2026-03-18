@@ -89,7 +89,7 @@ function Root() {
             discoveredIp = await invoke<string | null>("find_hub_ip");
             isTauriEnv = true;
           } else {
-            console.log("Running in standard browser. Skipping TCP scan.");
+            // Running in standard browser. Skipping TCP scan.
           }
         } catch (invokeErr) {
           console.warn("Tauri invoke failed (likely not in Tauri environment):", invokeErr);

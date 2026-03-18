@@ -174,7 +174,6 @@ export function useSyncBridge(
         clearTimeout(syncDebounceTimeoutRef.current);
       }
       syncDebounceTimeoutRef.current = setTimeout(() => {
-        console.log("✅ [Sync] Initial sync finished (timeout on open)");
         setIsInitialSyncFinished(true);
       }, 1500);
     };
@@ -221,20 +220,17 @@ export function useSyncBridge(
       const message = deserializeMsg(event.data);
 
       if (message.type === "identity") {
-        console.log("🆔 [Identity] My ID is:", message.payload);
         setMyId(message.payload);
         return;
       }
 
       if (message.type === "presence") {
-        console.log("👥 [Roster Update]:", message.payload);
         setConnectedPeers(message.payload);
         return;
       }
 
       if (message.type === "request_sync") {
         const theirMap = message.payload?.knowledgeMap || {};
-        console.log("📥 [Inbound] Received request_sync");
 
         if (!ctx) return;
         try {
@@ -261,9 +257,6 @@ export function useSyncBridge(
           }
 
           if (allChanges.length > 0) {
-            console.log(
-              `📤 [Outbound] Fulfilling incremental request_sync with ${allChanges.length} changes.`,
-            );
             // Sort merged changes to maintain causal order across sites (best effort)
             allChanges.sort((a, b) => {
               const va = BigInt(a[5]);
@@ -282,8 +275,6 @@ export function useSyncBridge(
                 await new Promise((resolve) => setTimeout(resolve, 0));
               }
             }
-          } else {
-            console.log("📤 [Outbound] No incremental changes to sync.");
           }
 
           // Anti-Entropy Check: Do they have stuff we don't?
@@ -307,9 +298,6 @@ export function useSyncBridge(
           }
 
           if (weAreMissingData) {
-            console.log(
-              "🔄 [Anti-Entropy] Peer has newer data. Requesting sync...",
-            );
             const siteVersions = await ctx.execA(
               `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
             );
@@ -325,13 +313,12 @@ export function useSyncBridge(
             );
           } else {
              // Anti-entropy determined we are fully up to date with this request
-             if (!isInitialSyncFinished) {
-               if (syncDebounceTimeoutRef.current) {
-                 clearTimeout(syncDebounceTimeoutRef.current);
+               if (!isInitialSyncFinished) {
+                 if (syncDebounceTimeoutRef.current) {
+                   clearTimeout(syncDebounceTimeoutRef.current);
+                 }
+                 setIsInitialSyncFinished(true);
                }
-               console.log("✅ [Sync] Initial sync finished (anti-entropy check complete)");
-               setIsInitialSyncFinished(true);
-             }
           }
         } catch (err) {
           console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
@@ -344,10 +331,6 @@ export function useSyncBridge(
       );
 
       if (message.type === "sync" && message.payload.length > 0) {
-        console.log(
-          `📥 [Inbound] Received ${message.payload.length} rows from network`,
-        );
-
         if (!ctx) {
           console.warn(`⚠️ [Inbound] Database context not ready, skipping.`);
           return;
@@ -372,8 +355,7 @@ export function useSyncBridge(
               });
             }
 
-            if (!compareUint8Arrays(message.payload[0][6], mySiteId))
-              console.log(`✅ [Inbound] Merged remote changes!`);
+              // Success merging remote changes
           })
           .catch((err) => {
             console.error(`❌ [Transaction Error]:`, err);
@@ -388,7 +370,6 @@ export function useSyncBridge(
             clearTimeout(syncDebounceTimeoutRef.current);
           }
           syncDebounceTimeoutRef.current = setTimeout(() => {
-            console.log("✅ [Sync] Initial sync finished (no more changes received)");
             setIsInitialSyncFinished(true);
           }, 1000);
         }
@@ -455,10 +436,6 @@ export function useSyncBridge(
         );
 
         if (changes.length > 0) {
-          console.log(
-            `📤 [Outbound] Detected ${changes.length} local changes. Sending...`,
-          );
-
           lastVersionRef.current = changes[changes.length - 1][5];
 
           // Send in batches for better UI responsiveness and reliability
