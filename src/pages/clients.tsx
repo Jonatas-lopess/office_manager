@@ -517,7 +517,7 @@ function ClientDialog({
       status: data.status || "Active",
       name: data.name || "",
       id: initialData?.id || uuidv7(),
-      created_at: initialData?.created_at || new Date(),
+      created_at: initialData?.created_at ? new Date(initialData.created_at) : new Date(),
       updated_at: new Date(),
       email: data.email || null,
       observations: data.observations || null,
