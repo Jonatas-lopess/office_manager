@@ -117,11 +117,11 @@ export const paymentsTable = sqliteTable(
     payment_date: integer("payment_date", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(strftime('%s', 'now') * 1000)`),
-    payment_method: text("payment_method", {
-      enum: ["In_Cash", "Installments"],
+    payment_type: text("payment_type", {
+      enum: ["Pix", "Credit Card", "Debit Card", "Cash", "Bank Transfer"],
     })
       .notNull()
-      .default("In_Cash"),
+      .default("Pix"),
     amount: real("amount").notNull().default(0),
     created_at: integer("created_at", { mode: "timestamp_ms" })
       .notNull()

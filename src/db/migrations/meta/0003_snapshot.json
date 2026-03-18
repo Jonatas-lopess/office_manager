@@ -241,13 +241,13 @@
           "autoincrement": false,
           "default": "(strftime('%s', 'now') * 1000)"
         },
-        "payment_method": {
-          "name": "payment_method",
+        "payment_type": {
+          "name": "payment_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'In_Cash'"
+          "default": "'Pix'"
         },
         "amount": {
           "name": "amount",
@@ -277,9 +277,7 @@
       "indexes": {
         "service_id_idx": {
           "name": "service_id_idx",
-          "columns": [
-            "service_id"
-          ],
+          "columns": ["service_id"],
           "isUnique": false
         }
       },
@@ -393,9 +391,7 @@
       "indexes": {
         "client_id_idx": {
           "name": "client_id_idx",
-          "columns": [
-            "client_id"
-          ],
+          "columns": ["client_id"],
           "isUnique": false
         }
       },

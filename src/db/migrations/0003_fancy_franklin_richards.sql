@@ -2,7 +2,7 @@ CREATE TABLE `payments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`service_id` text DEFAULT '' NOT NULL,
 	`payment_date` integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
-	`payment_method` text DEFAULT 'In_Cash' NOT NULL,
+	`payment_type` text DEFAULT 'Pix' NOT NULL,
 	`amount` real DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
