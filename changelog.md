@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-03-18
+
+### Added
+
+- **Gestão Financeira**: Nova tabela `payments` para abstrair e robustecer o controle de pagamentos por serviço.
+- **Múltiplos Pagamentos**: Agora é possível registrar diversos pagamentos (Pix, Cartão, Dinheiro, etc.) para um único serviço através do novo diálogo "Financeiro".
+- **Novas Métricas no Dashboard**:
+    - **Receita**: Total real recebido baseado nos pagamentos registrados.
+    - **A Receber**: Cálculo automático do saldo pendente de todos os serviços.
+    - **Gráfico de Renda**: Visualização temporal da receita recebida através dos pagamentos.
+
+### Changed
+
+- **Dashboard Refatorado**: UI atualizada com novos cards de estatísticas, filtros de período e visualização aprimorada de serviços recentes.
+- **Formulário de Serviços**: Campos de UI refatorados para incluir métodos de pagamento (À Vista/Parcelado) e melhor integração com o módulo financeiro.
+- **Máscaras de Moeda**: Implementação de máscaras de entrada em tempo real para valores monetários em campos de preço.
+
+### Fixed
+
+- **Sincronização de Datas**: Correção na lógica de tratamento de objetos `Date` nos formulários, garantindo consistência entre o banco e a UI.
+- **Estabilidade do Dashboard**: Ajustes nas queries para evitar falhas de carregamento em estados iniciais.
+
 ## [2.0.1] - 2026-03-17
 
 ### Fixed
