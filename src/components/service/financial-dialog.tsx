@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, CalendarClock } from "lucide-react";
+import { Plus, Trash2, CalendarClock, BadgeDollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -95,7 +95,21 @@ export function FinancialDialog({
       id: uuidv7(),
       service_id: service.id,
       amount: amount,
-      payment_type: "Bank Transfer", 
+      payment_type: "Bank Transfer",
+      payment_date: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    fetchPayments();
+  };
+
+  const handleSettleService = async () => {
+    if (!service?.id || balance <= 0) return;
+    await orm.insert(paymentsTable).values({
+      id: uuidv7(),
+      service_id: service.id,
+      amount: balance,
+      payment_type: "Pix",
       payment_date: new Date(),
       created_at: new Date(),
       updated_at: new Date(),
@@ -142,6 +156,16 @@ export function FinancialDialog({
                     <CalendarClock className="h-3 w-3" /> Adicionar Parcela
                   </Button>
                 )}
+              {service.payment_method === "In_Cash" && balance > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSettleService}
+                  className="h-7 text-xs gap-1 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                >
+                  <BadgeDollarSign className="h-3 w-3" /> Adicionar Pagamento
+                </Button>
+              )}
             </div>
           </div>
 
@@ -273,9 +297,7 @@ export function FinancialDialog({
                     balance > 0 ? "text-destructive" : "text-green-600"
                   }
                 >
-                  {isUnlocked
-                    ? currency(Math.max(0, balance))
-                    : "••••••"}
+                  {isUnlocked ? currency(Math.max(0, balance)) : "••••••"}
                 </span>
               </div>
             </div>
