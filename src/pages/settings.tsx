@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save } from "lucide-react";
+import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { copyFile, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 export default function SettingsPage() {
   const { orm } = useDb();
@@ -106,6 +107,36 @@ export default function SettingsPage() {
         variant: "destructive",
         title: "Falha no Backup",
         description: "Não foi possível copiar o arquivo da base para a rede.",
+      });
+    }
+  };
+
+  const handleOpenBackupDir = async () => {
+    try {
+      const updatePath = import.meta.env.VITE_UPDATE_PATH;
+      if (!updatePath) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Caminho de rede (VITE_UPDATE_PATH) não configurado.",
+        });
+        return;
+      }
+
+      const backupDir = await join(updatePath, "Backups");
+
+      // Ensure directory exists
+      if (!(await exists(backupDir))) {
+        await mkdir(backupDir, { recursive: true });
+      }
+
+      await openPath(backupDir);
+    } catch (err) {
+      console.error("Failed to open backup directory:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir pasta",
+        description: "Não foi possível abrir a pasta de backup.",
       });
     }
   };
@@ -246,6 +277,15 @@ export default function SettingsPage() {
                 >
                   <Save className="h-4 w-4" />
                   Gerar Backup Agora
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenBackupDir}
+                  className="w-full gap-2"
+                  data-testid="button-open-backup-dir"
+                >
+                  <Folder className="h-4 w-4" />
+                  Abrir Pasta de Backup
                 </Button>
                 <div className="text-[10px] text-center text-muted-foreground italic">
                   O backup será salvo na pasta compartilhada da rede.

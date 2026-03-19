@@ -1,0 +1,50 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "\\Server\\AppUpdate\\version.txt"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "\\Server\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "\\Server\\AppUpdate\\**" }]
+    },
+    {
+      "identifier": "fs:allow-copy-file",
+      "allow": [
+        { "path": "\\Server\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "\\Server\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "\\Server\\AppUpdate\\**" }]
+    },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "\\Server\\AppUpdate\\**" }]
+    }
+  ]
+}
