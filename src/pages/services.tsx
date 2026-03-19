@@ -75,7 +75,7 @@ export default function ServicesPage() {
   const [passwordError, setPasswordError] = useState(false);
 
   const handleUnlock = () => {
-    const envPassword = import.meta.env.DASHBOARD_PASSWORD || "admin";
+    const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
     if (passwordInput === envPassword) {
       setIsUnlocked(true);
       sessionStorage.setItem("isUnlocked", "true");

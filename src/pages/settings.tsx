@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save, Folder } from "lucide-react";
+import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save, Folder, Lock as LockIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 // import { Switch } from "@/components/ui/switch";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -37,6 +38,9 @@ export default function SettingsPage() {
   const { myId, connectedPeers, connectionStatus } = useSync();
   const { toast } = useToast();
   const [dark, setDark] = useState(false);
+  const [isUnlocked] = useState(
+    () => sessionStorage.getItem("isUnlocked") === "true",
+  );
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
@@ -432,10 +436,13 @@ export default function SettingsPage() {
           </TableCard>
 
           <Card
-            className="panel-card border-destructive/20 bg-destructive/5 lg:col-span-2"
+            className={cn(
+              "panel-card border-destructive/20 bg-destructive/5 lg:col-span-2 relative overflow-hidden",
+              !isUnlocked && "opacity-80",
+            )}
             data-testid="card-danger-zone"
           >
-            <div className="p-5">
+            <div className={cn("p-5", !isUnlocked && "blur-[2px] pointer-events-none select-none")}>
               <div
                 className="text-sm font-semibold text-destructive flex items-center gap-2"
                 data-testid="text-danger-zone-title"
@@ -446,11 +453,13 @@ export default function SettingsPage() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Ações irreversíveis que afetam todos os dados do sistema.
               </p>
-              
+
               <div className="mt-4 pt-4 border-t border-destructive/10">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-sm font-medium">Reiniciar Base Total</div>
+                    <div className="text-sm font-medium">
+                      Reiniciar Base Total
+                    </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       Exclui todos os clientes e serviços cadastrados.
                     </div>
@@ -467,6 +476,20 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+
+            {!isUnlocked && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/20 backdrop-blur-[1px] z-10 transition-all">
+                <div className="rounded-full bg-destructive/10 p-3 mb-2">
+                  <LockIcon className="h-6 w-6 text-destructive" />
+                </div>
+                <div className="text-[10px] font-bold text-destructive uppercase tracking-widest">
+                  Zona Bloqueada
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  Desbloqueie o painel para acessar
+                </p>
+              </div>
+            )}
           </Card>
         </div>
       </ScrollArea>

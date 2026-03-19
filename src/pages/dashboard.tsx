@@ -127,7 +127,7 @@ export default function Dashboard() {
 
   const handleUnlock = () => {
     // Basic password for now
-    const envPassword = import.meta.env.DASHBOARD_PASSWORD || "admin";
+    const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
     if (passwordInput === envPassword) {
       setIsUnlocked(true);
       sessionStorage.setItem("isUnlocked", "true");
@@ -283,402 +283,419 @@ export default function Dashboard() {
           <div className="relative">
             <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
 
-            <div
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-              data-testid="grid-stats"
-            >
-              <StatCard
-                label="Clientes"
-                value={data.clients.filter((c) => c.status === "Active").length}
-                hint="Ativos no sistema"
-                icon={<Users className="h-4 w-4" />}
-                dataTestId="stat-clients"
-                loading={loading}
-              />
-              <StatCard
-                label="Serviços"
-                value={
-                  data.servicesInRange.filter((s) => s.status !== "Draft")
-                    .length
-                }
-                hint={data.rangeLabel}
-                icon={<Layers className="h-4 w-4" />}
-                dataTestId="stat-services"
-                loading={loading}
-              />
-              <StatCard
-                label="Receita"
-                value={isUnlocked ? currency(data.revenue) : "••••••"}
-                hint={data.rangeLabel}
-                icon={<BadgeDollarSign className="h-4 w-4" />}
-                dataTestId="stat-income"
-                loading={loading}
-                className={!isUnlocked ? "opacity-60" : ""}
-              />
-              <StatCard
-                label="A Receber"
-                value={currency(data.toReceive)}
-                hint="Saldo total pendente"
-                icon={<CalendarClock className="h-4 w-4" />}
-                dataTestId="stat-receivables"
-                loading={loading}
-              />
-            </div>
+            {isUnlocked ? (
+              <>
+                <div
+                  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                  data-testid="grid-stats"
+                >
+                  <StatCard
+                    label="Clientes"
+                    value={
+                      data.clients.filter((c) => c.status === "Active").length
+                    }
+                    hint="Ativos no sistema"
+                    icon={<Users className="h-4 w-4" />}
+                    dataTestId="stat-clients"
+                    loading={loading}
+                  />
+                  <StatCard
+                    label="Serviços"
+                    value={
+                      data.servicesInRange.filter((s) => s.status !== "Draft")
+                        .length
+                    }
+                    hint={data.rangeLabel}
+                    icon={<Layers className="h-4 w-4" />}
+                    dataTestId="stat-services"
+                    loading={loading}
+                  />
+                  <StatCard
+                    label="Receita"
+                    value={currency(data.revenue)}
+                    hint={data.rangeLabel}
+                    icon={<BadgeDollarSign className="h-4 w-4" />}
+                    dataTestId="stat-income"
+                    loading={loading}
+                  />
+                  <StatCard
+                    label="A Receber"
+                    value={currency(data.toReceive)}
+                    hint="Saldo total pendente"
+                    icon={<CalendarClock className="h-4 w-4" />}
+                    dataTestId="stat-receivables"
+                    loading={loading}
+                  />
+                </div>
 
-            <div
-              className="mt-4 grid gap-4 lg:grid-cols-3"
-              data-testid="grid-main"
-            >
-              <Card
-                className="panel-card hover-lift lg:col-span-2 min-w-0 overflow-hidden"
-                data-testid="card-chart"
-              >
-                <div className="flex items-start justify-between gap-4 p-5">
-                  <div>
-                    <div
-                      className="text-sm font-medium text-muted-foreground"
-                      data-testid="text-chart-title"
-                    >
-                      Acompanhamento de renda
-                    </div>
-                    <div
-                      className="mt-1 text-2xl font-semibold tracking-tight"
-                      data-testid="text-chart-range"
-                    >
-                      {data.rangeLabel}
-                    </div>
-                    <div
-                      className="mt-2 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground"
-                      data-testid="pill-chart-note"
-                    >
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      Atualizado hoje
-                    </div>
-                  </div>
-                  <div
-                    className="flex items-center gap-2"
-                    data-testid="legend-chart"
+                <div
+                  className="mt-4 grid gap-4 lg:grid-cols-3"
+                  data-testid="grid-main"
+                >
+                  <Card
+                    className="panel-card hover-lift lg:col-span-2 min-w-0 overflow-hidden"
+                    data-testid="card-chart"
                   >
-                    <Badge
-                      variant="secondary"
-                      className="gap-1"
-                      data-testid="badge-income"
-                    >
-                      <span className="h-2 w-2 rounded-full bg-[hsl(var(--chart-1))]" />
-                      Renda
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="px-3 pb-4 relative" data-testid="chart-wrapper">
-                  {loading ? (
-                    <div className="flex h-[260px] w-full items-end gap-2 px-2 pb-6">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <Skeleton
-                          key={i}
-                          className="flex-1"
-                          style={{ height: `${Math.random() * 60 + 20}%` }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <ChartContainer
-                      config={{
-                        revenue: {
-                          label: "Income",
-                          color: "hsl(var(--chart-1))",
-                        },
-                      }}
-                      className="h-[260px] w-full"
-                    >
-                      <AreaChart
-                        data={data.chart}
-                        margin={{ left: 6, right: 10, top: 10, bottom: 0 }}
+                    <div className="flex items-start justify-between gap-4 p-5">
+                      <div>
+                        <div
+                          className="text-sm font-medium text-muted-foreground"
+                          data-testid="text-chart-title"
+                        >
+                          Acompanhamento de renda
+                        </div>
+                        <div
+                          className="mt-1 text-2xl font-semibold tracking-tight"
+                          data-testid="text-chart-range"
+                        >
+                          {data.rangeLabel}
+                        </div>
+                        <div
+                          className="mt-2 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground"
+                          data-testid="pill-chart-note"
+                        >
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          Atualizado hoje
+                        </div>
+                      </div>
+                      <div
+                        className="flex items-center gap-2"
+                        data-testid="legend-chart"
                       >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          vertical={false}
-                          stroke="hsl(var(--border))"
-                        />
-                        <XAxis
-                          dataKey="day"
-                          tickLine={false}
-                          axisLine={false}
-                          fontSize={12}
-                        />
-                        <YAxis
-                          tickLine={false}
-                          axisLine={false}
-                          fontSize={12}
-                          width={34}
-                        />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Area
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="hsl(var(--chart-1))"
-                          fill="hsl(var(--chart-1) / 0.12)"
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </AreaChart>
-                    </ChartContainer>
-                  )}
-
-                  {!isUnlocked && !loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md z-10">
-                      <div className="flex flex-col items-center gap-2 text-center">
-                        <div className="rounded-full bg-primary/10 p-3">
-                          <Lock className="h-6 w-6 text-primary" />
-                        </div>
-                        <div className="text-sm font-medium">
-                          CONTEÚDO BLOQUEADO
-                        </div>
-                        <p className="px-6 text-xs text-muted-foreground">
-                          Clique no cadeado no topo para visualizar os dados
-                          financeiros.
-                        </p>
+                        <Badge
+                          variant="secondary"
+                          className="gap-1"
+                          data-testid="badge-income"
+                        >
+                          <span className="h-2 w-2 rounded-full bg-[hsl(var(--chart-1))]" />
+                          Renda
+                        </Badge>
                       </div>
                     </div>
-                  )}
-                </div>
-              </Card>
 
-              <TableCard
-                title="Serviços recentes"
-                className="min-w-0"
-                description="Últimos trabalhos entregues"
-                action={
-                  <Button
-                    variant="secondary"
-                    asChild
-                    data-testid="button-open-services"
-                    className="gap-1"
-                  >
-                    <Link href="/services">
-                      Abrir <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                }
-                dataTestId="card-recent"
-              >
-                <div className="divide-y" data-testid="list-recent-services">
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between gap-4 p-4"
-                      >
-                        <div className="min-w-0 space-y-2">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-48" />
-                        </div>
-                        <Skeleton className="h-5 w-16" />
-                      </div>
-                    ))
-                  ) : recent.length > 0 ? (
-                    recent.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between gap-4 p-4"
-                        data-testid={`row-recent-service-${s.id}`}
-                      >
-                        <div className="min-w-0">
-                          <div
-                            className="truncate text-sm font-medium"
-                            data-testid={`text-service-name-${s.id}`}
-                          >
-                            {s.type} {s.description && `- ${s.description}`}
-                          </div>
-                          <div
-                            className="mt-0.5 truncate text-xs text-muted-foreground"
-                            data-testid={`text-service-meta-${s.id}`}
-                          >
-                            {s.client_name} &middot;{" "}
-                            {format(new Date(s.contract_date), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div
-                            className="text-sm font-semibold"
-                            data-testid={`text-service-price-${s.id}`}
-                          >
-                            {currency(s.price)}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center text-sm text-muted-foreground">
-                      Nenhum serviço recente encontrado.
-                    </div>
-                  )}
-                </div>
-              </TableCard>
-            </div>
-
-            <div
-              className="mt-4 grid gap-4 md:grid-cols-2"
-              data-testid="grid-quick"
-            >
-              <Card
-                className="panel-card hover-lift"
-                data-testid="card-quick-clients"
-              >
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div
-                        className="text-sm font-medium text-muted-foreground"
-                        data-testid="text-quick-clients-title"
-                      >
-                        Lista de clientes
-                      </div>
-                      <div
-                        className="mt-1 text-xl font-semibold tracking-tight"
-                        data-testid="text-quick-clients-subtitle"
-                      >
-                        Contatos organizados
-                      </div>
-                      <div
-                        className="mt-2 text-sm text-muted-foreground"
-                        data-testid="text-quick-clients-desc"
-                      >
-                        Status de forma rápida.
-                      </div>
-                    </div>
                     <div
-                      className="rounded-2xl border bg-card p-3"
-                      data-testid="iconbox-clients"
+                      className="px-3 pb-4 relative"
+                      data-testid="chart-wrapper"
                     >
-                      <Users className="h-5 w-5" />
+                      {loading ? (
+                        <div className="flex h-[260px] w-full items-end gap-2 px-2 pb-6">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <Skeleton
+                              key={i}
+                              className="flex-1"
+                              style={{ height: `${Math.random() * 60 + 20}%` }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <ChartContainer
+                          config={{
+                            revenue: {
+                              label: "Income",
+                              color: "hsl(var(--chart-1))",
+                            },
+                          }}
+                          className="h-[260px] w-full"
+                        >
+                          <AreaChart
+                            data={data.chart}
+                            margin={{ left: 6, right: 10, top: 10, bottom: 0 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              vertical={false}
+                              stroke="hsl(var(--border))"
+                            />
+                            <XAxis
+                              dataKey="day"
+                              tickLine={false}
+                              axisLine={false}
+                              fontSize={12}
+                            />
+                            <YAxis
+                              tickLine={false}
+                              axisLine={false}
+                              fontSize={12}
+                              width={34}
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Area
+                              type="monotone"
+                              dataKey="revenue"
+                              stroke="hsl(var(--chart-1))"
+                              fill="hsl(var(--chart-1) / 0.12)"
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          </AreaChart>
+                        </ChartContainer>
+                      )}
                     </div>
-                  </div>
+                  </Card>
 
-                  <div
-                    className="mt-4 grid gap-2"
-                    data-testid="list-quick-clients"
+                  <TableCard
+                    title="Serviços recentes"
+                    className="min-w-0"
+                    description="Últimos trabalhos entregues"
+                    action={
+                      <Button
+                        variant="secondary"
+                        asChild
+                        data-testid="button-open-services"
+                        className="gap-1"
+                      >
+                        <Link href="/services">
+                          Abrir <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    }
+                    dataTestId="card-recent"
                   >
-                    {data.clients.slice(0, 3).map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between rounded-xl border bg-card px-3 py-2"
-                        data-testid={`row-quick-client-${c.id}`}
-                      >
-                        <div className="min-w-0">
+                    <div className="divide-y" data-testid="list-recent-services">
+                      {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
                           <div
-                            className="truncate text-sm font-medium"
-                            data-testid={`text-quick-client-name-${c.id}`}
+                            key={i}
+                            className="flex items-center justify-between gap-4 p-4"
                           >
-                            {c.name}
+                            <div className="min-w-0 space-y-2">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-48" />
+                            </div>
+                            <Skeleton className="h-5 w-16" />
                           </div>
+                        ))
+                      ) : recent.length > 0 ? (
+                        recent.map((s) => (
                           <div
-                            className="truncate text-xs text-muted-foreground"
-                            data-testid={`text-quick-client-company-${c.id}`}
+                            key={s.id}
+                            className="flex items-center justify-between gap-4 p-4"
+                            data-testid={`row-recent-service-${s.id}`}
                           >
-                            {c.observations || "Individual"}
+                            <div className="min-w-0">
+                              <div
+                                className="truncate text-sm font-medium"
+                                data-testid={`text-service-name-${s.id}`}
+                              >
+                                {s.type}{" "}
+                                {s.description && `- ${s.description}`}
+                              </div>
+                              <div
+                                className="mt-0.5 truncate text-xs text-muted-foreground"
+                                data-testid={`text-service-meta-${s.id}`}
+                              >
+                                {s.client_name} &middot;{" "}
+                                {format(
+                                  new Date(s.contract_date),
+                                  "MMM d, yyyy",
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div
+                                className="text-sm font-semibold"
+                                data-testid={`text-service-price-${s.id}`}
+                              >
+                                {currency(s.price)}
+                              </div>
+                            </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-sm text-muted-foreground">
+                          Nenhum serviço recente encontrado.
                         </div>
-                        <div className="shrink-0">
-                          <StatusBadge status={c.status} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 lg:hidden">
-                    <Button
-                      asChild
-                      className="gap-2"
-                      data-testid="button-go-clients"
-                    >
-                      <Link href="/clients">
-                        Gerenciar clientes <ArrowUpRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
+                      )}
+                    </div>
+                  </TableCard>
                 </div>
-              </Card>
 
-              <Card
-                className="panel-card hover-lift"
-                data-testid="card-quick-services"
-              >
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div
-                        className="text-sm font-medium text-muted-foreground"
-                        data-testid="text-quick-services-title"
-                      >
-                        Acompanhamento de serviços
-                      </div>
-                      <div
-                        className="mt-1 text-xl font-semibold tracking-tight"
-                        data-testid="text-quick-services-subtitle"
-                      >
-                        Pipeline simples de trabalho
-                      </div>
-                      <div
-                        className="mt-2 text-sm text-muted-foreground"
-                        data-testid="text-quick-services-desc"
-                      >
-                        Acompanhe status e entrega.
-                      </div>
-                    </div>
-                    <div
-                      className="rounded-2xl border bg-card p-3"
-                      data-testid="iconbox-services"
-                    >
-                      <Layers className="h-5 w-5" />
-                    </div>
-                  </div>
-
-                  <div
-                    className="mt-4 grid gap-2"
-                    data-testid="list-top-services"
+                <div
+                  className="mt-4 grid gap-4 md:grid-cols-2"
+                  data-testid="grid-quick"
+                >
+                  <Card
+                    className="panel-card hover-lift"
+                    data-testid="card-quick-clients"
                   >
-                    {data.services.slice(0, 3).map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between gap-2 overflow-hidden rounded-xl border bg-card px-3 py-2"
-                        data-testid={`row-top-service-${s.id}`}
-                      >
-                        <div className="min-w-0">
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
                           <div
-                            className="truncate text-sm font-medium"
-                            data-testid={`text-top-service-title-${s.id}`}
+                            className="text-sm font-medium text-muted-foreground"
+                            data-testid="text-quick-clients-title"
                           >
-                            {s.type}
+                            Lista de clientes
                           </div>
                           <div
-                            className="truncate text-xs text-muted-foreground"
-                            data-testid={`text-top-service-client-${s.id}`}
+                            className="mt-1 text-xl font-semibold tracking-tight"
+                            data-testid="text-quick-clients-subtitle"
                           >
-                            {s.client_name}
+                            Contatos organizados
+                          </div>
+                          <div
+                            className="mt-2 text-sm text-muted-foreground"
+                            data-testid="text-quick-clients-desc"
+                          >
+                            Status de forma rápida.
                           </div>
                         </div>
-                        <div className="shrink-0">
-                          <StatusBadge status={s.status} />
+                        <div
+                          className="rounded-2xl border bg-card p-3"
+                          data-testid="iconbox-clients"
+                        >
+                          <Users className="h-5 w-5" />
                         </div>
                       </div>
-                    ))}
-                  </div>
 
-                  <div className="mt-5 lg:hidden">
-                    <Button
-                      asChild
-                      className="gap-2"
-                      data-testid="button-go-services"
-                    >
-                      <Link href="/services">
-                        Gerenciar serviços <ArrowUpRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
+                      <div
+                        className="mt-4 grid gap-2"
+                        data-testid="list-quick-clients"
+                      >
+                        {data.clients.slice(0, 3).map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center justify-between rounded-xl border bg-card px-3 py-2"
+                            data-testid={`row-quick-client-${c.id}`}
+                          >
+                            <div className="min-w-0">
+                              <div
+                                className="truncate text-sm font-medium"
+                                data-testid={`text-quick-client-name-${c.id}`}
+                              >
+                                {c.name}
+                              </div>
+                              <div
+                                className="truncate text-xs text-muted-foreground"
+                                data-testid={`text-quick-client-company-${c.id}`}
+                              >
+                                {c.observations || "Individual"}
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <StatusBadge status={c.status} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 lg:hidden">
+                        <Button
+                          asChild
+                          className="gap-2"
+                          data-testid="button-go-clients"
+                        >
+                          <Link href="/clients">
+                            Gerenciar clientes{" "}
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card
+                    className="panel-card hover-lift"
+                    data-testid="card-quick-services"
+                  >
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div
+                            className="text-sm font-medium text-muted-foreground"
+                            data-testid="text-quick-services-title"
+                          >
+                            Acompanhamento de serviços
+                          </div>
+                          <div
+                            className="mt-1 text-xl font-semibold tracking-tight"
+                            data-testid="text-quick-services-subtitle"
+                          >
+                            Pipeline simples de trabalho
+                          </div>
+                          <div
+                            className="mt-2 text-sm text-muted-foreground"
+                            data-testid="text-quick-services-desc"
+                          >
+                            Acompanhe status e entrega.
+                          </div>
+                        </div>
+                        <div
+                          className="rounded-2xl border bg-card p-3"
+                          data-testid="iconbox-services"
+                        >
+                          <Layers className="h-5 w-5" />
+                        </div>
+                      </div>
+
+                      <div
+                        className="mt-4 grid gap-2"
+                        data-testid="list-top-services"
+                      >
+                        {data.services.slice(0, 3).map((s) => (
+                          <div
+                            key={s.id}
+                            className="flex items-center justify-between gap-2 overflow-hidden rounded-xl border bg-card px-3 py-2"
+                            data-testid={`row-top-service-${s.id}`}
+                          >
+                            <div className="min-w-0">
+                              <div
+                                className="truncate text-sm font-medium"
+                                data-testid={`text-top-service-title-${s.id}`}
+                              >
+                                {s.type}
+                              </div>
+                              <div
+                                className="truncate text-xs text-muted-foreground"
+                                data-testid={`text-top-service-client-${s.id}`}
+                              >
+                                {s.client_name}
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <StatusBadge status={s.status} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 lg:hidden">
+                        <Button
+                          asChild
+                          className="gap-2"
+                          data-testid="button-go-services"
+                        >
+                          <Link href="/services">
+                            Gerenciar serviços{" "}
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </Card>
-            </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed rounded-3xl bg-muted/30 p-8 text-center animate-in fade-in zoom-in duration-300">
+                <div className="rounded-full bg-primary/10 p-6 mb-4">
+                  <Lock className="h-12 w-12 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight mb-2">
+                  Dashboard Bloqueado
+                </h3>
+                <p className="text-muted-foreground text-sm max-w-[300px] mb-6">
+                  Insira a senha de administrador clicando no cadeado no topo
+                  para visualizar as métricas e relatórios.
+                </p>
+                <Button
+                  onClick={() => setIsPasswordDialogOpen(true)}
+                  className="rounded-xl gap-2 px-8"
+                >
+                  <LockOpen className="h-4 w-4" />
+                  Desbloquear agora
+                </Button>
+              </div>
+            )}
           </div>
         </ScrollArea>
       </AppShell>
