@@ -118,7 +118,9 @@ export default function Dashboard() {
   const loading = servicesLoading || clientsLoading || paymentsLoading;
 
   const [period, setPeriod] = useState<PeriodId>("30d");
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(
+    () => sessionStorage.getItem("isUnlocked") === "true",
+  );
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
@@ -128,6 +130,7 @@ export default function Dashboard() {
     const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
     if (passwordInput === envPassword) {
       setIsUnlocked(true);
+      sessionStorage.setItem("isUnlocked", "true");
       setIsPasswordDialogOpen(false);
       setPasswordError(false);
     } else {
@@ -206,7 +209,10 @@ export default function Dashboard() {
               size="icon"
               onClick={
                 isUnlocked
-                  ? () => setIsUnlocked(false)
+                  ? () => {
+                      setIsUnlocked(false);
+                      sessionStorage.setItem("isUnlocked", "false");
+                    }
                   : () => setIsPasswordDialogOpen(true)
               }
               className={cn(

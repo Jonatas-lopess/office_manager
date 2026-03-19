@@ -16,6 +16,7 @@ interface ServiceListItemProps {
   onFinancial: (s: any) => void;
   onEdit: (s: any) => void;
   onDelete: (s: any) => void;
+  isUnlocked?: boolean;
 }
 
 export function ServiceListItem({
@@ -25,6 +26,7 @@ export function ServiceListItem({
   onFinancial,
   onEdit,
   onDelete,
+  isUnlocked = true,
 }: ServiceListItemProps) {
   return (
     <div
@@ -52,7 +54,7 @@ export function ServiceListItem({
         >
           {clientName} &middot;{" "}
           {format(new Date(service.contract_date), "dd/MM/yyyy")} &middot;{" "}
-          {currency(service.price)}
+          {isUnlocked ? currency(service.price) : "••••••"}
         </div>
       </div>
       <div

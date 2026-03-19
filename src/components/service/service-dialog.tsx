@@ -68,6 +68,7 @@ interface ServiceDialogProps {
   initialData: any | null;
   onSave: (service: any) => Promise<void>;
   onFinancialAction?: (service: any) => void;
+  isUnlocked?: boolean;
 }
 
 export function ServiceDialog({
@@ -77,6 +78,7 @@ export function ServiceDialog({
   initialData,
   onSave,
   onFinancialAction,
+  isUnlocked = true,
 }: ServiceDialogProps) {
   const { db, orm } = useDb();
 
@@ -350,7 +352,7 @@ export function ServiceDialog({
                     <Input
                       disabled={isView}
                       id="service-price"
-                      value={maskCurrency(field.value || 0)}
+                      value={isUnlocked || !isView ? maskCurrency(field.value || 0) : "••••••"}
                       onChange={(e) => {
                         const val = e.target.value;
                         field.onChange(parseCurrencyToNumber(val));

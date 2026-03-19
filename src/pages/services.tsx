@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Lock, LockOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -33,6 +33,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
@@ -60,6 +70,34 @@ export default function ServicesPage() {
   const { db, orm } = useDb();
   const { myId, connectedPeers } = useSync();
   const { toast } = useToast();
+  const [isUnlocked, setIsUnlocked] = useState(
+    () => sessionStorage.getItem("isUnlocked") === "true",
+  );
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+
+  const handleUnlock = () => {
+    const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
+    if (passwordInput === envPassword) {
+      setIsUnlocked(true);
+      sessionStorage.setItem("isUnlocked", "true");
+      setIsPasswordDialogOpen(false);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+    setPasswordInput("");
+  };
+
+  const handleToggleLock = () => {
+    if (isUnlocked) {
+      setIsUnlocked(false);
+      sessionStorage.setItem("isUnlocked", "false");
+    } else {
+      setIsPasswordDialogOpen(true);
+    }
+  };
   const STATUS = ["Draft", "In progress", "Delivered"];
 
   const [q, setQ] = useState("");
@@ -202,18 +240,38 @@ export default function ServicesPage() {
   };
 
   return (
+    <>
     <AppShell
       title="Serviços"
       subtitle="Acompanhe entregas e renda."
       right={
-        <Button
-          onClick={() => openDialog("create")}
-          className="gap-2 cursor-pointer"
-          data-testid="button-new-service-top"
-        >
-          <Plus className="h-4 w-4" />
-          Novo serviço
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleToggleLock}
+            className={cn(
+              "rounded-xl",
+              isUnlocked ? "text-emerald-500" : "text-muted-foreground",
+            )}
+            title={isUnlocked ? "Bloquear visão" : "Desbloquear visão"}
+          >
+            {isUnlocked ? (
+              <LockOpen className="h-4 w-4" />
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
+          </Button>
+
+          <Button
+            onClick={() => openDialog("create")}
+            className="gap-2 cursor-pointer"
+            data-testid="button-new-service-top"
+          >
+            <Plus className="h-4 w-4" />
+            Novo serviço
+          </Button>
+        </div>
       }
     >
       <div
@@ -303,6 +361,7 @@ export default function ServicesPage() {
                   <ServiceListItem
                     key={s.id}
                     service={s}
+                    isUnlocked={isUnlocked}
                     clientName={clientsMap[s.client_id]?.name || "Cliente desconhecido"}
                     onView={(service) => openDialog("view", service)}
                     onFinancial={(service) => openFinancialDialog(service)}
@@ -337,12 +396,12 @@ export default function ServicesPage() {
               />
               <SummaryRow
                 label="Renda (Faturado)"
-                value={currency(totalRevenue)}
+                value={isUnlocked ? currency(totalRevenue) : "••••••"}
                 testId="income"
               />
               <SummaryRow
                 label="A receber"
-                value={currency(totalToReceive)}
+                value={isUnlocked ? currency(totalToReceive) : "••••••"}
                 testId="to-receive"
               />
             </div>
@@ -354,6 +413,7 @@ export default function ServicesPage() {
         open={isFinancialDialogOpen}
         onOpenChange={setIsFinancialDialogOpen}
         service={financialService}
+        isUnlocked={isUnlocked}
       />
 
       <ServiceDialog
@@ -404,6 +464,7 @@ export default function ServicesPage() {
             }, 500);
           }
         }}
+        isUnlocked={isUnlocked}
       />
 
       <AlertDialog
@@ -438,5 +499,59 @@ export default function ServicesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </AppShell>
+
+      <Dialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Desbloquear Valores</DialogTitle>
+            <DialogDescription>
+              Insira a senha de administrador para visualizar as métricas de
+              preços e pagamentos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleUnlock();
+                }}
+                className={
+                  passwordError
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : ""
+                }
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-xs text-destructive font-medium animate-pulse">
+                  Senha incorreta. Verifique suas configurações.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsPasswordDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleUnlock}>
+              Desbloquear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

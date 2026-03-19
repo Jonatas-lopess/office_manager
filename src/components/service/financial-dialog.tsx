@@ -30,12 +30,14 @@ interface FinancialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   service: any | null;
+  isUnlocked?: boolean;
 }
 
 export function FinancialDialog({
   open,
   onOpenChange,
   service,
+  isUnlocked = true,
 }: FinancialDialogProps) {
   const { orm } = useDb();
   const [payments, setPayments] = useState<any[]>([]);
@@ -227,7 +229,7 @@ export function FinancialDialog({
                         {p.payment_type === "Bank Transfer" && "Doc/Ted"}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap font-medium">
-                        {currency(p.amount)}
+                        {isUnlocked ? currency(p.amount) : "••••••"}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <Button
@@ -250,12 +252,12 @@ export function FinancialDialog({
           <div className="bg-muted/30 rounded-lg p-3 space-y-2">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Total do Serviço</span>
-              <span>{currency(service.price)}</span>
+              <span>{isUnlocked ? currency(service.price) : "••••••"}</span>
             </div>
             <div className="flex justify-between text-xs text-muted-foreground border-b pb-2">
               <span>Total Pago</span>
               <span className="text-green-600 font-medium">
-                {currency(totalPaid)}
+                {isUnlocked ? currency(totalPaid) : "••••••"}
               </span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-1">
@@ -271,7 +273,9 @@ export function FinancialDialog({
                     balance > 0 ? "text-destructive" : "text-green-600"
                   }
                 >
-                  {currency(Math.max(0, balance))}
+                  {isUnlocked
+                    ? currency(Math.max(0, balance))
+                    : "••••••"}
                 </span>
               </div>
             </div>
