@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-03-19
+
+### Added
+
+- **Segurança (Security)**: Implementado sistema de proteção por senha para visualização de dados financeiros (valores monetários e faturamento).
+- **Proteção nas Páginas**: O bloqueio de dados sensíveis foi estendido tanto para o Dashboard quanto para a página de Serviços.
+- **Backup Manual**: Adicionado botão na aba "Dados" para realizar backup imediato do banco de dados.
+- **Pasta de Backups**: Nova funcionalidade para abrir diretamente a pasta onde os backups são armazenados.
+- **Integração de Pagamento**: Adicionada a opção de registrar o primeiro pagamento no momento da criação de um novo serviço.
+
+### Changed
+
+- **Refatoração de Componentes**: A página de serviços foi refatorada, separando modais e linhas de resumo em componentes menores (`SummaryRow`, `ServiceDialog`, `FinancialDialog`) para melhor organização.
+- **Otimização de Busca**: Implementado *debounce* global nos campos de busca para melhorar a performance e responsividade da interface.
+- **Melhorias no Diálogo de Serviço**: Fluxo de criação de serviço atualizado para garantir visibilidade dos campos de pagamento e consistência de dados.
+
+### Fixed
+
+- **Tipagem do Schema**: Corrigido erro de tipo no campo `has_serious_illness` que estava impedindo operações de salvamento em clientes.
+- **Permissões de Arquivo**: Ajustadas permissões de capacidades do Tauri para permitir que o app verifique e crie diretórios de backup corretamente.
+- **Configuração de Ambiente**: Correção em nomes de variáveis no arquivo `.env` para garantir a carga correta de configurações.
+
 ## [2.1.0] - 2026-03-18
 
 ### Added
