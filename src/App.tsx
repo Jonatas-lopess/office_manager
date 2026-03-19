@@ -10,6 +10,7 @@ import SettingsPage from "@/pages/settings";
 import { useEffect } from "react";
 import { checkInternalUpdate } from "./lib/updater";
 import { Toaster as SonnerToaster } from "sonner";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 function Router() {
   return (
@@ -33,7 +34,11 @@ export default function App() {
     <TooltipProvider>
       <Toaster />
       <SonnerToaster position="top-right" richColors />
-      <Router />
+      {/* SidebarProvider lives here so it persists across route changes,
+          preventing the sidebar from re-mounting on every navigation */}
+      <SidebarProvider>
+        <Router />
+      </SidebarProvider>
     </TooltipProvider>
   );
 }

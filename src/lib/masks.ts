@@ -48,7 +48,7 @@ export const maskCurrency = (value: string | number) => {
   if (typeof value === "number") {
     value = value.toFixed(2).replace(/\D/g, "");
   }
-  let val = String(value).replace(/\D/g, "");
+  const val = String(value).replace(/\D/g, "");
   if (!val || val === "000") return "R$ 0,00";
   
   const numberValue = (Number(val) / 100).toFixed(2);

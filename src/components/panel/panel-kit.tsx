@@ -13,7 +13,11 @@ import {
   Users,
   Download,
   Share,
+  Search,
 } from "lucide-react";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
+import { Input } from "@/components/ui/input";
+
 import { useState } from "react";
 import { CSVImportDialog } from "./csv-import-dialog";
 import { useDb } from "@/db/context";
@@ -36,9 +40,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+
 
 export function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -333,27 +337,26 @@ export function AppShell({
   right?: ReactNode;
 }>) {
   return (
-    <SidebarProvider>
-      <div
-        className="app-shell h-svh flex w-full overflow-hidden"
-        data-testid="app-shell"
-      >
-        <SidebarContent_ />
-        <SidebarInset className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
-            <Topbar title={title} subtitle={subtitle} right={right} />
-            <div
-              className="mt-2 flex-1 flex flex-col min-h-0"
-              data-testid="page-content"
-            >
-              {children}
-            </div>
+    <div
+      className="app-shell h-svh flex w-full overflow-hidden"
+      data-testid="app-shell"
+    >
+      <SidebarContent_ />
+      <SidebarInset className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
+          <Topbar title={title} subtitle={subtitle} right={right} />
+          <div
+            className="mt-2 flex-1 flex flex-col min-h-0"
+            data-testid="page-content"
+          >
+            {children}
           </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarInset>
+    </div>
   );
 }
+
 
 export function StatCard({
   label,
@@ -542,3 +545,37 @@ export function InfiniteList<T>({
     </div>
   );
 }
+
+export function DebouncedSearch({
+  onSearch,
+  placeholder,
+  className,
+  ...props
+}: {
+  onSearch: (val: string) => void;
+  placeholder: string;
+  className?: string;
+} & React.ComponentProps<typeof Input>) {
+  const [localValue, setLocalValue] = useState("");
+  const debouncedSetSearch = useDebouncedCallback(onSearch, 250);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalValue(val);
+    debouncedSetSearch(val);
+  };
+
+  return (
+    <div className="relative flex-1">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        {...props}
+        value={localValue}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className={className}
+      />
+    </div>
+  );
+}
+

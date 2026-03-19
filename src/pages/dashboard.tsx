@@ -156,11 +156,14 @@ export default function Dashboard() {
 
     const revenue = paymentsInRange.reduce((acc, p) => acc + p.amount, 0);
 
+    // Pre-build a sum map: service_id → total paid — O(m)
+    const paidByServiceId: Record<string, number> = {};
+    for (const p of payments) {
+      paidByServiceId[p.service_id] = (paidByServiceId[p.service_id] || 0) + p.amount;
+    }
+
     const toReceive = services.reduce((acc, s) => {
-      const paidForSvc = payments
-        .filter((p) => p.service_id === s.id)
-        .reduce((sum, p) => sum + p.amount, 0);
-      const balance = s.price - paidForSvc;
+      const balance = s.price - (paidByServiceId[s.id] || 0);
       return acc + (balance > 0 ? balance : 0);
     }, 0);
 

@@ -71,7 +71,18 @@ interface ServiceDialogProps {
   isUnlocked?: boolean;
 }
 
-export function ServiceDialog({
+// Thin shell — only renders the Dialog primitive; inner content mounts on open
+export function ServiceDialog(props: ServiceDialogProps) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      {props.open && <ServiceDialogContent {...props} />}
+    </Dialog>
+  );
+}
+
+// Inner component: all hooks (including useLocalQuery DB subscriptions)
+// only run while the dialog is actually open.
+function ServiceDialogContent({
   open,
   onOpenChange,
   mode,
@@ -81,6 +92,7 @@ export function ServiceDialog({
   isUnlocked = true,
 }: ServiceDialogProps) {
   const { db, orm } = useDb();
+
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -173,8 +185,18 @@ export function ServiceDialog({
     }
   }, [open, initialData, form]);
 
-  const status = form.watch("status");
-  const finalDate = form.watch("final_date");
+  const {
+    status,
+    final_date: finalDate,
+    client_id: watchedClientId,
+    type: watchedType,
+    price: watchedPrice,
+    description: watchedDescription,
+    payment_method: watchedPaymentMethod,
+    observations: watchedObservations,
+    payment_type: watchedPaymentType,
+  } = form.watch();
+
 
   useEffect(() => {
     const today = new Date();
@@ -242,26 +264,25 @@ export function ServiceDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        data-testid="dialog-new-service"
-        className="max-h-[85vh] overflow-y-auto max-w-2xl"
-      >
-        <DialogHeader>
-          <DialogTitle data-testid="text-new-service-title">
-            {titles[mode]}
-          </DialogTitle>
-          <DialogDescription data-testid="text-new-service-desc">
-            {descriptions[mode]}
-          </DialogDescription>
-        </DialogHeader>
+    <DialogContent
+      data-testid="dialog-new-service"
+      className="max-h-[85vh] overflow-y-auto max-w-2xl"
+    >
+      <DialogHeader>
+        <DialogTitle data-testid="text-new-service-title">
+          {titles[mode]}
+        </DialogTitle>
+        <DialogDescription data-testid="text-new-service-desc">
+          {descriptions[mode]}
+        </DialogDescription>
+      </DialogHeader>
 
-        <form
-          autoComplete="off"
-          onSubmit={form.handleSubmit(onSubmit, onError)}
-          className="grid gap-3"
-          data-testid="form-new-service"
-        >
+      <form
+        autoComplete="off"
+        onSubmit={form.handleSubmit(onSubmit, onError)}
+        className="grid gap-3"
+        data-testid="form-new-service"
+      >
           {/* TIER 1: CORE FIELDS */}
           <div className="grid gap-1.5" data-testid="field-service-client">
             <Label htmlFor="service-client" data-testid="label-service-client">
@@ -269,7 +290,7 @@ export function ServiceDialog({
             </Label>
             <Select
               disabled={isView}
-              value={form.watch("client_id")}
+              value={watchedClientId}
               onValueChange={(v) => form.setValue("client_id", v)}
             >
               <SelectTrigger
@@ -307,7 +328,7 @@ export function ServiceDialog({
               </Label>
               <Select
                 disabled={isView}
-                value={form.watch("type") ?? undefined}
+                value={watchedType ?? undefined}
                 onValueChange={(v) => form.setValue("type", v as any)}
               >
                 <SelectTrigger
@@ -336,7 +357,7 @@ export function ServiceDialog({
               <Label htmlFor="service-price">Valor Base</Label>
               <ClickToCopy
                 enabled={isView}
-                value={form.watch("price") || 0}
+                value={watchedPrice || 0}
                 label="Valor Base"
               >
                 <Controller
@@ -366,7 +387,7 @@ export function ServiceDialog({
               <PopoverTrigger asChild>
                 <ClickToCopy
                   enabled={isView}
-                  value={form.watch("description")}
+                  value={watchedDescription}
                   label="Descrição"
                 >
                   <Button
@@ -378,11 +399,11 @@ export function ServiceDialog({
                     aria-expanded={openDesc}
                     className={cn(
                       "w-full justify-between font-normal",
-                      !form.watch("description") && "text-muted-foreground",
+                      !watchedDescription && "text-muted-foreground",
                       isView && "pointer-events-none",
                     )}
                   >
-                    {form.watch("description") ||
+                    {watchedDescription ||
                       "Notas rápidas sobre a entrega"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -422,7 +443,7 @@ export function ServiceDialog({
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              form.watch("description") === desc
+                              watchedDescription === desc
                                 ? "opacity-100"
                                 : "opacity-0",
                             )}
@@ -447,7 +468,7 @@ export function ServiceDialog({
               <Label htmlFor="service-status">Status</Label>
               <Select
                 disabled={isView}
-                value={form.watch("status")}
+                value={status}
                 onValueChange={(v) =>
                   form.setValue("status", v as ServiceStatus)
                 }
@@ -519,7 +540,7 @@ export function ServiceDialog({
               <Label>Método de Pagamento</Label>
               <Select
                 disabled={isView}
-                value={form.watch("payment_method") || "In_Cash"}
+                value={watchedPaymentMethod || "In_Cash"}
                 onValueChange={(v) => form.setValue("payment_method", v as any)}
               >
                 <SelectTrigger>
@@ -531,7 +552,7 @@ export function ServiceDialog({
                 </SelectContent>
               </Select>
             </div>
-            {form.watch("payment_method") === "Installments" && (
+            {watchedPaymentMethod === "Installments" && (
               <div className="grid gap-1.5" data-testid="field-installments">
                 <Label htmlFor="installments">
                   Número de Parcelas (Máx 6x)
@@ -557,7 +578,7 @@ export function ServiceDialog({
             <Label htmlFor="service-observations">Observações Livres</Label>
             <ClickToCopy
               enabled={isView}
-              value={form.watch("observations")}
+              value={watchedObservations}
               label="Observações"
             >
               <Input
@@ -627,7 +648,7 @@ export function ServiceDialog({
                         <div className="grid gap-1.5">
                           <Label>Forma</Label>
                           <Select
-                            value={form.watch("payment_type" as any)}
+                            value={watchedPaymentType}
                             onValueChange={(v) =>
                               form.setValue("payment_type" as any, v)
                             }
@@ -695,6 +716,5 @@ export function ServiceDialog({
           </div>
         </form>
       </DialogContent>
-    </Dialog>
   );
 }

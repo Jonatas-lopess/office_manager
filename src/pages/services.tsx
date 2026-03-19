@@ -11,7 +11,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, currency, InfiniteList } from "@/components/panel/panel-kit";
+import {
+  AppShell,
+  currency,
+  InfiniteList,
+  DebouncedSearch,
+} from "@/components/panel/panel-kit";
 import {
   Empty,
   EmptyHeader,
@@ -282,10 +287,8 @@ export default function ServicesPage() {
                 className="relative flex-1"
                 data-testid="wrap-service-search"
               >
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
+                <DebouncedSearch
+                  onSearch={setQ}
                   placeholder="Buscar por serviço ou cliente…"
                   className="pl-9"
                   data-testid="input-service-search"

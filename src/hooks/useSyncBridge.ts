@@ -78,9 +78,16 @@ export function useSyncBridge(
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   const [isInitialSyncFinished, setIsInitialSyncFinished] = useState(false);
+  const isInitialSyncFinishedRef = useRef(false);
   const syncDebounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  const setSyncFinished = useCallback((finished: boolean) => {
+    setIsInitialSyncFinished(finished);
+    isInitialSyncFinishedRef.current = finished;
+  }, []);
+
 
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
@@ -174,8 +181,9 @@ export function useSyncBridge(
         clearTimeout(syncDebounceTimeoutRef.current);
       }
       syncDebounceTimeoutRef.current = setTimeout(() => {
-        setIsInitialSyncFinished(true);
+        setSyncFinished(true);
       }, 1500);
+
     };
 
     ws.onerror = (err) => {
@@ -313,13 +321,14 @@ export function useSyncBridge(
             );
           } else {
              // Anti-entropy determined we are fully up to date with this request
-               if (!isInitialSyncFinished) {
+               if (!isInitialSyncFinishedRef.current) {
                  if (syncDebounceTimeoutRef.current) {
                    clearTimeout(syncDebounceTimeoutRef.current);
                  }
-                 setIsInitialSyncFinished(true);
+                 setSyncFinished(true);
                }
           }
+
         } catch (err) {
           console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
         }
@@ -365,14 +374,15 @@ export function useSyncBridge(
           });
           
         // Reset the debounce timer on every received sync message
-        if (!isInitialSyncFinished) {
+        if (!isInitialSyncFinishedRef.current) {
           if (syncDebounceTimeoutRef.current) {
             clearTimeout(syncDebounceTimeoutRef.current);
           }
           syncDebounceTimeoutRef.current = setTimeout(() => {
-            setIsInitialSyncFinished(true);
+            setSyncFinished(true);
           }, 1000);
         }
+
       }
     };
   }, [initialHubUrl, ctx, isTauri]);
@@ -395,8 +405,9 @@ export function useSyncBridge(
         wsRef.current.close();
       }
       setConnectionStatus("disconnected");
-      setIsInitialSyncFinished(false);
+      setSyncFinished(false);
     };
+
   }, [connect]);
 
   // ==========================================

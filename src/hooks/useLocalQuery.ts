@@ -1,31 +1,31 @@
 import { DB } from "@vlcn.io/crsqlite-wasm";
 import { Query } from "drizzle-orm";
-import { useSyncExternalStore, useState, useEffect, useMemo } from "react";
+import {
+  useSyncExternalStore,
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 
 export function useLocalQuery<T>(ctx: DB, query: Query) {
-  // Use a simple counter to track database updates
-  const [dbVersion, setDbVersion] = useState(0);
+  const versionRef = useRef(0);
 
-  // 1. Define the Store
   const store = useMemo(
     () => ({
       subscribe: (onStoreChange: () => void) => {
         if (!ctx) return () => {};
-        // ctx.onUpdate returns a cleanup function
         return ctx.onUpdate(() => {
-          setDbVersion((prev) => prev + 1);
+          versionRef.current += 1;
           onStoreChange();
         });
       },
-      getSnapshot: () => dbVersion,
+      getSnapshot: () => versionRef.current,
     }),
     [ctx],
   );
 
-  // 2. Subscribe using the React 19 standard
-  useSyncExternalStore(store.subscribe, store.getSnapshot);
-
-  // 3. Data Fetching Logic
+  const dbVersion = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

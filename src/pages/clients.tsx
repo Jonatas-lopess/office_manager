@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, StatusBadge, InfiniteList } from "@/components/panel/panel-kit";
+import { AppShell, StatusBadge, InfiniteList, DebouncedSearch } from "@/components/panel/panel-kit";
 import { v7 as uuidv7 } from "uuid";
 import {
   Client,
@@ -106,6 +106,7 @@ export default function ClientsPage() {
       })
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [clients, q, status]);
+
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -189,14 +190,13 @@ export default function ClientsPage() {
           data-testid="bar-clients-controls"
         >
           <div className="relative flex-1" data-testid="wrap-client-search">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+            <DebouncedSearch
+              onSearch={setQ}
               placeholder="Buscar por nome, email, empresa…"
               className="pl-9"
               data-testid="input-client-search"
             />
+
           </div>
           <div
             className="flex items-center gap-2"
@@ -507,19 +507,24 @@ function ClientDialog({
     }
   }, [open, initialData, form]);
 
-  const cnpj = form.watch("cnpj");
-  const name = form.watch("name");
-  const email = form.watch("email");
-  const phone = form.watch("phone");
-  const paymentSource = form.watch("payment_source");
-  const ie = form.watch("estadual_inscription");
-  const nirf = form.watch("nirf");
-  const cib = form.watch("cib");
-  const incra = form.watch("incra");
-  const govPassword = form.watch("gov_password");
-  const observations = form.watch("observations");
-  const meiType = form.watch("mei_type");
-  const clientStatus = form.watch("status");
+  const {
+    cnpj,
+    name,
+    email,
+    phone,
+    payment_source: paymentSource,
+    estadual_inscription: ie,
+    nirf,
+    cib,
+    incra,
+    gov_password: govPassword,
+    observations,
+    mei_type: meiType,
+    status: clientStatus,
+    has_serious_illness: hasSeriousIllness,
+    cpf,
+  } = form.watch();
+
 
   const onSubmit = async (data: NewClientType) => {
     if (isView) return;
@@ -701,7 +706,7 @@ function ClientDialog({
             <div className="flex items-center gap-2 mt-auto pb-2" data-testid="field-client-serious-illness">
               <Switch
                 id="client-serious-illness"
-                checked={form.watch("has_serious_illness")}
+                checked={hasSeriousIllness}
                 onCheckedChange={(checked) => form.setValue("has_serious_illness", checked)}
                 disabled={isView}
               />
@@ -731,7 +736,7 @@ function ClientDialog({
                     <Label htmlFor="client-cpf">CPF</Label>
                     <ClickToCopy
                       enabled={isView}
-                      value={form.watch("cpf") || ""}
+                      value={cpf || ""}
                       label="CPF"
                     >
                       <Input
