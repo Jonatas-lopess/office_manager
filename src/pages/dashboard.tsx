@@ -127,7 +127,7 @@ export default function Dashboard() {
 
   const handleUnlock = () => {
     // Basic password for now
-    const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
+    const envPassword = import.meta.env.DASHBOARD_PASSWORD || "admin";
     if (passwordInput === envPassword) {
       setIsUnlocked(true);
       sessionStorage.setItem("isUnlocked", "true");
