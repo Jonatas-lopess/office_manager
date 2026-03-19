@@ -49,7 +49,7 @@ import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, clientsTable, paymentsTable } from "@/db/schema";
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, like, or, sql, isNotNull, ne } from "drizzle-orm";
 
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
@@ -106,7 +106,6 @@ export default function ServicesPage() {
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [pendingService, setPendingService] = useState<any | null>(null);
 
   const [isFinancialDialogOpen, setIsFinancialDialogOpen] = useState(false);
   const [financialService, setFinancialService] = useState<any | null>(null);
@@ -178,8 +177,28 @@ export default function ServicesPage() {
     clientsQuery,
   );
   const clients = useMemo(() => rawClients || [], [rawClients]);
+  
+  const descQuery = useMemo(() => {
+    return orm
+      .select({ description: servicesTable.description })
+      .from(servicesTable)
+      .where(
+        and(
+          isNotNull(servicesTable.description),
+          ne(servicesTable.description, ""),
+        ),
+      )
+      .groupBy(servicesTable.description)
+      .toSQL();
+  }, [orm]);
 
-  const loading = servicesLoading || clientsLoading;
+  const { data: rawDesc, loading: descLoading } = useLocalQuery<any>(db, descQuery);
+  const historicDescriptions = useMemo(() => {
+    if (!rawDesc) return [];
+    return rawDesc.map((d: any) => d.description);
+  }, [rawDesc]);
+
+  const loading = servicesLoading || clientsLoading || descLoading;
 
   const clientsMap = useMemo(() => {
     return clients.reduce((acc: Record<string, any>, c: any) => {
@@ -343,7 +362,6 @@ export default function ServicesPage() {
                 <InfiniteList
                   data={filtered}
                   loading={loading}
-                  pendingItem={pendingService}
                   emptyState={
                     <Empty className="py-12">
                       <EmptyHeader>
@@ -362,15 +380,12 @@ export default function ServicesPage() {
                     <ServiceListItem
                       key={s.id}
                       service={s}
-                      isUnlocked={isUnlocked}
-                      clientName={
-                        clientsMap[s.client_id]?.name || "Cliente desconhecido"
-                      }
-                      onView={(service) => openDialog("view", service)}
-                      onFinancial={(service) => openFinancialDialog(service)}
-                      onEdit={(service) => openDialog("edit", service)}
-                      onDelete={(service) => {
-                        setSelectedService(service);
+                      clientName={clientsMap[s.client_id]?.name || "Desconhecido"}
+                      onView={(s) => openDialog("view", s)}
+                      onFinancial={openFinancialDialog}
+                      onEdit={openDialog}
+                      onDelete={(s) => {
+                        setSelectedService(s);
                         setIsDeleteDialogOpen(true);
                       }}
                     />
@@ -419,7 +434,6 @@ export default function ServicesPage() {
           open={isFinancialDialogOpen}
           onOpenChange={setIsFinancialDialogOpen}
           service={financialService}
-          isUnlocked={isUnlocked}
         />
 
         <ServiceDialog
@@ -427,50 +441,40 @@ export default function ServicesPage() {
           onOpenChange={setIsDialogOpen}
           mode={dialogMode}
           initialData={selectedService}
+          clients={clients}
+          historicDescriptions={historicDescriptions}
           onFinancialAction={openFinancialDialog}
           onSave={async (svc) => {
-            setPendingService(svc);
-            setIsDialogOpen(false);
-
-            try {
-              if (dialogMode === "create") {
-                await orm.insert(servicesTable).values(svc);
-                await logAction(orm, {
-                  action: `Novo serviço criado: ${svc.type}`,
-                  module: "Serviços",
-                  device:
-                    connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-                });
-                toast({
-                  variant: "success",
-                  title: "Serviço criado",
-                  description: `O serviço ${svc.type} foi registrado com sucesso.`,
-                });
-              } else if (dialogMode === "edit" && selectedService) {
-                await orm
-                  .update(servicesTable)
-                  .set(svc)
-                  .where(eq(servicesTable.id, selectedService.id));
-                await logAction(orm, {
-                  action: `Serviço atualizado: ${svc.type}`,
-                  module: "Serviços",
-                  device:
-                    connectedPeers.find((p) => p.id === myId)?.ip || undefined,
-                });
-                toast({
-                  variant: "success",
-                  title: "Serviço atualizado",
-                  description: `As informações do serviço ${svc.type} foram atualizadas.`,
-                });
-              }
-            } finally {
-              setTimeout(() => {
-                setPendingService(null);
-                setSelectedService(null);
-              }, 500);
+            if (dialogMode === "create") {
+              await orm.insert(servicesTable).values(svc);
+              await logAction(orm, {
+                action: `Novo serviço criado: ${svc.type}`,
+                module: "Serviços",
+                status: "Success",
+                device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                title: "Serviço criado",
+                description: `O serviço foi registrado com sucesso.`,
+              });
+            } else if (dialogMode === "edit" || dialogMode === "view") {
+              await orm
+                .update(servicesTable)
+                .set(svc)
+                .where(eq(servicesTable.id, svc.id));
+              await logAction(orm, {
+                action: `Serviço atualizado: ${svc.type}`,
+                module: "Serviços",
+                status: "Success",
+                device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+              });
+              toast({
+                title: "Serviço atualizado",
+                description: `As alterações foram salvas.`,
+              });
             }
+            setIsDialogOpen(false);
           }}
-          isUnlocked={isUnlocked}
         />
 
         <AlertDialog
