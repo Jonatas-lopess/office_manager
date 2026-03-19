@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-03-19
+
+### Added
+
+- **Bloqueio Total do Dashboard**: Implementado bloqueio completo da interface do Dashboard quando não autenticado, aumentando a privacidade.
+- **Proteção da Zona de Perigo**: Adicionado cadeado de segurança na "Zona de Perigo" das configurações, evitando exclusões acidentais de dados.
+- **Liquidação Rápida**: Novo botão "Adicionar Pagamento" em diálogos financeiros para serviços à vista, permitindo quitar o saldo restante com um único clique.
+
+### Fixed
+
+- **Compatibilidade de Ambiente**: Corrigido o carregamento da senha do dashboard através do `.env` renomeando a variável para `VITE_DASHBOARD_PASSWORD` (padrão Vite).
+- **Consistência de Bloqueio**: Ajustado o comportamento de bloqueio para ser reativo e persistente entre as páginas principais.
+
 ## [2.2.0] - 2026-03-19
 
 ### Added
