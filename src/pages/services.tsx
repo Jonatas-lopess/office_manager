@@ -42,6 +42,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
@@ -231,6 +237,11 @@ function ServiceDialog({
           payment_method: "In_Cash",
           installments: 1,
           observations: "",
+          // @ts-ignore - added for the form
+          payment_now: false,
+          payment_amount: 0,
+          payment_date: new Date(),
+          payment_type: "Pix",
         });
       }
     }
@@ -249,13 +260,14 @@ function ServiceDialog({
   const onSubmit = async (data: NewServiceType) => {
     if (isView) return;
     const now = new Date();
+    const service_id = initialData?.id || uuidv7();
     const svc: Service = {
       ...(initialData || {}),
       ...data,
       status: data.status || "Draft",
       type: data.type || "Outros",
       description: data.description || null,
-      id: initialData?.id || uuidv7(),
+      id: service_id,
       contract_date: data.contract_date || new Date(),
       final_date: data.final_date || null,
       payment_method: data.payment_method || "In_Cash",
@@ -266,6 +278,25 @@ function ServiceDialog({
     };
 
     await onSave(svc);
+
+    // Save payment if provided
+    const formVals = form.getValues() as any;
+    if (
+      mode === "create" &&
+      formVals.payment_now &&
+      formVals.payment_amount > 0
+    ) {
+      const np = {
+        id: uuidv7(),
+        service_id: service_id,
+        amount: formVals.payment_amount,
+        payment_type: formVals.payment_type,
+        payment_date: formVals.payment_date || new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      await orm.insert(paymentsTable).values(np);
+    }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -617,6 +648,107 @@ function ServiceDialog({
             </ClickToCopy>
           </div>
 
+          {/* PAYMENT ACCORDION - Only for create mode */}
+          {mode === "create" && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="payment" className="border-none">
+                <AccordionTrigger className="py-2 text-sm text-primary hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Adicionar pagamento agora?
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-4">
+                  <div className="grid gap-3 p-4 rounded-xl border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="payment_now"
+                        {...form.register("payment_now" as any)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="payment_now" className="cursor-pointer">
+                        Registrar pagamento imediato
+                      </Label>
+                    </div>
+
+                    {form.watch("payment_now" as any) && (
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-1.5">
+                          <Label>Data</Label>
+                          <Controller
+                            control={form.control}
+                            name={"payment_date" as any}
+                            render={({ field }) => (
+                              <Input
+                                type="date"
+                                {...field}
+                                value={
+                                  field.value instanceof Date
+                                    ? format(field.value as Date, "yyyy-MM-dd")
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  field.onChange(
+                                    val ? new Date(val + "T12:00:00") : null,
+                                  );
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label>Valor</Label>
+                          <Controller
+                            control={form.control}
+                            name={"payment_amount" as any}
+                            render={({ field }) => (
+                              <Input
+                                value={maskCurrency(field.value || 0)}
+                                onChange={(e) => {
+                                  field.onChange(
+                                    parseCurrencyToNumber(e.target.value),
+                                  );
+                                }}
+                              />
+                            )}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label>Forma</Label>
+                          <Select
+                            value={form.watch("payment_type" as any)}
+                            onValueChange={(v) =>
+                              form.setValue("payment_type" as any, v)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pix">Pix</SelectItem>
+                              <SelectItem value="Credit Card">
+                                Cartão de Crédito
+                              </SelectItem>
+                              <SelectItem value="Debit Card">
+                                Cartão de Débito
+                              </SelectItem>
+                              <SelectItem value="Cash">Dinheiro</SelectItem>
+                              <SelectItem value="Bank Transfer">
+                                Transferência
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
           <div
             className="flex items-center justify-end gap-2 mt-4"
             data-testid="group-new-service-actions"
@@ -794,7 +926,9 @@ function FinancialDialog({
               <Label className="text-[10px] uppercase font-bold">Valor</Label>
               <Input
                 value={maskCurrency(newAmount)}
-                onChange={(e) => setNewAmount(parseCurrencyToNumber(e.target.value))}
+                onChange={(e) =>
+                  setNewAmount(parseCurrencyToNumber(e.target.value))
+                }
                 className="h-8 text-xs"
               />
             </div>
