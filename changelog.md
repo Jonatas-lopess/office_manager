@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-03-19
+
+### Changed
+
+- **Otimização de Performance**: Reestruturação dos formulários de serviços para reduzir re-renderizações e melhorar a velocidade.
+- **Limpeza de UI**: Removidas informações de bloqueio desnecessárias nos diálogos financeiros e de serviço.
+
+### Fixed
+
+- **Correção de Layout**: Resolvido falhas na exibição do dashboard e das configurações quando o conteúdo está bloqueado.
+
 ## [2.3.0] - 2026-03-19
 
 ### Added
