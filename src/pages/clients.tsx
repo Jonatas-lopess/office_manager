@@ -271,7 +271,7 @@ export default function ClientsPage() {
                         {c.name}
                       </div>
                       <StatusBadge status={c.status} />
-                      {c.has_serious_illness && (
+                      {!!c.has_serious_illness && (
                         <Badge
                           variant="destructive"
                           className="bg-red-500 hover:bg-red-600 px-1 py-0 h-4 text-[10px] items-center"
@@ -481,6 +481,7 @@ function ClientDialog({
           ...initialData,
           birth_date: initialData.birth_date ? new Date(initialData.birth_date) : null,
           cnpj_begin_date: initialData.cnpj_begin_date ? new Date(initialData.cnpj_begin_date) : null,
+          has_serious_illness: !!initialData.has_serious_illness,
         } as any);
       } else {
         form.reset({

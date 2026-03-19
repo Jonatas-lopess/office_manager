@@ -33,15 +33,18 @@ export const insertClientSchema = createInsertSchema(clientsTable, {
       .or(z.literal(""))
       .optional()
       .nullable(),
-  has_serious_illness: (schema) => schema.pipe(z.boolean()).optional(),
-})
+  },
+)
   .extend({
     birth_date: z.date().nullable().optional(),
     cnpj_begin_date: z.date().nullable().optional(),
+    has_serious_illness: z.boolean().optional(),
   })
   .omit({ id: true, created_at: true, updated_at: true });
 
-export const selectClientSchema = createSelectSchema(clientsTable);
+export const selectClientSchema = createSelectSchema(clientsTable, {
+  has_serious_illness: z.coerce.boolean(),
+});
 
 export type Client = z.infer<typeof selectClientSchema>;
 export type NewClient = z.infer<typeof insertClientSchema>;
@@ -54,6 +57,11 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
   .extend({
     contract_date: z.date().optional(),
     final_date: z.date().nullable().optional(),
+    // Added for the payment accordion
+    payment_now: z.boolean().optional(),
+    payment_amount: z.number().optional(),
+    payment_date: z.date().optional(),
+    payment_type: z.string().optional(),
   })
   .omit({ id: true, created_at: true, updated_at: true });
 
