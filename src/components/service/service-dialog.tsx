@@ -165,8 +165,6 @@ export function ServiceDialog({
           payment_method: "In_Cash",
           installments: 1,
           observations: "",
-          // @ts-ignore - added for the form
-          payment_now: false,
           payment_amount: 0,
           payment_date: new Date(),
           payment_type: "Pix",
@@ -209,11 +207,7 @@ export function ServiceDialog({
 
     // Save payment if provided
     const formVals = form.getValues() as any;
-    if (
-      mode === "create" &&
-      formVals.payment_now &&
-      formVals.payment_amount > 0
-    ) {
+    if (mode === "create" && formVals.payment_amount > 0) {
       const np = {
         id: uuidv7(),
         service_id: service_id,
@@ -588,20 +582,7 @@ export function ServiceDialog({
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 pb-4">
                   <div className="grid gap-3 p-4 rounded-xl border bg-muted/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <input
-                        type="checkbox"
-                        id="payment_now"
-                        {...form.register("payment_now" as any)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <Label htmlFor="payment_now" className="cursor-pointer">
-                        Registrar pagamento imediato
-                      </Label>
-                    </div>
-
-                    {form.watch("payment_now" as any) && (
-                      <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-3">
                         <div className="grid gap-1.5">
                           <Label>Data</Label>
                           <Controller
@@ -670,7 +651,6 @@ export function ServiceDialog({
                           </Select>
                         </div>
                       </div>
-                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>

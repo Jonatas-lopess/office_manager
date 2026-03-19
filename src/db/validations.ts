@@ -58,7 +58,6 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
     contract_date: z.date().optional(),
     final_date: z.date().nullable().optional(),
     // Added for the payment accordion
-    payment_now: z.boolean().optional(),
     payment_amount: z.number().optional(),
     payment_date: z.date().optional(),
     payment_type: z.string().optional(),
