@@ -68,7 +68,6 @@ interface ServiceDialogProps {
   initialData: any | null;
   onSave: (service: any) => Promise<void>;
   onFinancialAction?: (service: any) => void;
-  isUnlocked?: boolean;
 }
 
 // Thin shell — only renders the Dialog primitive; inner content mounts on open
@@ -89,10 +88,8 @@ function ServiceDialogContent({
   initialData,
   onSave,
   onFinancialAction,
-  isUnlocked = true,
 }: ServiceDialogProps) {
   const { db, orm } = useDb();
-
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -197,7 +194,6 @@ function ServiceDialogContent({
     payment_type: watchedPaymentType,
   } = form.watch();
 
-
   useEffect(() => {
     const today = new Date();
     if (status === "Delivered" && !finalDate) {
@@ -283,438 +279,430 @@ function ServiceDialogContent({
         className="grid gap-3"
         data-testid="form-new-service"
       >
-          {/* TIER 1: CORE FIELDS */}
-          <div className="grid gap-1.5" data-testid="field-service-client">
-            <Label htmlFor="service-client" data-testid="label-service-client">
-              Cliente *
+        {/* TIER 1: CORE FIELDS */}
+        <div className="grid gap-1.5" data-testid="field-service-client">
+          <Label htmlFor="service-client" data-testid="label-service-client">
+            Cliente *
+          </Label>
+          <Select
+            disabled={isView}
+            value={watchedClientId}
+            onValueChange={(v) => form.setValue("client_id", v)}
+          >
+            <SelectTrigger
+              id="service-client"
+              data-testid="select-service-client"
+            >
+              <SelectValue placeholder="Selecione um cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem
+                  key={c.id}
+                  value={c.id}
+                  data-testid={`option-service-client-${c.id}`}
+                >
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.formState.errors.client_id && (
+            <span className="text-xs text-destructive">
+              {form.formState.errors.client_id.message}
+            </span>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div
+            className="grid gap-1.5 sm:col-span-2"
+            data-testid="field-service-type"
+          >
+            <Label htmlFor="service-type" data-testid="label-service-type">
+              Tipo de Serviço *
             </Label>
             <Select
               disabled={isView}
-              value={watchedClientId}
-              onValueChange={(v) => form.setValue("client_id", v)}
+              value={watchedType ?? undefined}
+              onValueChange={(v) => form.setValue("type", v as any)}
             >
               <SelectTrigger
-                id="service-client"
-                data-testid="select-service-client"
+                id="service-type"
+                data-testid="select-service-type"
+                className="overflow-hidden"
               >
-                <SelectValue placeholder="Selecione um cliente" />
+                <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem
-                    key={c.id}
-                    value={c.id}
-                    data-testid={`option-service-client-${c.id}`}
-                  >
-                    {c.name}
+              <SelectContent className="max-h-60">
+                {serviceTypesArray.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {form.formState.errors.client_id && (
+            {form.formState.errors.type && (
               <span className="text-xs text-destructive">
-                {form.formState.errors.client_id.message}
+                {form.formState.errors.type.message}
               </span>
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div
-              className="grid gap-1.5 sm:col-span-2"
-              data-testid="field-service-type"
-            >
-              <Label htmlFor="service-type" data-testid="label-service-type">
-                Tipo de Serviço *
-              </Label>
-              <Select
-                disabled={isView}
-                value={watchedType ?? undefined}
-                onValueChange={(v) => form.setValue("type", v as any)}
-              >
-                <SelectTrigger
-                  id="service-type"
-                  data-testid="select-service-type"
-                  className="overflow-hidden"
-                >
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {serviceTypesArray.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.type && (
-                <span className="text-xs text-destructive">
-                  {form.formState.errors.type.message}
-                </span>
-              )}
-            </div>
-
-            <div className="grid gap-1.5" data-testid="field-service-price">
-              <Label htmlFor="service-price">Valor Base</Label>
-              <ClickToCopy
-                enabled={isView}
-                value={watchedPrice || 0}
-                label="Valor Base"
-              >
-                <Controller
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <Input
-                      disabled={isView}
-                      id="service-price"
-                      value={isUnlocked || !isView ? maskCurrency(field.value || 0) : "••••••"}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        field.onChange(parseCurrencyToNumber(val));
-                      }}
-                      className={isView ? "pointer-events-none" : ""}
-                      data-testid="input-service-price"
-                    />
-                  )}
-                />
-              </ClickToCopy>
-            </div>
-          </div>
-
-          <div className="grid gap-1.5" data-testid="field-service-desc">
-            <Label htmlFor="service-description">Descrição Resumida</Label>
-            <Popover open={openDesc} onOpenChange={setOpenDesc}>
-              <PopoverTrigger asChild>
-                <ClickToCopy
-                  enabled={isView}
-                  value={watchedDescription}
-                  label="Descrição"
-                >
-                  <Button
-                    id="service-description"
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    disabled={isView}
-                    aria-expanded={openDesc}
-                    className={cn(
-                      "w-full justify-between font-normal",
-                      !watchedDescription && "text-muted-foreground",
-                      isView && "pointer-events-none",
-                    )}
-                  >
-                    {watchedDescription ||
-                      "Notas rápidas sobre a entrega"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </ClickToCopy>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0" align="start">
-                <Command>
-                  <CommandInput
-                    placeholder="Buscar ou adicionar nova..."
-                    value={searchDesc}
-                    onValueChange={(val) => {
-                      setSearchDesc(val);
-                      form.setValue("description", val, {
-                        shouldValidate: true,
-                      });
-                    }}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      <span className="text-muted-foreground text-sm pl-2">
-                        Pressione Enter para usar &quot;{searchDesc}&quot;
-                      </span>
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {historicDescriptions.map((desc: string) => (
-                        <CommandItem
-                          key={desc}
-                          value={desc}
-                          onSelect={(currentValue) => {
-                            form.setValue("description", currentValue, {
-                              shouldValidate: true,
-                            });
-                            setSearchDesc("");
-                            setOpenDesc(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              watchedDescription === desc
-                                ? "opacity-100"
-                                : "opacity-0",
-                            )}
-                          />
-                          {desc}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {form.formState.errors.description && (
-              <span className="text-xs text-destructive">
-                {form.formState.errors.description.message}
-              </span>
-            )}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="grid gap-1.5" data-testid="field-service-status">
-              <Label htmlFor="service-status">Status</Label>
-              <Select
-                disabled={isView}
-                value={status}
-                onValueChange={(v) =>
-                  form.setValue("status", v as ServiceStatus)
-                }
-              >
-                <SelectTrigger id="service-status">
-                  <SelectValue placeholder="Escolha o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Draft">Rascunho</SelectItem>
-                  <SelectItem value="In progress">Em andamento</SelectItem>
-                  <SelectItem value="Delivered">Entregue</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-1.5" data-testid="field-contract-date">
-              <Label htmlFor="service-contract-date">Contrato</Label>
-              <Controller
-                control={form.control}
-                name="contract_date"
-                render={({ field }) => (
-                  <Input
-                    id="service-contract-date"
-                    type="date"
-                    {...field}
-                    value={
-                      field.value instanceof Date
-                        ? format(field.value as Date, "yyyy-MM-dd")
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      field.onChange(val ? new Date(val + "T12:00:00") : null);
-                    }}
-                    disabled={isView}
-                  />
-                )}
-              />
-            </div>
-
-            <div className="grid gap-1.5" data-testid="field-final-date">
-              <Label htmlFor="service-final-date">Entrega (Prazo)</Label>
-              <Controller
-                control={form.control}
-                name="final_date"
-                render={({ field }) => (
-                  <Input
-                    id="service-final-date"
-                    type="date"
-                    {...field}
-                    value={
-                      field.value instanceof Date
-                        ? format(field.value as Date, "yyyy-MM-dd")
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      field.onChange(val ? new Date(val + "T12:00:00") : null);
-                    }}
-                    disabled={isView}
-                  />
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5" data-testid="field-payment-method">
-              <Label>Método de Pagamento</Label>
-              <Select
-                disabled={isView}
-                value={watchedPaymentMethod || "In_Cash"}
-                onValueChange={(v) => form.setValue("payment_method", v as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha o método" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="In_Cash">À Vista</SelectItem>
-                  <SelectItem value="Installments">Parcelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {watchedPaymentMethod === "Installments" && (
-              <div className="grid gap-1.5" data-testid="field-installments">
-                <Label htmlFor="installments">
-                  Número de Parcelas (Máx 6x)
-                </Label>
-                <Input
-                  id="installments"
-                  type="number"
-                  min={1}
-                  max={6}
-                  {...form.register("installments", {
-                    valueAsNumber: true,
-                  })}
-                  disabled={isView}
-                />
-              </div>
-            )}
-          </div>
-
-          <div
-            className="grid gap-1.5"
-            data-testid="field-service-observations"
-          >
-            <Label htmlFor="service-observations">Observações Livres</Label>
+          <div className="grid gap-1.5" data-testid="field-service-price">
+            <Label htmlFor="service-price">Valor Base</Label>
             <ClickToCopy
               enabled={isView}
-              value={watchedObservations}
-              label="Observações"
+              value={watchedPrice || 0}
+              label="Valor Base"
             >
-              <Input
-                id="service-observations"
-                {...form.register("observations")}
-                placeholder="Notas internas…"
-                disabled={isView}
-                className={isView ? "pointer-events-none" : ""}
+              <Controller
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <Input
+                    disabled={isView}
+                    id="service-price"
+                    value={maskCurrency(field.value || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      field.onChange(parseCurrencyToNumber(val));
+                    }}
+                    className={isView ? "pointer-events-none" : ""}
+                    data-testid="input-service-price"
+                  />
+                )}
               />
             </ClickToCopy>
           </div>
+        </div>
 
-          {/* PAYMENT ACCORDION - Only for create mode */}
-          {mode === "create" && (
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="payment" className="border-none">
-                <AccordionTrigger className="py-2 text-sm text-primary hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4" />
-                    Adicionar pagamento agora?
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2 pb-4">
-                  <div className="grid gap-3 p-4 rounded-xl border bg-muted/30">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="grid gap-1.5">
-                          <Label>Data</Label>
-                          <Controller
-                            control={form.control}
-                            name={"payment_date" as any}
-                            render={({ field }) => (
-                              <Input
-                                type="date"
-                                {...field}
-                                value={
-                                  field.value instanceof Date
-                                    ? format(field.value as Date, "yyyy-MM-dd")
-                                    : ""
-                                }
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  field.onChange(
-                                    val ? new Date(val + "T12:00:00") : null,
-                                  );
-                                }}
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label>Valor</Label>
-                          <Controller
-                            control={form.control}
-                            name={"payment_amount" as any}
-                            render={({ field }) => (
-                              <Input
-                                value={maskCurrency(field.value || 0)}
-                                onChange={(e) => {
-                                  field.onChange(
-                                    parseCurrencyToNumber(e.target.value),
-                                  );
-                                }}
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label>Forma</Label>
-                          <Select
-                            value={watchedPaymentType}
-                            onValueChange={(v) =>
-                              form.setValue("payment_type" as any, v)
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Pix">Pix</SelectItem>
-                              <SelectItem value="Credit Card">
-                                Cartão de Crédito
-                              </SelectItem>
-                              <SelectItem value="Debit Card">
-                                Cartão de Débito
-                              </SelectItem>
-                              <SelectItem value="Cash">Dinheiro</SelectItem>
-                              <SelectItem value="Bank Transfer">
-                                Transferência
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+        <div className="grid gap-1.5" data-testid="field-service-desc">
+          <Label htmlFor="service-description">Descrição Resumida</Label>
+          <Popover open={openDesc} onOpenChange={setOpenDesc}>
+            <PopoverTrigger asChild>
+              <ClickToCopy
+                enabled={isView}
+                value={watchedDescription}
+                label="Descrição"
+              >
+                <Button
+                  id="service-description"
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  disabled={isView}
+                  aria-expanded={openDesc}
+                  className={cn(
+                    "w-full justify-between font-normal",
+                    !watchedDescription && "text-muted-foreground",
+                    isView && "pointer-events-none",
+                  )}
+                >
+                  {watchedDescription || "Notas rápidas sobre a entrega"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </ClickToCopy>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+              <Command>
+                <CommandInput
+                  placeholder="Buscar ou adicionar nova..."
+                  value={searchDesc}
+                  onValueChange={(val) => {
+                    setSearchDesc(val);
+                    form.setValue("description", val, {
+                      shouldValidate: true,
+                    });
+                  }}
+                />
+                <CommandList>
+                  <CommandEmpty>
+                    <span className="text-muted-foreground text-sm pl-2">
+                      Pressione Enter para usar &quot;{searchDesc}&quot;
+                    </span>
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {historicDescriptions.map((desc: string) => (
+                      <CommandItem
+                        key={desc}
+                        value={desc}
+                        onSelect={(currentValue) => {
+                          form.setValue("description", currentValue, {
+                            shouldValidate: true,
+                          });
+                          setSearchDesc("");
+                          setOpenDesc(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            watchedDescription === desc
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        {desc}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {form.formState.errors.description && (
+            <span className="text-xs text-destructive">
+              {form.formState.errors.description.message}
+            </span>
           )}
+        </div>
 
-          <div
-            className="flex items-center justify-end gap-2 mt-4"
-            data-testid="group-new-service-actions"
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-1.5" data-testid="field-service-status">
+            <Label htmlFor="service-status">Status</Label>
+            <Select
+              disabled={isView}
+              value={status}
+              onValueChange={(v) => form.setValue("status", v as ServiceStatus)}
+            >
+              <SelectTrigger id="service-status">
+                <SelectValue placeholder="Escolha o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Draft">Rascunho</SelectItem>
+                <SelectItem value="In progress">Em andamento</SelectItem>
+                <SelectItem value="Delivered">Entregue</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-1.5" data-testid="field-contract-date">
+            <Label htmlFor="service-contract-date">Contrato</Label>
+            <Controller
+              control={form.control}
+              name="contract_date"
+              render={({ field }) => (
+                <Input
+                  id="service-contract-date"
+                  type="date"
+                  {...field}
+                  value={
+                    field.value instanceof Date
+                      ? format(field.value as Date, "yyyy-MM-dd")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    field.onChange(val ? new Date(val + "T12:00:00") : null);
+                  }}
+                  disabled={isView}
+                />
+              )}
+            />
+          </div>
+
+          <div className="grid gap-1.5" data-testid="field-final-date">
+            <Label htmlFor="service-final-date">Entrega (Prazo)</Label>
+            <Controller
+              control={form.control}
+              name="final_date"
+              render={({ field }) => (
+                <Input
+                  id="service-final-date"
+                  type="date"
+                  {...field}
+                  value={
+                    field.value instanceof Date
+                      ? format(field.value as Date, "yyyy-MM-dd")
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    field.onChange(val ? new Date(val + "T12:00:00") : null);
+                  }}
+                  disabled={isView}
+                />
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5" data-testid="field-payment-method">
+            <Label>Método de Pagamento</Label>
+            <Select
+              disabled={isView}
+              value={watchedPaymentMethod || "In_Cash"}
+              onValueChange={(v) => form.setValue("payment_method", v as any)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha o método" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="In_Cash">À Vista</SelectItem>
+                <SelectItem value="Installments">Parcelado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {watchedPaymentMethod === "Installments" && (
+            <div className="grid gap-1.5" data-testid="field-installments">
+              <Label htmlFor="installments">Número de Parcelas (Máx 6x)</Label>
+              <Input
+                id="installments"
+                type="number"
+                min={1}
+                max={6}
+                {...form.register("installments", {
+                  valueAsNumber: true,
+                })}
+                disabled={isView}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-1.5" data-testid="field-service-observations">
+          <Label htmlFor="service-observations">Observações Livres</Label>
+          <ClickToCopy
+            enabled={isView}
+            value={watchedObservations}
+            label="Observações"
           >
+            <Input
+              id="service-observations"
+              {...form.register("observations")}
+              placeholder="Notas internas…"
+              disabled={isView}
+              className={isView ? "pointer-events-none" : ""}
+            />
+          </ClickToCopy>
+        </div>
+
+        {/* PAYMENT ACCORDION - Only for create mode */}
+        {mode === "create" && (
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="payment" className="border-none">
+              <AccordionTrigger className="py-2 text-sm text-primary hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Adicionar pagamento agora?
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4">
+                <div className="grid gap-3 p-4 rounded-xl border bg-muted/30">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-1.5">
+                      <Label>Data</Label>
+                      <Controller
+                        control={form.control}
+                        name={"payment_date" as any}
+                        render={({ field }) => (
+                          <Input
+                            type="date"
+                            {...field}
+                            value={
+                              field.value instanceof Date
+                                ? format(field.value as Date, "yyyy-MM-dd")
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(
+                                val ? new Date(val + "T12:00:00") : null,
+                              );
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Valor</Label>
+                      <Controller
+                        control={form.control}
+                        name={"payment_amount" as any}
+                        render={({ field }) => (
+                          <Input
+                            value={maskCurrency(field.value || 0)}
+                            onChange={(e) => {
+                              field.onChange(
+                                parseCurrencyToNumber(e.target.value),
+                              );
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Forma</Label>
+                      <Select
+                        value={watchedPaymentType}
+                        onValueChange={(v) =>
+                          form.setValue("payment_type" as any, v)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pix">Pix</SelectItem>
+                          <SelectItem value="Credit Card">
+                            Cartão de Crédito
+                          </SelectItem>
+                          <SelectItem value="Debit Card">
+                            Cartão de Débito
+                          </SelectItem>
+                          <SelectItem value="Cash">Dinheiro</SelectItem>
+                          <SelectItem value="Bank Transfer">
+                            Transferência
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+
+        <div
+          className="flex items-center justify-end gap-2 mt-4"
+          data-testid="group-new-service-actions"
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleOpenChange(false)}
+            data-testid="button-cancel-new-service"
+          >
+            {isView ? "Fechar" : "Cancelar"}
+          </Button>
+          {initialData?.id && (
             <Button
               type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
-              data-testid="button-cancel-new-service"
+              variant="outline"
+              onClick={() => onFinancialAction?.(initialData)}
+              className="gap-2"
             >
-              {isView ? "Fechar" : "Cancelar"}
+              <Receipt className="h-4 w-4" />
+              Financeiro
             </Button>
-            {initialData?.id && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onFinancialAction?.(initialData)}
-                className="gap-2"
-              >
-                <Receipt className="h-4 w-4" />
-                Financeiro
-              </Button>
-            )}
-            {!isView && (
-              <Button
-                type="submit"
-                disabled={form.formState.isSubmitting}
-                data-testid="button-save-new-service"
-              >
-                {form.formState.isSubmitting && (
-                  <Spinner className="mr-2 h-4 w-4" />
-                )}
-                {mode === "create" ? "Criar serviço" : "Atualizar serviço"}
-              </Button>
-            )}
-          </div>
-        </form>
-      </DialogContent>
+          )}
+          {!isView && (
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting}
+              data-testid="button-save-new-service"
+            >
+              {form.formState.isSubmitting && (
+                <Spinner className="mr-2 h-4 w-4" />
+              )}
+              {mode === "create" ? "Criar serviço" : "Atualizar serviço"}
+            </Button>
+          )}
+        </div>
+      </form>
+    </DialogContent>
   );
 }
