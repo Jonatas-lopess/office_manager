@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2 } from "lucide-react";
+import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { clientsTable, servicesTable } from "@/db/schema";
 import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
+import { appDataDir, join } from "@tauri-apps/api/path";
+import { copyFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 
 export default function SettingsPage() {
   const { orm } = useDb();
@@ -54,6 +56,58 @@ export default function SettingsPage() {
     });
     setIsResetDialogOpen(false);
     setResetInput("");
+  };
+
+  const handleBackup = async () => {
+    try {
+      const updatePath = import.meta.env.VITE_UPDATE_PATH;
+      if (!updatePath) {
+        toast({
+          variant: "destructive",
+          title: "Erro no Backup",
+          description: "Caminho de rede (VITE_UPDATE_PATH) não configurado.",
+        });
+        return;
+      }
+
+      const backupDir = await join(updatePath, "Backups");
+
+      // Ensure directory exists
+      if (!(await exists(backupDir))) {
+        await mkdir(backupDir, { recursive: true });
+      }
+
+      const dateStr = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
+      const backupPath = await join(backupDir, `backup_${dateStr}.db`);
+
+      const appDir = await appDataDir();
+      const sourceDb = await join(appDir, "my_local_database.db");
+
+      // In Tauri dev, the db might be in a different place depending on setup,
+      // but usually it's in the app data dir.
+      await copyFile(sourceDb, backupPath);
+
+      toast({
+        title: "Backup Concluído",
+        description: `Cópia salva em: ${backupPath}`,
+      });
+
+      await logAction(orm, {
+        action: `BACKUP CRIADO: Backup salvo em rede`,
+        module: "Configurações",
+        status: "Success",
+      });
+    } catch (err) {
+      console.error("Backup failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Falha no Backup",
+        description: "Não foi possível copiar o arquivo da base para a rede.",
+      });
+    }
   };
 
   const openResetDialog = () => {
@@ -168,6 +222,33 @@ export default function SettingsPage() {
                       D
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="panel-card" data-testid="card-backup">
+            <div className="p-5">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Database className="h-4 w-4" />
+                Backup e Segurança
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                Realize cópias de segurança da base de dados local para o servidor de rede.
+              </p>
+
+              <div className="mt-5 grid gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleBackup}
+                  className="w-full gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                  data-testid="button-backup-db"
+                >
+                  <Save className="h-4 w-4" />
+                  Gerar Backup Agora
+                </Button>
+                <div className="text-[10px] text-center text-muted-foreground italic">
+                  O backup será salvo na pasta compartilhada da rede.
                 </div>
               </div>
             </div>
