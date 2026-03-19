@@ -8,7 +8,7 @@ import {
   useRef,
 } from "react";
 
-export function useLocalQuery<T>(ctx: DB, query: Query) {
+export function useLocalQuery<T>(ctx: DB, query: Query, enabled = true) {
   const versionRef = useRef(0);
 
   const store = useMemo(
@@ -27,12 +27,20 @@ export function useLocalQuery<T>(ctx: DB, query: Query) {
 
   const dbVersion = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ctx) return;
+    if (!ctx || !enabled) {
+      if (!enabled) {
+        setData([]);
+        setLoading(false);
+      }
+      return;
+    }
+    
     let ignore = false;
+    setLoading(true);
 
     const fetchData = async () => {
       try {
@@ -55,7 +63,7 @@ export function useLocalQuery<T>(ctx: DB, query: Query) {
     return () => {
       ignore = true;
     };
-  }, [ctx, query.sql, JSON.stringify(query.params), dbVersion]);
+  }, [ctx, query.sql, JSON.stringify(query.params), dbVersion, enabled]);
 
   return { data, loading, error };
 }

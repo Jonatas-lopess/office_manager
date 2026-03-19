@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Link } from "wouter";
 import {
   addDays,
   endOfDay,
   format,
   isWithinInterval,
-  isSameDay,
   startOfDay,
 } from "date-fns";
 import {
@@ -71,6 +70,13 @@ type PeriodId = (typeof PERIODS)[number]["id"];
 export default function Dashboard() {
   const { db, orm } = useDb();
 
+  const [period, setPeriod] = useState<PeriodId>("30d");
+  const [isUnlocked, setIsUnlocked] = useState(
+    () => sessionStorage.getItem("isUnlocked") === "true",
+  );
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
   const servicesQuery = useMemo(() => {
     return orm
       .select({
@@ -90,6 +96,7 @@ export default function Dashboard() {
   const { data: servicesRaw, loading: servicesLoading } = useLocalQuery<any>(
     db,
     servicesQuery,
+    isUnlocked,
   );
   const services = useMemo(() => servicesRaw || [], [servicesRaw]);
 
@@ -99,6 +106,7 @@ export default function Dashboard() {
   const { data: clientsRaw, loading: clientsLoading } = useLocalQuery<any>(
     db,
     clientsQuery,
+    isUnlocked,
   );
   const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
 
@@ -112,34 +120,40 @@ export default function Dashboard() {
   const { data: paymentsRaw, loading: paymentsLoading } = useLocalQuery<any>(
     db,
     paymentsQuery,
+    isUnlocked,
   );
   const payments = useMemo(() => paymentsRaw || [], [paymentsRaw]);
 
-  const loading = servicesLoading || clientsLoading || paymentsLoading;
+  const loading =
+    (servicesLoading || clientsLoading || paymentsLoading) && isUnlocked;
 
-  const [period, setPeriod] = useState<PeriodId>("30d");
-  const [isUnlocked, setIsUnlocked] = useState(
-    () => sessionStorage.getItem("isUnlocked") === "true",
-  );
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [passwordError, setPasswordError] = useState(false);
-
-  const handleUnlock = () => {
+  const handleUnlock = (password: string) => {
     // Basic password for now
     const envPassword = import.meta.env.VITE_DASHBOARD_PASSWORD || "admin";
-    if (passwordInput === envPassword) {
-      setIsUnlocked(true);
+    if (password === envPassword) {
+      startTransition(() => {
+        setIsUnlocked(true);
+      });
       sessionStorage.setItem("isUnlocked", "true");
       setIsPasswordDialogOpen(false);
-      setPasswordError(false);
-    } else {
-      setPasswordError(true);
+      return true;
     }
-    setPasswordInput("");
+    return false;
   };
 
   const data = useMemo(() => {
+    if (!isUnlocked) {
+      return {
+        clients: [],
+        services: [],
+        servicesInRange: [],
+        revenue: 0,
+        toReceive: 0,
+        rangeLabel: "Bloqueado",
+        chart: [],
+      };
+    }
+
     const selected = PERIODS.find((p) => p.id === period) ?? PERIODS[1];
     const end = endOfDay(new Date());
     const start = startOfDay(addDays(new Date(), -selected.days + 1));
@@ -159,7 +173,8 @@ export default function Dashboard() {
     // Pre-build a sum map: service_id → total paid — O(m)
     const paidByServiceId: Record<string, number> = {};
     for (const p of payments) {
-      paidByServiceId[p.service_id] = (paidByServiceId[p.service_id] || 0) + p.amount;
+      paidByServiceId[p.service_id] =
+        (paidByServiceId[p.service_id] || 0) + p.amount;
     }
 
     const toReceive = services.reduce((acc, s) => {
@@ -167,12 +182,18 @@ export default function Dashboard() {
       return acc + (balance > 0 ? balance : 0);
     }, 0);
 
+    // Pre-group payments by day for chart — O(n)
+    const paymentsByDay: Record<string, number> = {};
+    for (const p of paymentsInRange) {
+      const dayKey = format(new Date(p.payment_date), "yyyy-MM-dd");
+      paymentsByDay[dayKey] = (paymentsByDay[dayKey] || 0) + p.amount;
+    }
+
     const chart = Array.from({ length: selected.days }, (_, i) => {
       const d = addDays(start, i);
+      const dayKey = format(d, "yyyy-MM-dd");
+      const revenueDay = paymentsByDay[dayKey] || 0;
 
-      const revenueDay = paymentsInRange
-        .filter((p) => isSameDay(new Date(p.payment_date), d))
-        .reduce((acc, p) => acc + p.amount, 0);
       return {
         day: format(d, "MMM d"),
         revenue: Math.round(revenueDay),
@@ -188,7 +209,7 @@ export default function Dashboard() {
       rangeLabel: `${format(start, "MMM d")} – ${format(end, "MMM d")}`,
       chart,
     };
-  }, [period, clients, services, payments]);
+  }, [isUnlocked, period, clients, services, payments]);
 
   const recent = useMemo(() => {
     const list = [...data.services]
@@ -213,14 +234,18 @@ export default function Dashboard() {
               onClick={
                 isUnlocked
                   ? () => {
-                      setIsUnlocked(false);
+                      startTransition(() => {
+                        setIsUnlocked(false);
+                      });
                       sessionStorage.setItem("isUnlocked", "false");
                     }
                   : () => setIsPasswordDialogOpen(true)
               }
+              disabled={isPending}
               className={cn(
                 "rounded-xl",
                 isUnlocked ? "text-emerald-500" : "text-muted-foreground",
+                isPending && "opacity-50",
               )}
               title={isUnlocked ? "Bloquear visão" : "Desbloquear visão"}
             >
@@ -279,11 +304,10 @@ export default function Dashboard() {
           </div>
         }
       >
-        <ScrollArea className="flex-1 pr-4">
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
-
-            {isUnlocked ? (
+        {isUnlocked ? (
+          <ScrollArea className="flex-1 pr-4">
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
               <>
                 <div
                   className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -451,7 +475,10 @@ export default function Dashboard() {
                     }
                     dataTestId="card-recent"
                   >
-                    <div className="divide-y" data-testid="list-recent-services">
+                    <div
+                      className="divide-y"
+                      data-testid="list-recent-services"
+                    >
                       {loading ? (
                         Array.from({ length: 5 }).map((_, i) => (
                           <div
@@ -477,8 +504,7 @@ export default function Dashboard() {
                                 className="truncate text-sm font-medium"
                                 data-testid={`text-service-name-${s.id}`}
                               >
-                                {s.type}{" "}
-                                {s.description && `- ${s.description}`}
+                                {s.type} {s.description && `- ${s.description}`}
                               </div>
                               <div
                                 className="mt-0.5 truncate text-xs text-muted-foreground"
@@ -675,83 +701,113 @@ export default function Dashboard() {
                   </Card>
                 </div>
               </>
-            ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed rounded-3xl bg-muted/30 p-8 text-center animate-in fade-in zoom-in duration-300">
-                <div className="rounded-full bg-primary/10 p-6 mb-4">
-                  <Lock className="h-12 w-12 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold tracking-tight mb-2">
-                  Dashboard Bloqueado
-                </h3>
-                <p className="text-muted-foreground text-sm max-w-[300px] mb-6">
-                  Insira a senha de administrador clicando no cadeado no topo
-                  para visualizar as métricas e relatórios.
-                </p>
-                <Button
-                  onClick={() => setIsPasswordDialogOpen(true)}
-                  className="rounded-xl gap-2 px-8"
-                >
-                  <LockOpen className="h-4 w-4" />
-                  Desbloquear agora
-                </Button>
+            </div>
+          </ScrollArea>
+        ) : (
+          <div className="relative flex-1 flex flex-col min-h-full">
+            <div className="pointer-events-none absolute inset-0 rounded-3xl subtle-grid" />
+            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-muted/30 p-8 text-center animate-in fade-in zoom-in duration-300">
+              <div className="rounded-full bg-primary/10 p-6 mb-4">
+                <Lock className="h-12 w-12 text-primary" />
               </div>
-            )}
-          </div>
-        </ScrollArea>
-      </AppShell>
-
-      <Dialog
-        open={isPasswordDialogOpen}
-        onOpenChange={setIsPasswordDialogOpen}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Desbloquear Dashboard</DialogTitle>
-            <DialogDescription>
-              Insira a senha de administrador para visualizar as métricas de
-              renda.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleUnlock();
-                }}
-                className={
-                  passwordError
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : ""
-                }
-                autoFocus
-              />
-              {passwordError && (
-                <p className="text-xs text-destructive font-medium animate-pulse">
-                  Senha incorreta. Verifique suas configurações.
-                </p>
-              )}
+              <h3 className="text-xl font-bold tracking-tight mb-2">
+                Dashboard Bloqueado
+              </h3>
+              <p className="text-muted-foreground text-sm max-w-[300px] mb-6">
+                Insira a senha de administrador clicando no cadeado no topo para
+                visualizar as métricas e relatórios.
+              </p>
+              <Button
+                onClick={() => setIsPasswordDialogOpen(true)}
+                className="rounded-xl gap-2 px-8"
+              >
+                <LockOpen className="h-4 w-4" />
+                Desbloquear agora
+              </Button>
             </div>
           </div>
-          <DialogFooter className="sm:justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setIsPasswordDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleUnlock}>
-              Desbloquear
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </AppShell>
+
+      <UnlockDialog
+        isOpen={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onUnlock={handleUnlock}
+      />
     </>
+  );
+}
+
+interface UnlockDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUnlock: (password: string) => boolean;
+}
+
+function UnlockDialog({ isOpen, onOpenChange, onUnlock }: UnlockDialogProps) {
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+
+  const handleSubmit = () => {
+    const success = onUnlock(passwordInput);
+    if (success) {
+      setPasswordInput("");
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPasswordInput("");
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Desbloquear Dashboard</DialogTitle>
+          <DialogDescription>
+            Insira a senha de administrador para visualizar as métricas de
+            renda.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSubmit();
+              }}
+              className={
+                passwordError
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+              }
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-xs text-destructive font-medium animate-pulse">
+                Senha incorreta. Verifique suas configurações.
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter className="sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSubmit}>
+            Desbloquear
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

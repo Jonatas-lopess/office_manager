@@ -298,58 +298,62 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <TableCard
-            title="Dispositivos conectados"
-            description="Sessões ativas no momento"
-            dataTestId="card-devices"
+          <Card
+            className={cn(
+              "panel-card border-destructive/20 bg-destructive/5 lg:col-span-2 relative overflow-hidden",
+              !isUnlocked && "opacity-80",
+            )}
+            data-testid="card-danger-zone"
           >
-            <div className="grid gap-3 p-4 text-sm" data-testid="list-devices">
-              {connectedPeers.length === 0 ? (
-                <div className="text-center text-sm text-muted-foreground py-4">
-                  Nenhum dispositivo conectado.
-                </div>
-              ) : (
-                connectedPeers.map((peer, idx) => {
-                  const isMe = peer.id === myId;
-                  const pingIndicator = (
-                    <div className="relative">
-                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {isMe && (
-                        <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
-                      )}
-                    </div>
-                  );
+            <div className={cn("p-5", !isUnlocked && "blur-[2px] pointer-events-none select-none")}>
+              <div
+                className="text-sm font-semibold text-destructive flex items-center gap-2"
+                data-testid="text-danger-zone-title"
+              >
+                <Trash2 className="h-4 w-4" />
+                Zona de Perigo
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Ações irreversíveis que afetam todos os dados do sistema.
+              </p>
 
-                  return (
-                    <div
-                      key={peer.id}
-                      className="flex items-center justify-between"
-                      data-testid={`row-device-${idx + 1}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {isMe ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              {pingIndicator}
-                            </TooltipTrigger>
-                            <TooltipContent>Este Dispositivo</TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          pingIndicator
-                        )}
-                        <div className="font-medium">
-                          {codenameArray[idx] || `PC ${idx + 1}`}
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {peer.ip}
-                      </div>
+              <div className="mt-4 pt-4 border-t border-destructive/10">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-medium">
+                      Reiniciar Base Total
                     </div>
-                  );
-                })
-              )}
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Exclui todos os clientes e serviços cadastrados.
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={openResetDialog}
+                    className="gap-2 shrink-0"
+                    data-testid="button-reset-total"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Reiniciar
+                  </Button>
+                </div>
+              </div>
             </div>
-          </TableCard>
+
+            {!isUnlocked && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/20 backdrop-blur-[1px] z-10 transition-all">
+                <div className="rounded-full bg-destructive/10 p-3 mb-2">
+                  <LockIcon className="h-6 w-6 text-destructive" />
+                </div>
+                <div className="text-[10px] font-bold text-destructive uppercase tracking-widest">
+                  Zona Bloqueada
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  Desbloqueie o painel para acessar
+                </p>
+              </div>
+            )}
+          </Card>
 
           <TableCard
             title="Espaço de Trabalho"
@@ -435,62 +439,58 @@ export default function SettingsPage() {
             </div>
           </TableCard>
 
-          <Card
-            className={cn(
-              "panel-card border-destructive/20 bg-destructive/5 lg:col-span-2 relative overflow-hidden",
-              !isUnlocked && "opacity-80",
-            )}
-            data-testid="card-danger-zone"
+          <TableCard
+            title="Dispositivos conectados"
+            description="Sessões ativas no momento"
+            dataTestId="card-devices"
           >
-            <div className={cn("p-5", !isUnlocked && "blur-[2px] pointer-events-none select-none")}>
-              <div
-                className="text-sm font-semibold text-destructive flex items-center gap-2"
-                data-testid="text-danger-zone-title"
-              >
-                <Trash2 className="h-4 w-4" />
-                Zona de Perigo
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Ações irreversíveis que afetam todos os dados do sistema.
-              </p>
-
-              <div className="mt-4 pt-4 border-t border-destructive/10">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm font-medium">
-                      Reiniciar Base Total
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Exclui todos os clientes e serviços cadastrados.
-                    </div>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={openResetDialog}
-                    className="gap-2 shrink-0"
-                    data-testid="button-reset-total"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Reiniciar
-                  </Button>
+            <div className="grid gap-3 p-4 text-sm" data-testid="list-devices">
+              {connectedPeers.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-4">
+                  Nenhum dispositivo conectado.
                 </div>
-              </div>
+              ) : (
+                connectedPeers.map((peer, idx) => {
+                  const isMe = peer.id === myId;
+                  const pingIndicator = (
+                    <div className="relative">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {isMe && (
+                        <div className="absolute inset-0 h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
+                      )}
+                    </div>
+                  );
+
+                  return (
+                    <div
+                      key={peer.id}
+                      className="flex items-center justify-between"
+                      data-testid={`row-device-${idx + 1}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isMe ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {pingIndicator}
+                            </TooltipTrigger>
+                            <TooltipContent>Este Dispositivo</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          pingIndicator
+                        )}
+                        <div className="font-medium">
+                          {codenameArray[idx] || `PC ${idx + 1}`}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono">
+                        {peer.ip}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
-
-            {!isUnlocked && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/20 backdrop-blur-[1px] z-10 transition-all">
-                <div className="rounded-full bg-destructive/10 p-3 mb-2">
-                  <LockIcon className="h-6 w-6 text-destructive" />
-                </div>
-                <div className="text-[10px] font-bold text-destructive uppercase tracking-widest">
-                  Zona Bloqueada
-                </div>
-                <p className="text-[9px] text-muted-foreground mt-1">
-                  Desbloqueie o painel para acessar
-                </p>
-              </div>
-            )}
-          </Card>
+          </TableCard>
         </div>
       </ScrollArea>
 
