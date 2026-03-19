@@ -362,6 +362,7 @@ export function StatCard({
   icon,
   dataTestId,
   loading,
+  className,
 }: {
   label: string;
   value: string | number;
@@ -369,9 +370,10 @@ export function StatCard({
   icon: ReactNode;
   dataTestId: string;
   loading?: boolean;
+  className?: string;
 }) {
   return (
-    <Card className="panel-card hover-lift" data-testid={dataTestId}>
+    <Card className={cn("panel-card hover-lift", className)} data-testid={dataTestId}>
       <div className="p-4 sm:p-5">
         <div
           className="flex items-center justify-between gap-3"
