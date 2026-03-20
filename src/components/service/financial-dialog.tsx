@@ -193,8 +193,8 @@ export function FinancialDialog({
                   setNewAmountText(maskCurrencyInput(e.target.value))
                 }
                 onBlur={() => {
-                  const normalized = newAmount.toString().replace(".", ",");
-                  setNewAmountText(normalized === "0" ? "" : normalized);
+                  const normalized = newAmount.toFixed(2).replace(".", ",");
+                  setNewAmountText(newAmount === 0 ? "" : maskCurrencyInput(normalized));
                 }}
                 className="h-8 text-xs"
                 placeholder="0,00"

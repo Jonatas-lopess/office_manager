@@ -63,6 +63,8 @@ export const parseCurrencyToNumber = (value: string) => {
 };
 
 export const maskCurrencyInput = (raw: string): string => {
+  if (!raw) return "";
+
   // 1. Keep only digits and commas
   let v = raw.replace(/[^0-9,]/g, "");
   // 2. Allow only the first comma
@@ -75,13 +77,17 @@ export const maskCurrencyInput = (raw: string): string => {
   if (parts[1] !== undefined) {
     v = parts[0] + "," + parts[1].slice(0, 2);
   }
-  return v;
+  
+  if (v === "") return "";
+  return `R$ ${v}`;
 };
 
 export const parseFreeFormCurrency = (raw: string): number => {
   if (!raw || raw === "") return 0;
+  // Remove everything except numbers and comma
+  const clean = raw.replace(/[^\d,]/g, "");
   // Replace comma with dot for standard float parsing
-  const normalized = raw.replace(",", ".");
+  const normalized = clean.replace(",", ".");
   const num = parseFloat(normalized);
   return isNaN(num) ? 0 : num;
 };
