@@ -126,7 +126,7 @@ function Root() {
     );
 
   return (
-    <DbProvider db={dbState.db} orm={dbState.orm}>
+    <DbProvider db={dbState.db} orm={dbState.orm} hub={dbState.hub}>
       <SyncProvider hubIp={hubIp} isTauri={isTauri}>
         <AppLoader />
       </SyncProvider>

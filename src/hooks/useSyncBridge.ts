@@ -59,8 +59,11 @@ export interface Peer {
   ip: string;
 }
 
+import { DBChangeHub } from "@/db/change-hub";
+
 export function useSyncBridge(
   ctx: DB,
+  hub: DBChangeHub,
   initialHubUrl: string,
   isTauri: boolean,
 ) {
@@ -430,7 +433,8 @@ export function useSyncBridge(
         console.error(`❌ [Init] Failed to initialize version tracker:`, err);
       });
 
-    const cleanupOnUpdate = ctx.onUpdate(async () => {
+    // Subscribing via the multiplexing Hub to avoid conflicting with other listeners
+    const unsubscribe = hub.subscribe(async () => {
       if (isSyncingRef.current) return;
 
       const ws = wsRef.current;
@@ -467,10 +471,9 @@ export function useSyncBridge(
     });
 
     return () => {
-      // Destroy the listener so we don't create "ghosts"
-      if (typeof cleanupOnUpdate === "function") cleanupOnUpdate();
+      if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [ctx]);
+  }, [ctx, hub]);
 
   // ==========================================
   // EFFECT 3: LOG SERVER ERRORS

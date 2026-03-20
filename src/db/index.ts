@@ -39,14 +39,21 @@ const createDrizzle = (ctx: DB) => {
   );
 };
 
+import { DBChangeHub } from "./change-hub";
+
 export type DrizzleDB = ReturnType<typeof createDrizzle>;
 
-export async function initDb(): Promise<{ db: DB; orm: DrizzleDB }> {
+export async function initDb(): Promise<{
+  db: DB;
+  orm: DrizzleDB;
+  hub: DBChangeHub;
+}> {
   const crsqlite = await initWasm(() => wasmUrl);
   const db = await crsqlite.open("my_local_database.db");
 
   await runMigrations(db);
 
   const orm = createDrizzle(db);
-  return { db, orm };
+  const hub = new DBChangeHub(db);
+  return { db, orm, hub };
 }

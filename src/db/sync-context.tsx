@@ -20,9 +20,9 @@ export function SyncProvider({
   isTauri: boolean;
   children: ReactNode;
 }) {
-  const { db } = useDb();
+  const { db, hub } = useDb();
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
-  const syncState = useSyncBridge(db, wsUrl, isTauri);
+  const syncState = useSyncBridge(db, hub, wsUrl, isTauri);
 
   return (
     <SyncContext.Provider value={syncState}>{children}</SyncContext.Provider>
