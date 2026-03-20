@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3] - 2026-03-20
+
+### Added
+
+- **Limpeza de Logs**: Novo botão na "Zona de Perigo" das configurações para remover todos os registros de auditoria com confirmação simples.
+
+### Fixed
+
+- **Race Condition (Database)**: Resolvida falha onde a lista de logs não atualizava automaticamente após ações de criação, edição ou exclusão.
+
 ## [2.4.2] - 2026-03-20
 
 ### Added
