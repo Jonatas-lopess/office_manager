@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] - 2026-03-20
+
+### Added
+
+- **Garbage Collector**: Implementado botão de limpeza no cabeçalho de serviços para remover pagamentos órfãos silenciosamente via ORM.
+
+### Changed
+
+- **Entrada Monetária**: Substituídas as máscaras rígidas por campos de texto de digitação livre (com vírgula para centavos) e normalização automática ao sair do campo.
+- **Limpeza de UI**: Removido o selo de "Prototype" do cabeçalho global para uma interface mais limpa.
+
+### Fixed
+
+- **Integridade de Dados**: Implementada exclusão em cascata (nível de aplicação) para garantir que pagamentos sejam removidos quando um serviço é excluído.
+
 ## [2.4.0] - 2026-03-19
 
 ### Changed
@@ -39,7 +54,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Refatoração de Componentes**: A página de serviços foi refatorada, separando modais e linhas de resumo em componentes menores (`SummaryRow`, `ServiceDialog`, `FinancialDialog`) para melhor organização.
-- **Otimização de Busca**: Implementado *debounce* global nos campos de busca para melhorar a performance e responsividade da interface.
+- **Otimização de Busca**: Implementado _debounce_ global nos campos de busca para melhorar a performance e responsividade da interface.
 - **Melhorias no Diálogo de Serviço**: Fluxo de criação de serviço atualizado para garantir visibilidade dos campos de pagamento e consistência de dados.
 
 ### Fixed
@@ -55,9 +70,9 @@ All notable changes to this project will be documented in this file.
 - **Gestão Financeira**: Nova tabela `payments` para abstrair e robustecer o controle de pagamentos por serviço.
 - **Múltiplos Pagamentos**: Agora é possível registrar diversos pagamentos (Pix, Cartão, Dinheiro, etc.) para um único serviço através do novo diálogo "Financeiro".
 - **Novas Métricas no Dashboard**:
-    - **Receita**: Total real recebido baseado nos pagamentos registrados.
-    - **A Receber**: Cálculo automático do saldo pendente de todos os serviços.
-    - **Gráfico de Renda**: Visualização temporal da receita recebida através dos pagamentos.
+  - **Receita**: Total real recebido baseado nos pagamentos registrados.
+  - **A Receber**: Cálculo automático do saldo pendente de todos os serviços.
+  - **Gráfico de Renda**: Visualização temporal da receita recebida através dos pagamentos.
 
 ### Changed
 
