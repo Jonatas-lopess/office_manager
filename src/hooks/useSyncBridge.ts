@@ -36,17 +36,6 @@ const deserializeMsg = (str: any) => {
   });
 };
 
-/**
- * Compares two Uint8Arrays for equality.
- * Returns true if they are identical, false otherwise.
- */
-function compareUint8Arrays(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
 
 export type ConnectionStatus =
   | "disconnected"
@@ -75,6 +64,8 @@ export function useSyncBridge(
   );
   const isUnmountingRef = useRef(false);
   const isSyncingRef = useRef(false);
+  const mySiteIdRef = useRef<Uint8Array | null>(null);
+  const mySiteIdHexRef = useRef<string | null>(null);
 
   const [myId, setMyId] = useState<string | null>(null);
   const [connectedPeers, setConnectedPeers] = useState<Peer[]>([]);
@@ -165,6 +156,11 @@ export function useSyncBridge(
         );
         for (const [siteIdHex, maxVersion] of siteVersions) {
           knowledgeMap[siteIdHex] = maxVersion.toString();
+        }
+
+        // Ensure our own site is always included in the knowledge map
+        if (mySiteIdHexRef.current && !(mySiteIdHexRef.current in knowledgeMap)) {
+          knowledgeMap[mySiteIdHexRef.current] = lastVersionRef.current.toString();
         }
       } catch (err) {
         console.error(`❌ [Knowledge Map Error]:`, err);
@@ -316,6 +312,12 @@ export function useSyncBridge(
             for (const [siteIdHex, maxVersion] of siteVersions) {
               myKnowledgeMap[siteIdHex] = maxVersion.toString();
             }
+
+            // Ensure our own site is always included
+            if (mySiteIdHexRef.current && !(mySiteIdHexRef.current in myKnowledgeMap)) {
+               myKnowledgeMap[mySiteIdHexRef.current] = lastVersionRef.current.toString();
+            }
+
             ws.send(
               serializeMsg({
                 type: "request_sync",
@@ -338,10 +340,6 @@ export function useSyncBridge(
         return;
       }
 
-      const mySiteId = new Uint8Array(
-        (await ctx.execA("SELECT crsql_site_id()"))[0][0],
-      );
-
       if (message.type === "sync" && message.payload.length > 0) {
         if (!ctx) {
           console.warn(`⚠️ [Inbound] Database context not ready, skipping.`);
@@ -355,10 +353,11 @@ export function useSyncBridge(
         ctx
           .tx(async (tx) => {
             for (const row of message.payload) {
-              if (compareUint8Arrays(row[6], mySiteId)) {
-                console.warn(`⚠️ [Inbound] Skipping change from self`);
-                continue;
-              }
+              // We removed the aggressive 'skip from self' logic because:
+              // 1. The Hub already performs echo cancellation based on client UUID
+              // 2. If we do receive our own changes from other peers, we should let 
+              //    crsqlite handle them (it's idempotent) so our local state 
+              //    stays in sync and the anti-entropy check terminates.
 
               await stmt.run(tx, ...row).catch((err) => {
                 console.error(`❌ [Inbound SQL Error]:`, err);
@@ -419,18 +418,24 @@ export function useSyncBridge(
   useEffect(() => {
     if (!ctx) return;
 
-    // Initialize local version tracker
-    ctx
-      .execA(
+    // Initialize site identification and local version tracker
+    Promise.all([
+      ctx.execA("SELECT crsql_site_id(), hex(crsql_site_id())"),
+      ctx.execA(
         `SELECT max(db_version) FROM crsql_changes WHERE site_id = crsql_site_id()`,
-      )
-      .then(([[maxV]]) => {
+      ),
+    ])
+      .then(([[[siteId, siteIdHex]], [[maxV]]]) => {
+        mySiteIdRef.current = siteId;
+        mySiteIdHexRef.current = siteIdHex;
         const version = maxV ? BigInt(maxV) : 0n;
-        console.log(`📑 [Init] Initializing version tracker to: ${version}`);
+        console.log(
+          `📑 [Init] Site ID: ${siteIdHex}, version tracker: ${version}`,
+        );
         lastVersionRef.current = version;
       })
       .catch((err) => {
-        console.error(`❌ [Init] Failed to initialize version tracker:`, err);
+        console.error(`❌ [Init] Failed to initialize sync parameters:`, err);
       });
 
     // Subscribing via the multiplexing Hub to avoid conflicting with other listeners

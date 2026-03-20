@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { Check, Moon, SunMedium, Loader2, WifiOff, Trash2, Database, Save, Folder, Lock as LockIcon } from "lucide-react";
+import {
+  Check,
+  Moon,
+  SunMedium,
+  Loader2,
+  WifiOff,
+  Trash2,
+  Database,
+  Save,
+  Folder,
+  Lock as LockIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,15 +37,20 @@ import {
 import { useSync } from "@/db/sync-context";
 import { useDb } from "@/db/context";
 import { useToast } from "@/hooks/use-toast";
-import { clientsTable, servicesTable, paymentsTable, logsTable } from "@/db/schema";
+import {
+  clientsTable,
+  servicesTable,
+  paymentsTable,
+  logsTable,
+} from "@/db/schema";
 import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
-import { appDataDir, join } from "@tauri-apps/api/path";
-import { copyFile, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+import { writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 export default function SettingsPage() {
-  const { orm } = useDb();
+  const { orm, db } = useDb();
   const { myId, connectedPeers, connectionStatus } = useSync();
   const { toast } = useToast();
   const [dark, setDark] = useState(false);
@@ -100,12 +116,15 @@ export default function SettingsPage() {
         .slice(0, 19);
       const backupPath = await join(backupDir, `backup_${dateStr}.db`);
 
-      const appDir = await appDataDir();
-      const sourceDb = await join(appDir, "my_local_database.db");
-
-      // In Tauri dev, the db might be in a different place depending on setup,
-      // but usually it's in the app data dir.
-      await copyFile(sourceDb, backupPath);
+      try {
+        const data = await (db.api as any).serialize(db.db, "main");
+        await writeFile(backupPath, data);
+      } catch (exportErr) {
+        console.error("Export failed:", exportErr);
+        throw new Error(
+          "Base não encontrada no disco e falha ao exportar da memória.",
+        );
+      }
 
       toast({
         title: "Backup Concluído",
@@ -285,7 +304,8 @@ export default function SettingsPage() {
                 Backup e Segurança
               </div>
               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                Realize cópias de segurança da base de dados local para o servidor de rede.
+                Realize cópias de segurança da base de dados local para o
+                servidor de rede.
               </p>
 
               <div className="mt-5 grid gap-2">
@@ -321,7 +341,12 @@ export default function SettingsPage() {
             )}
             data-testid="card-danger-zone"
           >
-            <div className={cn("p-5", !isUnlocked && "blur-[2px] pointer-events-none select-none")}>
+            <div
+              className={cn(
+                "p-5",
+                !isUnlocked && "blur-[2px] pointer-events-none select-none",
+              )}
+            >
               <div
                 className="text-sm font-semibold text-destructive flex items-center gap-2"
                 data-testid="text-danger-zone-title"
@@ -356,9 +381,7 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-destructive/10">
                   <div>
-                    <div className="text-sm font-medium">
-                      Limpar Logs
-                    </div>
+                    <div className="text-sm font-medium">Limpar Logs</div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       Remove todos os registros de atividades do sistema.
                     </div>
@@ -537,7 +560,13 @@ export default function SettingsPage() {
               Reiniciar Base de Dados
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é <span className="font-bold underline">irreversível</span> e excluirá <span className="font-bold text-foreground">todos os clientes e serviços</span> cadastrados.
+              Esta ação é{" "}
+              <span className="font-bold underline">irreversível</span> e
+              excluirá{" "}
+              <span className="font-bold text-foreground">
+                todos os clientes e serviços
+              </span>{" "}
+              cadastrados.
               <br />
               <br />
               Para confirmar, digite o código abaixo:
@@ -573,15 +602,21 @@ export default function SettingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isClearLogsDialogOpen} onOpenChange={setIsClearLogsDialogOpen}>
+      <AlertDialog
+        open={isClearLogsDialogOpen}
+        onOpenChange={setIsClearLogsDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
               Limpar Logs do Sistema
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação excluirá <span className="font-bold text-foreground">todos os registros de logs</span>.
-              Os dados de clientes e serviços não serão afetados.
+              Esta ação excluirá{" "}
+              <span className="font-bold text-foreground">
+                todos os registros de logs
+              </span>
+              . Os dados de clientes e serviços não serão afetados.
               <br />
               <br />
               Tem certeza que deseja limpar todos os logs?
