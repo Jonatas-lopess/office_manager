@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-03-20
+
+### Added
+
+- **Entrada Monetária**: Implementada máscara de entrada em tempo real para valores monetários em campos de preço.
+
+### Fixed
+
+- **Logs em Tempo Real**: Resolvida falha onde a lista de logs não atualizava automaticamente após ações de criação, edição ou exclusão.
+- **Conflito de Escuta (Database)**: Implementado o `DBChangeHub` (Multiplexer) para permitir múltiplos ouvintes simultâneos no banco de dados, evitando que a página de logs interrompesse a sincronização de rede.
+- **Estabilidade de Sincronização**: Corrigida regressão de performance que causava a interrupção do motor de sincronização ao navegar pelo aplicativo.
+
 ## [2.4.1] - 2026-03-20
 
 ### Added
