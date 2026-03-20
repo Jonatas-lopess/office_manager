@@ -26,7 +26,7 @@ import {
 import { useSync } from "@/db/sync-context";
 import { useDb } from "@/db/context";
 import { useToast } from "@/hooks/use-toast";
-import { clientsTable, servicesTable, paymentsTable } from "@/db/schema";
+import { clientsTable, servicesTable, paymentsTable, logsTable } from "@/db/schema";
 import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
 import { appDataDir, join } from "@tauri-apps/api/path";
@@ -42,6 +42,7 @@ export default function SettingsPage() {
     () => sessionStorage.getItem("isUnlocked") === "true",
   );
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isClearLogsDialogOpen, setIsClearLogsDialogOpen] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
 
@@ -62,6 +63,16 @@ export default function SettingsPage() {
     });
     setIsResetDialogOpen(false);
     setResetInput("");
+  };
+
+  const handleClearLogs = async () => {
+    await orm.delete(logsTable);
+    toast({
+      variant: "destructive",
+      title: "Logs limpos",
+      description: `Todos os registros de logs foram removidos com sucesso.`,
+    });
+    setIsClearLogsDialogOpen(false);
   };
 
   const handleBackup = async () => {
@@ -151,6 +162,10 @@ export default function SettingsPage() {
     setResetCode(code);
     setResetInput("");
     setIsResetDialogOpen(true);
+  };
+
+  const openClearLogsDialog = () => {
+    setIsClearLogsDialogOpen(true);
   };
   // const [compact, setCompact] = useState(false);
 
@@ -336,6 +351,26 @@ export default function SettingsPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                     Reiniciar
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-destructive/10">
+                  <div>
+                    <div className="text-sm font-medium">
+                      Limpar Logs
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Remove todos os registros de atividades do sistema.
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={openClearLogsDialog}
+                    className="gap-2 shrink-0"
+                    data-testid="button-clear-logs"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Limpar Logs
                   </Button>
                 </div>
               </div>
@@ -533,6 +568,35 @@ export default function SettingsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Excluir Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isClearLogsDialogOpen} onOpenChange={setIsClearLogsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Limpar Logs do Sistema
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação excluirá <span className="font-bold text-foreground">todos os registros de logs</span>.
+              Os dados de clientes e serviços não serão afetados.
+              <br />
+              <br />
+              Tem certeza que deseja limpar todos os logs?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                handleClearLogs();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95"
+            >
+              Limpar Logs
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

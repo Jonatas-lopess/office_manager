@@ -15,21 +15,21 @@ export class DBChangeHub {
   }
 
   private init() {
-    // Register the single listener with the underlying database
     this.cleanup = this.db.onUpdate(() => {
       this.broadcast();
     });
   }
 
   private broadcast() {
-    // Notify all subscribers
-    this.listeners.forEach((cb) => {
-      try {
-        cb();
-      } catch (err) {
-        console.error("[DBChangeHub] Error in listener callback:", err);
-      }
-    });
+    setTimeout(() => {
+      this.listeners.forEach((cb) => {
+        try {
+          cb();
+        } catch (err) {
+          console.error("[DBChangeHub] Error in listener callback:", err);
+        }
+      });
+    }, 0);
   }
 
   /**
