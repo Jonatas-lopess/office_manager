@@ -423,8 +423,8 @@ export default function ServicesPage() {
                         clientsMap[s.client_id]?.name || "Desconhecido"
                       }
                       onView={(s) => openDialog("view", s)}
-                      onFinancial={openFinancialDialog}
-                      onEdit={openDialog}
+                      onFinancial={(s) => openFinancialDialog(s)}
+                      onEdit={(s) => openDialog("edit", s)}
                       onDelete={(s) => {
                         setSelectedService(s);
                         setIsDeleteDialogOpen(true);
