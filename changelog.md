@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.4] - 2026-03-20
+
+### Fixed
+
+- **Motor de Sincronização**: Refatorada a lógica de ponte de sincronização para suportar failover automático entre Hubs e detecção mais precisa de conclusão de sincronismo inicial.
+- **Confiabilidade de Backup**: Implementada nova abordagem de backup utilizando serialização direta do banco de dados para garantir maior integridade dos dados ao salvar em rede.
+
 ## [2.4.3] - 2026-03-20
 
 ### Added
