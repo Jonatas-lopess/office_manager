@@ -26,7 +26,7 @@ import {
 import { useSync } from "@/db/sync-context";
 import { useDb } from "@/db/context";
 import { useToast } from "@/hooks/use-toast";
-import { clientsTable, servicesTable } from "@/db/schema";
+import { clientsTable, servicesTable, paymentsTable } from "@/db/schema";
 import { logAction } from "@/lib/logger";
 import packageJson from "../../package.json";
 import { appDataDir, join } from "@tauri-apps/api/path";
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [resetInput, setResetInput] = useState("");
 
   const handleFullReset = async () => {
+    await orm.delete(paymentsTable);
     await orm.delete(servicesTable);
     await orm.delete(clientsTable);
     await logAction(orm, {

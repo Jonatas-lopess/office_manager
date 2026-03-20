@@ -24,7 +24,7 @@ import { v7 as uuidv7 } from "uuid";
 import { useDb } from "@/db/context";
 import { paymentsTable } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { maskCurrency, parseCurrencyToNumber } from "@/lib/masks";
+import { maskCurrencyInput, parseFreeFormCurrency } from "@/lib/masks";
 
 interface FinancialDialogProps {
   open: boolean;
@@ -64,7 +64,8 @@ export function FinancialDialog({
   const balance = (service?.price || 0) - totalPaid;
 
   const [newType, setNewType] = useState<any>("Pix");
-  const [newAmount, setNewAmount] = useState<number>(0);
+  const [newAmountText, setNewAmountText] = useState("");
+  const newAmount = useMemo(() => parseFreeFormCurrency(newAmountText), [newAmountText]);
   const [newDate, setNewDate] = useState<string>(
     format(new Date(), "yyyy-MM-dd"),
   );
@@ -81,7 +82,7 @@ export function FinancialDialog({
       updated_at: new Date(),
     };
     await orm.insert(paymentsTable).values(np);
-    setNewAmount(0);
+    setNewAmountText("");
     fetchPayments();
   };
 
@@ -186,11 +187,17 @@ export function FinancialDialog({
             <div className="grid gap-1.5">
               <Label className="text-[10px] uppercase font-bold">Valor</Label>
               <Input
-                value={maskCurrency(newAmount)}
+                type="text"
+                value={newAmountText}
                 onChange={(e) =>
-                  setNewAmount(parseCurrencyToNumber(e.target.value))
+                  setNewAmountText(maskCurrencyInput(e.target.value))
                 }
+                onBlur={() => {
+                  const normalized = newAmount.toString().replace(".", ",");
+                  setNewAmountText(normalized === "0" ? "" : normalized);
+                }}
                 className="h-8 text-xs"
+                placeholder="0,00"
               />
             </div>
             <div className="grid gap-1.5">

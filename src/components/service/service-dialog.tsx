@@ -55,7 +55,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
 import { serviceTypesArray, paymentsTable } from "@/db/schema";
 import ClickToCopy from "@/components/ui/click-to-copy";
-import { maskCurrency, parseCurrencyToNumber } from "@/lib/masks";
+import { maskCurrencyInput, parseFreeFormCurrency } from "@/lib/masks";
 
 export type ServiceStatus = Service["status"];
 
@@ -264,18 +264,38 @@ const BasicInfoSection = React.memo(({ isView }: { isView: boolean }) => {
           <Controller
             control={control}
             name="price"
-            render={({ field }) => (
-              <Input
-                disabled={isView}
-                id="service-price"
-                value={maskCurrency(field.value || 0)}
-                onChange={(e) => {
-                  field.onChange(parseCurrencyToNumber(e.target.value));
-                }}
-                className={isView ? "pointer-events-none" : ""}
-                data-testid="input-service-price"
-              />
-            )}
+            render={({ field }) => {
+              const [localValue, setLocalValue] = useState(() => 
+                (field.value || 0).toString().replace(".", ",")
+              );
+
+              useEffect(() => {
+                const currentVal = (field.value || 0).toString().replace(".", ",");
+                if (parseFreeFormCurrency(localValue) !== field.value) {
+                  setLocalValue(currentVal);
+                }
+              }, [field.value]);
+
+              return (
+                <Input
+                  disabled={isView}
+                  id="service-price"
+                  type="text"
+                  value={localValue}
+                  onChange={(e) => {
+                    const masked = maskCurrencyInput(e.target.value);
+                    setLocalValue(masked);
+                    field.onChange(parseFreeFormCurrency(masked));
+                  }}
+                  onBlur={() => {
+                    const normalized = (field.value || 0).toString().replace(".", ",");
+                    setLocalValue(normalized);
+                  }}
+                  className={isView ? "pointer-events-none" : ""}
+                  data-testid="input-service-price"
+                />
+              );
+            }}
           />
         </ClickToCopy>
       </div>
@@ -613,14 +633,34 @@ const InitialPaymentAccordion = React.memo(() => {
                 <Controller
                   control={control}
                   name="payment_amount"
-                  render={({ field }) => (
-                    <Input
-                      value={maskCurrency(field.value || 0)}
-                      onChange={(e) => {
-                        field.onChange(parseCurrencyToNumber(e.target.value));
-                      }}
-                    />
-                  )}
+                  render={({ field }) => {
+                    const [localValue, setLocalValue] = useState(() => 
+                      (field.value || 0).toString().replace(".", ",")
+                    );
+
+                    useEffect(() => {
+                      const currentVal = (field.value || 0).toString().replace(".", ",");
+                      if (parseFreeFormCurrency(localValue) !== field.value) {
+                        setLocalValue(currentVal);
+                      }
+                    }, [field.value]);
+
+                    return (
+                      <Input
+                        type="text"
+                        value={localValue}
+                        onChange={(e) => {
+                          const masked = maskCurrencyInput(e.target.value);
+                          setLocalValue(masked);
+                          field.onChange(parseFreeFormCurrency(masked));
+                        }}
+                        onBlur={() => {
+                          const normalized = (field.value || 0).toString().replace(".", ",");
+                          setLocalValue(normalized);
+                        }}
+                      />
+                    );
+                  }}
                 />
               </div>
               <div className="grid gap-1.5">

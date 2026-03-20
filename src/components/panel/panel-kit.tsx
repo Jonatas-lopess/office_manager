@@ -9,7 +9,6 @@ import {
   History as HistoryIcon,
   LayoutGrid,
   Settings,
-  Sparkles,
   Users,
   Download,
   Share,
@@ -93,13 +92,7 @@ function Topbar({
             >
               {title}
             </div>
-            <span
-              className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground"
-              data-testid="pill-prototype"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Prototype
-            </span>
+
           </div>
           {subtitle ? (
             <div

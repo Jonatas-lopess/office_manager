@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Lock, LockOpen } from "lucide-react";
+import { Plus, Search, Lock, LockOpen, Wind } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -49,7 +49,18 @@ import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { servicesTable, clientsTable, paymentsTable } from "@/db/schema";
-import { and, desc, eq, like, or, sql, isNotNull, ne } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  like,
+  or,
+  sql,
+  isNotNull,
+  ne,
+  not,
+  inArray,
+} from "drizzle-orm";
 
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
@@ -177,7 +188,7 @@ export default function ServicesPage() {
     clientsQuery,
   );
   const clients = useMemo(() => rawClients || [], [rawClients]);
-  
+
   const descQuery = useMemo(() => {
     return orm
       .select({ description: servicesTable.description })
@@ -192,7 +203,10 @@ export default function ServicesPage() {
       .toSQL();
   }, [orm]);
 
-  const { data: rawDesc, loading: descLoading } = useLocalQuery<any>(db, descQuery);
+  const { data: rawDesc, loading: descLoading } = useLocalQuery<any>(
+    db,
+    descQuery,
+  );
   const historicDescriptions = useMemo(() => {
     if (!rawDesc) return [];
     return rawDesc.map((d: any) => d.description);
@@ -225,9 +239,24 @@ export default function ServicesPage() {
       }, 0);
   }, [services]);
 
+  const handleGarbageCollector = async () => {
+    // Silent cleanup of orphaned payments using ORM for consistency and safety
+    await orm
+      .delete(paymentsTable)
+      .where(
+        not(
+          inArray(
+            paymentsTable.service_id,
+            orm.select({ id: servicesTable.id }).from(servicesTable),
+          ),
+        ),
+      );
+  };
+
   const handleDelete = async () => {
     if (!selectedService) return;
     const { id, type } = selectedService;
+    await orm.delete(paymentsTable).where(eq(paymentsTable.service_id, id));
     await orm.delete(servicesTable).where(eq(servicesTable.id, id));
     await logAction(orm, {
       action: `Serviço excluído: ${type}`,
@@ -277,6 +306,16 @@ export default function ServicesPage() {
               ) : (
                 <Lock className="h-4 w-4" />
               )}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleGarbageCollector}
+              className="rounded-xl text-muted-foreground hover:text-amber-500"
+              title="Limpar resíduos"
+            >
+              <Wind className="h-4 w-4" />
             </Button>
 
             <Button
@@ -380,7 +419,9 @@ export default function ServicesPage() {
                     <ServiceListItem
                       key={s.id}
                       service={s}
-                      clientName={clientsMap[s.client_id]?.name || "Desconhecido"}
+                      clientName={
+                        clientsMap[s.client_id]?.name || "Desconhecido"
+                      }
                       onView={(s) => openDialog("view", s)}
                       onFinancial={openFinancialDialog}
                       onEdit={openDialog}
@@ -451,7 +492,8 @@ export default function ServicesPage() {
                 action: `Novo serviço criado: ${svc.type}`,
                 module: "Serviços",
                 status: "Success",
-                device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
               });
               toast({
                 title: "Serviço criado",
@@ -466,7 +508,8 @@ export default function ServicesPage() {
                 action: `Serviço atualizado: ${svc.type}`,
                 module: "Serviços",
                 status: "Success",
-                device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                device:
+                  connectedPeers.find((p) => p.id === myId)?.ip || undefined,
               });
               toast({
                 title: "Serviço atualizado",

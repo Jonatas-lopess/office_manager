@@ -61,3 +61,27 @@ export const maskCurrency = (value: string | number) => {
 export const parseCurrencyToNumber = (value: string) => {
   return Number(value.replace(/\D/g, "")) / 100;
 };
+
+export const maskCurrencyInput = (raw: string): string => {
+  // 1. Keep only digits and commas
+  let v = raw.replace(/[^0-9,]/g, "");
+  // 2. Allow only the first comma
+  const firstComma = v.indexOf(",");
+  if (firstComma !== -1) {
+    v = v.slice(0, firstComma + 1) + v.slice(firstComma + 1).replace(/,/g, "");
+  }
+  // 3. Limit decimal part to 2 digits
+  const parts = v.split(",");
+  if (parts[1] !== undefined) {
+    v = parts[0] + "," + parts[1].slice(0, 2);
+  }
+  return v;
+};
+
+export const parseFreeFormCurrency = (raw: string): number => {
+  if (!raw || raw === "") return 0;
+  // Replace comma with dot for standard float parsing
+  const normalized = raw.replace(",", ".");
+  const num = parseFloat(normalized);
+  return isNaN(num) ? 0 : num;
+};
