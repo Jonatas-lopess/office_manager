@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2026-03-21
+
+### Added
+
+- **Eleição de Master (Topologia)**: Implementado sistema de eleição de Hub para evitar múltiplos Hubs na mesma rede. O app agora busca hubs existentes e apenas se promove a Hub se nenhum for encontrado após múltiplas tentativas.
+- **Recuperação de Porta (Windows)**: O servidor Hub agora tenta religar-se à porta 1234 em intervalos se ela estiver ocupada (comum em reinicializações rápidas no Windows).
+
+### Fixed
+
+- **Connection Storm**: Implementada trava de segurança (`isConnecting`) no frontend para evitar a criação de múltiplas conexões WebSocket simultâneas que causavam instabilidade e alto consumo de recursos.
+- **Failover de Rede**: Scanner de Hub aprimorado com timeout de 1500ms e detecção de falha de interface de rede (IP local indisponível) para maior resiliência em ambientes instáveis.
+
 ## [2.4.4] - 2026-03-20
 
 ### Fixed
