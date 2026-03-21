@@ -86,8 +86,8 @@ function Root() {
         // 2. Safely attempt the network scan ONLY if running inside Tauri
         try {
           if ((window as any).__TAURI_INTERNALS__) {
-            discoveredIp = await invoke<string | null>("find_hub_ip");
             isTauriEnv = true;
+            discoveredIp = await invoke<string | null>("find_hub_ip");
           } else {
             // Running in standard browser. Skipping TCP scan.
           }

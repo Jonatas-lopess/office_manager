@@ -12,6 +12,7 @@ use tokio::{net::TcpStream, sync::{broadcast, oneshot}, time::timeout};
 use tauri::{Emitter, Manager, RunEvent};
 use uuid::Uuid;
 use serde_json;
+use std::sync::Mutex as StdMutex;
 
 // 1. The state now uses a per-connection UUID as the unique identifier.
 //    - The broadcast channel sends a (sender_uuid, msg) tuple.
@@ -20,6 +21,10 @@ struct AppState {
     // The broadcast channel now holds a (sender_uuid, msg) tuple.
     tx: broadcast::Sender<(Uuid, String)>,
     connected_clients: Mutex<HashMap<Uuid, String>>,
+}
+
+struct HubState {
+    shutdown_tx: StdMutex<Option<oneshot::Sender<()>>>,
 }
 
 #[tauri::command]
@@ -36,10 +41,12 @@ async fn close_splashscreen(window: tauri::Window) {
 async fn find_hub_ip() -> Result<Option<String>, String> {
     let port = 1234;
 
-    // 1. Get the local IP address dynamically from the OS
     let my_local_ip = match local_ip_address::local_ip() {
         Ok(ip) => ip,
-        Err(e) => return Err(format!("Failed to get local IP: {}", e)),
+        Err(e) => {
+            eprintln!("Failed to get local IP: {}. Skipping network scan.", e);
+            return Ok(None);
+        }
     };
 
     // 2. Ensure it is an IPv4 address and extract the subnet
@@ -66,7 +73,7 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
 
         let task = tokio::spawn(async move {
             let connect_attempt = timeout(
-                Duration::from_millis(500),
+                Duration::from_millis(1500), // Increased from 500ms to 1500ms
                 TcpStream::connect(&address)
             ).await;
 
@@ -95,74 +102,92 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
     Ok(found_ip)
 }
 
-pub fn run() {
-    // 1. Create the shutdown channel
-    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+#[tauri::command]
+async fn start_hub(state: tauri::State<'_, HubState>, app_handle: tauri::AppHandle) -> Result<bool, String> {
+    let mut lock = state.shutdown_tx.lock().unwrap();
+    if lock.is_some() {
+        return Ok(true); // already running
+    }
     
-    // Wrap the transmitter in a Mutex so it can be safely moved into Tauri's event loop
-    let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
+    let (tx, shutdown_rx) = oneshot::channel::<()>();
+    *lock = Some(tx);
 
+    let handle = app_handle.clone();
+    
+    tokio::spawn(async move {
+        let (tx, _rx) = broadcast::channel(100);
+        let app_state = Arc::new(AppState {
+            tx,
+            connected_clients: Mutex::new(HashMap::new()),
+        });
+
+        let axum_app = Router::new()
+            .route("/ws", get(ws_handler))
+            .with_state(app_state);
+
+        // Retry binding to handle process fast-restarts hanging the port on Windows
+        let mut listener = None;
+        for i in 0..5 {
+            match tokio::net::TcpListener::bind("0.0.0.0:1234").await {
+                Ok(l) => {
+                    listener = Some(l);
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("⚠️ [Hub] Bind attempt {} failed: {}. Retrying in 2s...", i+1, e);
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            }
+        }
+
+        match listener {
+            Some(l) => {
+                println!("🟢 [Hub] Local Hub Server started on port 1234");
+                let server = axum::serve(
+                    l,
+                    axum_app.into_make_service_with_connect_info::<SocketAddr>(),
+                );
+
+                tokio::select! {
+                    _ = server => {
+                        println!("⚪ [Hub] Server stopped naturally.");
+                    }
+                    _ = shutdown_rx => {
+                        println!("🔴 [Hub] Shutdown signal received. Closing Hub immediately.");
+                    }
+                }
+            }
+            None => {
+                eprintln!("❌ [Hub] CRITICAL: Port 1234 is in use after retries!");
+                let _ = handle.emit(
+                    "server-error",
+                    format!("Port 1234 is in use. The sync server could not start."),
+                );
+            }
+        }
+    });
+    Ok(true)
+}
+
+pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![find_hub_ip, close_splashscreen])
-        .setup(move |app| {
-            let handle = app.handle().clone();
-            
-            tokio::spawn(async move {
-                let (tx, _rx) = broadcast::channel(100);
-                let app_state = Arc::new(AppState {
-                    tx,
-                    connected_clients: Mutex::new(HashMap::new()),
-                });
-
-                let axum_app = Router::new()
-                    .route("/ws", get(ws_handler))
-                    .with_state(app_state);
-
-                match tokio::net::TcpListener::bind("0.0.0.0:1234").await {
-                    Ok(listener) => {
-                        println!("🟢 [Hub] Local Hub Server started on port 1234");
-                        
-                        // Fix: Instead of .with_graceful_shutdown (which can hang waiting for connections),
-                        // we use tokio::select! to immediately drop the server future when notified.
-                        let server = axum::serve(
-                            listener,
-                            axum_app.into_make_service_with_connect_info::<SocketAddr>(),
-                        );
-
-                        tokio::select! {
-                            _ = server => {
-                                println!("⚪ [Hub] Server stopped naturally.");
-                            }
-                            _ = shutdown_rx => {
-                                println!("🔴 [Hub] Shutdown signal received. Closing Hub immediately.");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("❌ [Hub] CRITICAL: Port 1234 might be in use! Error: {}", e);
-                        let _ = handle.emit(
-                            "server-error",
-                            format!("Port 1234 is in use. The sync server could not start."),
-                        );
-                    }
-                }
-            });
-            Ok(())
-        })
+        .manage(HubState { shutdown_tx: StdMutex::new(None) })
+        .invoke_handler(tauri::generate_handler![find_hub_ip, close_splashscreen, start_hub])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        .run(move |_app_handle, event| {
-            // 2. Intercept the exit event
+        .run(move |app_handle, event| {
+            // Intercept the exit event
             if let RunEvent::ExitRequested { .. } | RunEvent::Exit = event {
                 // Take the transmitter out of the Mutex and send the shutdown signal
-                if let Ok(mut lock) = shutdown_tx.lock() {
+                let state: tauri::State<HubState> = app_handle.state();
+                if let Ok(mut lock) = state.shutdown_tx.lock() {
                     if let Some(tx) = lock.take() {
                         println!("🚪 [App] App exiting, sending shutdown signal to Hub...");
                         let _ = tx.send(()); 
                     }
-                }
+                };
             }
         });
 }

@@ -63,6 +63,7 @@ export function useSyncBridge(
     null,
   );
   const isUnmountingRef = useRef(false);
+  const isConnectingRef = useRef(false);
   const isSyncingRef = useRef(false);
   const mySiteIdRef = useRef<Uint8Array | null>(null);
   const mySiteIdHexRef = useRef<string | null>(null);
@@ -88,60 +89,81 @@ export function useSyncBridge(
   // ==========================================
   const connect = useCallback(async () => {
     if (isUnmountingRef.current) return;
-
-    // Clean up any existing connections or timers
-    if (wsRef.current) {
-      wsRef.current.onclose = null;
-      wsRef.current.onerror = null;
-      wsRef.current.close();
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
+    if (isConnectingRef.current) {
+      console.log("⏳ [Network] Connection attempt already in progress. Skipping.");
+      return;
     }
 
-    setConnectionStatus(
-      reconnectAttemptsRef.current > 0 ? "reconnecting" : "connecting",
-    );
+    isConnectingRef.current = true;
 
-    let targetUrl: string;
-    // On the very first attempt, use the initial URL provided to the hook.
-    if (reconnectAttemptsRef.current === 0) {
-      targetUrl = initialHubUrl;
-    } else {
-      // On subsequent attempts (failover), scan the network for a new Hub.
-      try {
-        let hubIp: string | null = null;
-        if (isTauri) {
-          console.log(`❌ [Failover] Scanning for a new Hub...`);
-          hubIp = await invoke<string | null>("find_hub_ip");
-        }
-        if (hubIp) {
-          console.log(`✅ [Failover] Found new Hub at ${hubIp}`);
-          targetUrl = `ws://${hubIp}:1234/ws`;
-        } else {
-          // If no hub is found, this instance becomes the hub.
-          console.log(`❌ [Failover] No Hub found. Promoting self to Hub.`);
-          targetUrl = `ws://localhost:1234/ws`;
-        }
-      } catch (e) {
-        console.error(
-          "❌ [Failover] Error scanning for Hub, will default to localhost.",
-          e,
-        );
-        targetUrl = `ws://localhost:1234/ws`;
+    try {
+      // Clean up any existing connections or timers
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.close();
       }
-    }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
 
-    // Guard: If the component unmounted while we were awaiting 'find_hub_ip', stop here.
-    if (isUnmountingRef.current) return;
+      setConnectionStatus(
+        reconnectAttemptsRef.current > 0 ? "reconnecting" : "connecting",
+      );
 
-    console.log(`[Network] Attempting to connect to ${targetUrl}...`);
-    const ws = new WebSocket(targetUrl);
-    wsRef.current = ws;
+      let targetUrl: string = initialHubUrl;
+      
+      // On failover or initial connection as Tauri, we scan for a hub.
+      if (isTauri) {
+        console.log(`🔍 [Election] Scanning for an existing Hub...`);
+        let hubIp = await invoke<string | null>("find_hub_ip");
+        
+        // Option B: Master Election retries
+        if (!hubIp) {
+            console.log(`⚠️ [Election] Scan 1 failed. Retrying...`);
+            await new Promise(r => setTimeout(r, 1000));
+            hubIp = await invoke<string | null>("find_hub_ip");
+        }
+        if (!hubIp) {
+            console.log(`⚠️ [Election] Scan 2 failed. Retrying...`);
+            await new Promise(r => setTimeout(r, 1000));
+            hubIp = await invoke<string | null>("find_hub_ip");
+        }
 
-    ws.onopen = async () => {
-      if (isUnmountingRef.current) return;
-      console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
+        if (isUnmountingRef.current) {
+            isConnectingRef.current = false;
+            return;
+        }
+        
+        if (hubIp) {
+            console.log(`✅ [Election] Found existing Hub at ${hubIp}`);
+            targetUrl = `ws://${hubIp}:1234/ws`;
+        } else {
+            console.log(`❌ [Election] No Hub found. Electing SELF as Hub.`);
+            try {
+                await invoke("start_hub");
+                // Wait briefly for Rust to bind port
+                await new Promise(r => setTimeout(r, 1500));
+            } catch (err) {
+                console.error("Failed to start local rust hub:", err);
+            }
+            targetUrl = `ws://localhost:1234/ws`;
+        }
+      }
+
+      if (isUnmountingRef.current) {
+        isConnectingRef.current = false;
+        return;
+      }
+
+      console.log(`[Network] Attempting to connect to ${targetUrl}...`);
+      const ws = new WebSocket(targetUrl);
+      wsRef.current = ws;
+
+      ws.onopen = async () => {
+        isConnectingRef.current = false;
+        if (isUnmountingRef.current) return;
+        console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
       setConnectionStatus("connected");
       reconnectAttemptsRef.current = 0;
 
@@ -187,10 +209,12 @@ export function useSyncBridge(
 
     ws.onerror = (err) => {
       console.error(`❌ [Network] Socket Error:`, err);
+      isConnectingRef.current = false;
       // ws.onclose will be called next, which handles reconnection.
     };
 
     ws.onclose = () => {
+      isConnectingRef.current = false;
       console.log(`⚠️ [Network] Disconnected from Hub.`);
       wsRef.current = null;
 
@@ -387,6 +411,17 @@ export function useSyncBridge(
 
       }
     };
+    
+    } catch (e) {
+       console.error("❌ [Network] Unexpected error in connect():", e);
+       isConnectingRef.current = false;
+       
+       // Trigger a retry manually if we didn't even reach the WebSocket
+       reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttemptsRef.current += 1;
+          connect();
+       }, BASE_RECONNECT_DELAY);
+    }
   }, [initialHubUrl, ctx, isTauri]);
 
   useEffect(() => {
