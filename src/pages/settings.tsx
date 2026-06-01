@@ -140,57 +140,145 @@ export default function SettingsPage() {
     setIsClearLogsDialogOpen(false);
   };
 
+  const downloadFile = (data: Uint8Array | string, filename: string) => {
+    const blob =
+      typeof data === "string"
+        ? new Blob([data], { type: "application/json" })
+        : new Blob([new Uint8Array(data)], {
+            type: "application/x-sqlite3",
+          });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleBackup = async () => {
     try {
       const updatePath = import.meta.env.VITE_UPDATE_PATH;
-      if (!updatePath) {
-        toast({
-          variant: "destructive",
-          title: "Erro no Backup",
-          description: "Caminho de rede (VITE_UPDATE_PATH) não configurado.",
-        });
-        return;
-      }
 
-      const backupDir = await join(updatePath, "Backups");
-
-      // Ensure directory exists
-      if (!(await exists(backupDir))) {
-        await mkdir(backupDir, { recursive: true });
+      // 1. Get binary data (The Perfect Snapshot)
+      let data: Uint8Array;
+      try {
+        const api = db.api as any;
+        if (api.export_db) {
+          data = await api.export_db(db.db);
+        } else {
+          data = await api.serialize(db.db, "main");
+        }
+      } catch (exportErr) {
+        console.error("Export failed:", exportErr);
+        throw new Error("Falha ao ler a base de dados da memória.");
       }
 
       const dateStr = new Date()
         .toISOString()
         .replace(/[:.]/g, "-")
         .slice(0, 19);
-      const backupPath = await join(backupDir, `backup_${dateStr}.db`);
 
-      try {
-        const data = await (db.api as any).serialize(db.db, "main");
-        await writeFile(backupPath, data);
-      } catch (exportErr) {
-        console.error("Export failed:", exportErr);
-        throw new Error(
-          "Base não encontrada no disco e falha ao exportar da memória.",
-        );
+      // 2. Try to save to network share if configured
+      if (updatePath) {
+        try {
+          const backupDir = await join(updatePath, "Backups");
+          if (!(await exists(backupDir))) {
+            await mkdir(backupDir, { recursive: true });
+          }
+          const backupPath = await join(backupDir, `backup_${dateStr}.db`);
+          await writeFile(backupPath, data);
+
+          toast({
+            title: "Backup Concluído",
+            description: `Cópia salva em: ${backupPath}`,
+          });
+
+          await logAction(orm, {
+            action: `BACKUP BINÁRIO: Backup salvo em rede`,
+            module: "Configurações",
+            status: "Success",
+          });
+          return;
+        } catch (netErr) {
+          console.error(
+            "Network backup failed, falling back to download:",
+            netErr,
+          );
+        }
       }
 
+      // 3. Fallback: Browser download
+      downloadFile(data, `backup_${dateStr}.db`);
       toast({
-        title: "Backup Concluído",
-        description: `Cópia salva em: ${backupPath}`,
-      });
-
-      await logAction(orm, {
-        action: `BACKUP CRIADO: Backup salvo em rede`,
-        module: "Configurações",
-        status: "Success",
+        title: "Backup baixado",
+        description: "A cópia foi baixada pelo navegador.",
       });
     } catch (err) {
-      console.error("Backup failed:", err);
+      console.error("Backup process failed:", err);
       toast({
         variant: "destructive",
         title: "Falha no Backup",
-        description: "Não foi possível copiar o arquivo da base para a rede.",
+        description: "Não foi possível realizar o backup binário.",
+      });
+    }
+  };
+
+  const handleBackupChanges = async () => {
+    try {
+      const updatePath = import.meta.env.VITE_UPDATE_PATH;
+
+      // 1. Get changes (The Sync-Native Backup)
+      const changes = await db.execO("SELECT * FROM crsql_changes");
+      const data = JSON.stringify(changes, (_, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+      );
+
+      const dateStr = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
+
+      // 2. Try to save to network share if configured
+      if (updatePath) {
+        try {
+          const backupDir = await join(updatePath, "Backups");
+          if (!(await exists(backupDir))) {
+            await mkdir(backupDir, { recursive: true });
+          }
+          const backupPath = await join(backupDir, `changes_${dateStr}.json`);
+          await writeFile(backupPath, new TextEncoder().encode(data));
+
+          toast({
+            title: "Backup de Sincronismo Concluído",
+            description: `Arquivo JSON salvo em: ${backupPath}`,
+          });
+
+          await logAction(orm, {
+            action: `BACKUP SINCRONISMO: Alterações salvas em rede`,
+            module: "Configurações",
+            status: "Success",
+          });
+          return;
+        } catch (netErr) {
+          console.error(
+            "Network JSON backup failed, falling back to download:",
+            netErr,
+          );
+        }
+      }
+
+      // 3. Fallback: Browser download
+      downloadFile(data, `changes_${dateStr}.json`);
+      toast({
+        title: "Sincronismo baixado",
+        description: "O arquivo JSON foi baixado pelo navegador.",
+      });
+    } catch (err) {
+      console.error("Changes backup failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Falha no Backup",
+        description: "Não foi possível exportar as alterações.",
       });
     }
   };
@@ -365,7 +453,16 @@ export default function SettingsPage() {
                   data-testid="button-backup-db"
                 >
                   <Save className="h-4 w-4" />
-                  Gerar Backup Agora
+                  Backup Binário (.db)
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBackupChanges}
+                  className="w-full gap-2 border-blue-500/20 bg-blue-500/5 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700"
+                  data-testid="button-backup-json"
+                >
+                  <Save className="h-4 w-4" />
+                  Backup Sincronismo (.json)
                 </Button>
                 <Button
                   variant="outline"
@@ -377,7 +474,7 @@ export default function SettingsPage() {
                   Abrir Pasta de Backup
                 </Button>
                 <div className="text-[10px] text-center text-muted-foreground italic">
-                  O backup será salvo na pasta compartilhada da rede.
+                  O backup será salvo na rede ou baixado via navegador.
                 </div>
               </div>
             </div>
