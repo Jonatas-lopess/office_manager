@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Lock, LockOpen, Wind, ChevronDown } from "lucide-react";
+import { Plus, Search, Lock, LockOpen, Wind } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -59,6 +59,8 @@ import {
   clientsTable,
   paymentsTable,
   serviceTypesArray,
+  tagsTable,
+  serviceTagsTable,
 } from "@/db/schema";
 import { and, desc, eq, sql, isNotNull, ne, not, inArray } from "drizzle-orm";
 
@@ -113,6 +115,7 @@ export default function ServicesPage() {
     "all",
   );
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
@@ -159,6 +162,40 @@ export default function ServicesPage() {
   );
   const services = useMemo(() => rawServices || [], [rawServices]);
 
+  // Load all tags
+  const tagsQuery = useMemo(() => {
+    return orm.select().from(tagsTable).toSQL();
+  }, [orm]);
+  const { data: rawTags, loading: tagsLoading } = useLocalQuery<any>(db, tagsQuery);
+  const allTags = useMemo(() => rawTags || [], [rawTags]);
+
+  // Load all service_tags mappings
+  const serviceTagsQuery = useMemo(() => {
+    return orm.select().from(serviceTagsTable).toSQL();
+  }, [orm]);
+  const { data: rawServiceTags } = useLocalQuery<any>(db, serviceTagsQuery);
+
+  // Build a map: service_id -> tag_id[]
+  const serviceTagsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    if (rawServiceTags) {
+      for (const st of rawServiceTags) {
+        if (!map[st.service_id]) map[st.service_id] = [];
+        map[st.service_id].push(st.tag_id);
+      }
+    }
+    return map;
+  }, [rawServiceTags]);
+
+  // Build a map: tag_id -> Tag
+  const tagsMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const t of allTags) {
+      map[t.id] = t;
+    }
+    return map;
+  }, [allTags]);
+
   const filtered = useMemo(() => {
     const search = normalizeString(q.trim());
     return services.filter((s) => {
@@ -176,6 +213,14 @@ export default function ServicesPage() {
       // Type filter
       if (selectedType !== "all" && s.type !== selectedType) {
         return false;
+      }
+
+      // Tag filter
+      if (selectedTagIds.length > 0) {
+        const sTagIds = serviceTagsMap[s.id] || [];
+        if (!selectedTagIds.some((tid) => sTagIds.includes(tid))) {
+          return false;
+        }
       }
 
       // Period filter
@@ -199,7 +244,7 @@ export default function ServicesPage() {
 
       return true;
     });
-  }, [services, q, status, selectedType, dateFrom, dateTo]);
+  }, [services, q, status, selectedType, selectedTagIds, serviceTagsMap, dateFrom, dateTo]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -233,7 +278,7 @@ export default function ServicesPage() {
     return rawDesc.map((d: any) => d.description);
   }, [rawDesc]);
 
-  const loading = servicesLoading || clientsLoading || descLoading;
+  const loading = servicesLoading || clientsLoading || descLoading || tagsLoading;
 
   const clientsMap = useMemo(() => {
     return clients.reduce((acc: Record<string, any>, c: any) => {
@@ -276,6 +321,7 @@ export default function ServicesPage() {
     if (!selectedService) return;
     const { id, type } = selectedService;
     await orm.delete(paymentsTable).where(eq(paymentsTable.service_id, id));
+    await orm.delete(serviceTagsTable).where(eq(serviceTagsTable.service_id, id));
     await orm.delete(servicesTable).where(eq(servicesTable.id, id));
     await logAction(orm, {
       action: `Serviço excluído: ${type}`,
@@ -411,6 +457,7 @@ export default function ServicesPage() {
 
                   {(status !== "all" ||
                     selectedType !== "all" ||
+                    selectedTagIds.length > 0 ||
                     dateFrom ||
                     dateTo) && (
                     <Button
@@ -419,6 +466,7 @@ export default function ServicesPage() {
                       onClick={() => {
                         setStatus("all");
                         setSelectedType("all");
+                        setSelectedTagIds([]);
                         setDateFrom("");
                         setDateTo("");
                       }}
@@ -493,6 +541,53 @@ export default function ServicesPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="grid gap-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                          Etiquetas
+                        </Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {allTags.map((tag: any) => {
+                            const isSelected = selectedTagIds.includes(tag.id);
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTagIds((prev) =>
+                                    isSelected
+                                      ? prev.filter((id) => id !== tag.id)
+                                      : [...prev, tag.id],
+                                  );
+                                }}
+                                className={cn(
+                                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-all cursor-pointer",
+                                  isSelected
+                                    ? "text-white border-transparent"
+                                    : "bg-transparent border-border text-muted-foreground hover:border-foreground/30",
+                                )}
+                                style={
+                                  isSelected
+                                    ? { backgroundColor: tag.color }
+                                    : undefined
+                                }
+                                data-testid={`filter-tag-${tag.id}`}
+                              >
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                {tag.name}
+                              </button>
+                            );
+                          })}
+                          {allTags.length === 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              Nenhuma etiqueta criada
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -524,6 +619,9 @@ export default function ServicesPage() {
                       clientName={
                         clientsMap[s.client_id]?.name || "Desconhecido"
                       }
+                      tags={(serviceTagsMap[s.id] || []).map(
+                        (tid: string) => tagsMap[tid],
+                      ).filter(Boolean)}
                       onView={(s) => openDialog("view", s)}
                       onFinancial={(s) => openFinancialDialog(s)}
                       onEdit={(s) => openDialog("edit", s)}
@@ -586,6 +684,7 @@ export default function ServicesPage() {
           initialData={selectedService}
           clients={clients}
           historicDescriptions={historicDescriptions}
+          allTags={allTags}
           onFinancialAction={openFinancialDialog}
           onSave={async (svc) => {
             if (dialogMode === "create") {

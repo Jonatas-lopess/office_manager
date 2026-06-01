@@ -9,9 +9,16 @@ import {
 } from "@/components/ui/tooltip";
 import { StatusBadge, currency } from "@/components/panel/panel-kit";
 
+interface TagInfo {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface ServiceListItemProps {
   service: any;
   clientName: string;
+  tags?: TagInfo[];
   onView: (s: any) => void;
   onFinancial: (s: any) => void;
   onEdit: (s: any) => void;
@@ -21,6 +28,7 @@ interface ServiceListItemProps {
 export function ServiceListItem({
   service,
   clientName,
+  tags = [],
   onView,
   onFinancial,
   onEdit,
@@ -32,7 +40,7 @@ export function ServiceListItem({
       data-testid={`row-service-${service.id}`}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div
             className="truncate text-sm font-medium"
             data-testid={`text-service-type-${service.id}`}
@@ -45,6 +53,16 @@ export function ServiceListItem({
               Faturado
             </Badge>
           )}
+          {tags.map((tag) => (
+            <Badge
+              key={tag.id}
+              className="h-5 text-[10px] border-0 text-white"
+              style={{ backgroundColor: tag.color }}
+              data-testid={`tag-${tag.id}-on-${service.id}`}
+            >
+              {tag.name}
+            </Badge>
+          ))}
         </div>
         <div
           className="mt-0.5 truncate text-xs text-muted-foreground"

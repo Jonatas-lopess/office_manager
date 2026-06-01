@@ -1,6 +1,7 @@
 import {
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -131,4 +132,26 @@ export const paymentsTable = sqliteTable(
       .default(sql`(strftime('%s', 'now') * 1000)`),
   },
   (table) => [index("service_id_idx").on(table.service_id)],
+);
+
+export const tagsTable = sqliteTable("tags", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().default(""),
+  color: text("color").notNull().default("#6366f1"),
+  created_at: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
+export const serviceTagsTable = sqliteTable(
+  "service_tags",
+  {
+    service_id: text("service_id").notNull(),
+    tag_id: text("tag_id").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.service_id, table.tag_id] }),
+    index("service_tags_service_idx").on(table.service_id),
+    index("service_tags_tag_idx").on(table.tag_id),
+  ],
 );

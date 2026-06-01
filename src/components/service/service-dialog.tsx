@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   useForm,
@@ -53,9 +53,12 @@ import {
 } from "@/db/validations";
 import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
-import { serviceTypesArray, paymentsTable } from "@/db/schema";
+import { serviceTypesArray, paymentsTable, tagsTable, serviceTagsTable } from "@/db/schema";
 import ClickToCopy from "@/components/ui/click-to-copy";
 import { maskCurrencyInput, parseFreeFormCurrency } from "@/lib/masks";
+import { TagInput, type TagOption } from "@/components/ui/tag-input";
+import { useLocalQuery } from "@/hooks/useLocalQuery";
+import { eq, sql } from "drizzle-orm";
 
 export type ServiceStatus = Service["status"];
 
@@ -66,6 +69,7 @@ interface ServiceDialogProps {
   initialData: any | null;
   clients: any[];
   historicDescriptions: string[];
+  allTags: TagOption[];
   onSave: (service: any) => Promise<void>;
   onFinancialAction?: (service: any) => void;
 }
@@ -595,6 +599,37 @@ const PaymentMethodSection = React.memo(({ isView }: { isView: boolean }) => {
 
 PaymentMethodSection.displayName = "PaymentMethodSection";
 
+const TagsSection = React.memo(
+  ({
+    isView,
+    allTags,
+    selectedTagIds,
+    onSelectedTagIdsChange,
+    onCreateTag,
+  }: {
+    isView: boolean;
+    allTags: TagOption[];
+    selectedTagIds: string[];
+    onSelectedTagIdsChange: (ids: string[]) => void;
+    onCreateTag: (name: string, color: string) => Promise<TagOption>;
+  }) => {
+    return (
+      <div className="grid gap-1.5" data-testid="section-service-tags">
+        <Label>Etiquetas</Label>
+        <TagInput
+          allTags={allTags}
+          value={selectedTagIds}
+          onChange={onSelectedTagIdsChange}
+          onCreateTag={onCreateTag}
+          readOnly={isView}
+        />
+      </div>
+    );
+  },
+);
+
+TagsSection.displayName = "TagsSection";
+
 const InitialPaymentAccordion = React.memo(() => {
   const { control, setValue, watch } = useFormContext<any>();
 
@@ -716,10 +751,46 @@ function ServiceDialogContent({
   initialData,
   clients,
   historicDescriptions,
+  allTags,
   onSave,
   onFinancialAction,
 }: ServiceDialogProps) {
-  const { orm } = useDb();
+  const { db, orm } = useDb();
+
+  // Load tags assigned to this service
+  const serviceTagsQuery = useMemo(() => {
+    if (!initialData?.id) return null;
+    return orm
+      .select({ tag_id: serviceTagsTable.tag_id })
+      .from(serviceTagsTable)
+      .where(eq(serviceTagsTable.service_id, initialData.id))
+      .toSQL();
+  }, [orm, initialData?.id]);
+
+  const { data: rawServiceTags } = useLocalQuery<any>(
+    db,
+    serviceTagsQuery || { sql: "SELECT 1 WHERE 0", params: [] },
+  );
+
+  const initialTagIds = useMemo(() => {
+    if (!rawServiceTags) return [];
+    return rawServiceTags.map((r: any) => r.tag_id);
+  }, [rawServiceTags]);
+
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  // Sync initial tag ids when they load
+  useEffect(() => {
+    if (initialTagIds.length > 0) {
+      setSelectedTagIds(initialTagIds);
+    }
+  }, [initialTagIds]);
+
+  const handleCreateTag = async (name: string, color: string): Promise<TagOption> => {
+    const id = uuidv7();
+    await orm.insert(tagsTable).values({ id, name, color });
+    return { id, name, color };
+  };
 
   const form = useForm<NewServiceType>({
     resolver: zodResolver(insertServiceSchema),
@@ -759,6 +830,7 @@ function ServiceDialogContent({
           installments: initialData.installments || 1,
           observations: initialData.observations || "",
         });
+        setSelectedTagIds(initialTagIds);
       } else {
         form.reset({
           type: "Outros",
@@ -775,9 +847,10 @@ function ServiceDialogContent({
           payment_date: new Date(),
           payment_type: "Pix",
         });
+        setSelectedTagIds([]);
       }
     }
-  }, [open, initialData, form]);
+  }, [open, initialData, form, initialTagIds]);
 
   const { status, final_date: finalDate } = form.watch();
 
@@ -809,6 +882,29 @@ function ServiceDialogContent({
     };
 
     await onSave(svc);
+
+    // Save tags — diff old vs new
+    const oldTagIds = new Set(initialTagIds);
+    const newTagIds = new Set(selectedTagIds);
+
+    // Remove unassigned tags
+    for (const tagId of oldTagIds) {
+      if (!newTagIds.has(tagId as string)) {
+        await orm
+          .delete(serviceTagsTable)
+          .where(
+            sql`${serviceTagsTable.service_id} = ${service_id} AND ${serviceTagsTable.tag_id} = ${tagId}`,
+          );
+      }
+    }
+    // Add newly assigned tags
+    for (const tagId of newTagIds) {
+      if (!oldTagIds.has(tagId)) {
+        await orm
+          .insert(serviceTagsTable)
+          .values({ service_id: service_id, tag_id: tagId });
+      }
+    }
 
     // Save payment if provided
     const formVals = form.getValues() as any;
@@ -872,6 +968,13 @@ function ServiceDialogContent({
           <ServiceDetailsSection
             isView={isView}
             historicDescriptions={historicDescriptions}
+          />
+          <TagsSection
+            isView={isView}
+            allTags={allTags}
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={setSelectedTagIds}
+            onCreateTag={handleCreateTag}
           />
           <PaymentMethodSection isView={isView} />
           <AdditionalDetailsAccordion isView={isView} />

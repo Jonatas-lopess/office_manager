@@ -29,6 +29,13 @@
       "when": 1773858834482,
       "tag": "0003_fancy_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780328858845,
+      "tag": "0004_lucky_the_order",
+      "breakpoints": true
     }
   ]
 }

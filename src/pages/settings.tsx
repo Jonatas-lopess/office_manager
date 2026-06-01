@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Check,
   Moon,
@@ -10,6 +10,8 @@ import {
   Save,
   Folder,
   Lock as LockIcon,
+  Pencil,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,8 +44,14 @@ import {
   servicesTable,
   paymentsTable,
   logsTable,
+  tagsTable,
+  serviceTagsTable,
 } from "@/db/schema";
 import { logAction } from "@/lib/logger";
+import { useLocalQuery } from "@/hooks/useLocalQuery";
+import { eq } from "drizzle-orm";
+import { TAG_COLORS } from "@/components/ui/tag-input";
+import { Badge } from "@/components/ui/badge";
 import packageJson from "../../package.json";
 import { join } from "@tauri-apps/api/path";
 import { writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
@@ -62,9 +70,48 @@ export default function SettingsPage() {
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
 
+  // --- Tags management ---
+  const tagsQuery = useMemo(() => {
+    return orm.select().from(tagsTable).toSQL();
+  }, [orm]);
+  const { data: rawTags } = useLocalQuery<any>(db, tagsQuery);
+  const tags = useMemo(() => rawTags || [], [rawTags]);
+
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editingTagName, setEditingTagName] = useState("");
+  const [isDeleteTagDialogOpen, setIsDeleteTagDialogOpen] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<any>(null);
+
+  const handleDeleteTag = async () => {
+    if (!tagToDelete) return;
+    await orm.delete(serviceTagsTable).where(eq(serviceTagsTable.tag_id, tagToDelete.id));
+    await orm.delete(tagsTable).where(eq(tagsTable.id, tagToDelete.id));
+    toast({
+      variant: "destructive",
+      title: "Etiqueta excluída",
+      description: `A etiqueta "${tagToDelete.name}" foi removida.`,
+    });
+    setIsDeleteTagDialogOpen(false);
+    setTagToDelete(null);
+  };
+
+  const handleRenameTag = async (tagId: string) => {
+    const name = editingTagName.trim();
+    if (!name) return;
+    await orm.update(tagsTable).set({ name }).where(eq(tagsTable.id, tagId));
+    setEditingTagId(null);
+    setEditingTagName("");
+  };
+
+  const handleChangeTagColor = async (tagId: string, color: string) => {
+    await orm.update(tagsTable).set({ color }).where(eq(tagsTable.id, tagId));
+  };
+
   const handleFullReset = async () => {
     await orm.delete(paymentsTable);
+    await orm.delete(serviceTagsTable);
     await orm.delete(servicesTable);
+    await orm.delete(tagsTable);
     await orm.delete(clientsTable);
     await logAction(orm, {
       action: `BASE REINICIADA: Todos os clientes e serviços foram excluídos`,
@@ -550,6 +597,114 @@ export default function SettingsPage() {
               )}
             </div>
           </TableCard>
+
+          <Card className="panel-card" data-testid="card-tags">
+            <div className="p-5">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Tag className="h-4 w-4" />
+                Etiquetas
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Gerencie as etiquetas disponíveis para organizar serviços.
+              </p>
+
+              <div className="mt-4 grid gap-2">
+                {tags.length === 0 && (
+                  <div className="text-center text-sm text-muted-foreground py-4">
+                    Nenhuma etiqueta criada.
+                  </div>
+                )}
+                {tags.map((tag: any) => (
+                  <div
+                    key={tag.id}
+                    className="flex items-center justify-between gap-2 group"
+                    data-testid={`row-tag-${tag.id}`}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* Color swatches popover */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded-full border shrink-0 transition-transform hover:scale-110"
+                              style={{ backgroundColor: tag.color }}
+                              onClick={() => {
+                                const idx = TAG_COLORS.indexOf(tag.color);
+                                const next = TAG_COLORS[(idx + 1) % TAG_COLORS.length];
+                                handleChangeTagColor(tag.id, next);
+                              }}
+                              data-testid={`tag-color-cycle-${tag.id}`}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>Trocar cor</TooltipContent>
+                      </Tooltip>
+
+                      {editingTagId === tag.id ? (
+                        <Input
+                          value={editingTagName}
+                          onChange={(e) => setEditingTagName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameTag(tag.id);
+                            if (e.key === "Escape") setEditingTagId(null);
+                          }}
+                          onBlur={() => handleRenameTag(tag.id)}
+                          className="h-7 text-sm flex-1"
+                          autoFocus
+                          data-testid={`input-tag-rename-${tag.id}`}
+                        />
+                      ) : (
+                        <Badge
+                          className="text-xs border-0 text-white cursor-default"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setEditingTagId(tag.id);
+                              setEditingTagName(tag.name);
+                            }}
+                            data-testid={`button-tag-rename-${tag.id}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Renomear</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setTagToDelete(tag);
+                              setIsDeleteTagDialogOpen(true);
+                            }}
+                            data-testid={`button-tag-delete-${tag.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Excluir</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
         </div>
       </ScrollArea>
 
@@ -632,6 +787,38 @@ export default function SettingsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-95"
             >
               Limpar Logs
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isDeleteTagDialogOpen}
+        onOpenChange={setIsDeleteTagDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Excluir Etiqueta
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a etiqueta{" "}
+              <span className="font-bold text-foreground">
+                "{tagToDelete?.name}"
+              </span>
+              ? Ela será removida de todos os serviços.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                handleDeleteTag();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

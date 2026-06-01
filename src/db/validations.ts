@@ -1,6 +1,6 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { clientsTable, logsTable, servicesTable, paymentsTable } from "./schema";
+import { clientsTable, logsTable, servicesTable, paymentsTable, tagsTable, serviceTagsTable } from "./schema";
 import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { NIRFvalidator } from "@/lib/utils";
 
@@ -90,3 +90,18 @@ export const selectPaymentSchema = createSelectSchema(paymentsTable);
 
 export type Payment = z.infer<typeof selectPaymentSchema>;
 export type NewPayment = z.infer<typeof insertPaymentSchema>;
+
+export const insertTagSchema = createInsertSchema(tagsTable, {
+  name: (schema) => schema.pipe(z.string().min(1, "Nome obrigatório")),
+}).omit({ id: true, created_at: true });
+
+export const selectTagSchema = createSelectSchema(tagsTable);
+
+export type Tag = z.infer<typeof selectTagSchema>;
+export type NewTag = z.infer<typeof insertTagSchema>;
+
+export const insertServiceTagSchema = createInsertSchema(serviceTagsTable);
+export const selectServiceTagSchema = createSelectSchema(serviceTagsTable);
+
+export type ServiceTag = z.infer<typeof selectServiceTagSchema>;
+export type NewServiceTag = z.infer<typeof insertServiceTagSchema>;
