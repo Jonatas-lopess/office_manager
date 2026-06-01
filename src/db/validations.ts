@@ -1,14 +1,27 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { clientsTable, logsTable, servicesTable, paymentsTable, tagsTable, serviceTagsTable } from "./schema";
+import {
+  clientsTable,
+  logsTable,
+  servicesTable,
+  paymentsTable,
+  tagsTable,
+  serviceTagsTable,
+} from "./schema";
 import { cpf as cpfValidator, cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { NIRFvalidator } from "@/lib/utils";
 
 export const insertClientSchema = createInsertSchema(clientsTable, {
   name: (schema) => schema.pipe(z.string().min(1, "Campo obrigatório")),
-  email: () => z.email("E-mail inválido").or(z.literal("")).optional().nullable(),
+  email: () =>
+    z.email("E-mail inválido").or(z.literal("")).optional().nullable(),
   phone: () =>
-    z.string().min(10, "Telefone inválido").or(z.literal("")).optional().nullable(),
+    z
+      .string()
+      .min(10, "Telefone inválido")
+      .or(z.literal(""))
+      .optional()
+      .nullable(),
   cpf: () =>
     z
       .string()
@@ -33,8 +46,7 @@ export const insertClientSchema = createInsertSchema(clientsTable, {
       .or(z.literal(""))
       .optional()
       .nullable(),
-  },
-)
+})
   .extend({
     birth_date: z.date().nullable().optional(),
     cnpj_begin_date: z.date().nullable().optional(),
@@ -57,6 +69,7 @@ export const insertServiceSchema = createInsertSchema(servicesTable, {
   .extend({
     contract_date: z.date().optional(),
     final_date: z.date().nullable().optional(),
+    restitution_date: z.date().nullable().optional(),
     // Added for the payment accordion
     payment_amount: z.number().optional(),
     payment_date: z.date().optional(),

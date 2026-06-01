@@ -79,6 +79,7 @@ export const servicesTable = sqliteTable(
       .notNull()
       .default(sql`(strftime('%s', 'now') * 1000)`),
     final_date: integer("final_date", { mode: "timestamp_ms" }),
+    restitution_date: integer("restitution_date", { mode: "timestamp_ms" }),
     price: real("price").notNull().default(0),
     payment_method: text("payment_method", {
       enum: ["In_Cash", "Installments"],

@@ -439,10 +439,18 @@ const ServiceDetailsSection = React.memo(
 ServiceDetailsSection.displayName = "ServiceDetailsSection";
 
 const DatesSection = React.memo(({ isView }: { isView: boolean }) => {
-  const { control } = useFormContext<NewServiceType>();
+  const { control, watch } = useFormContext<NewServiceType>();
+  const watchedType = watch("type");
+  const showRestitutionDate =
+    watchedType === "Declaração de Imposto de Renda Pessoa Física";
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div
+      className={cn(
+        "grid gap-3",
+        showRestitutionDate ? "sm:grid-cols-4" : "sm:grid-cols-3",
+      )}
+    >
       <div className="grid gap-1.5" data-testid="field-service-status">
         <Label htmlFor="service-status">Status</Label>
         <Controller
@@ -516,6 +524,33 @@ const DatesSection = React.memo(({ isView }: { isView: boolean }) => {
           )}
         />
       </div>
+
+      {showRestitutionDate && (
+        <div className="grid gap-1.5" data-testid="field-restitution-date">
+          <Label htmlFor="service-restitution-date">Restituição</Label>
+          <Controller
+            control={control}
+            name="restitution_date"
+            render={({ field }) => (
+              <Input
+                id="service-restitution-date"
+                type="date"
+                {...field}
+                value={
+                  field.value instanceof Date
+                    ? format(field.value, "yyyy-MM-dd")
+                    : ""
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  field.onChange(val ? new Date(val + "T12:00:00") : null);
+                }}
+                disabled={isView}
+              />
+            )}
+          />
+        </div>
+      )}
     </div>
   );
 });
@@ -811,6 +846,7 @@ function ServiceDialogContent({
       client_id: "",
       contract_date: new Date(),
       final_date: null,
+      restitution_date: null,
       payment_method: "In_Cash",
       installments: 1,
       observations: "",
@@ -835,6 +871,9 @@ function ServiceDialogContent({
           final_date: initialData.final_date
             ? new Date(initialData.final_date)
             : null,
+          restitution_date: initialData.restitution_date
+            ? new Date(initialData.restitution_date)
+            : null,
           payment_method: initialData.payment_method || "In_Cash",
           installments: initialData.installments || 1,
           observations: initialData.observations || "",
@@ -849,6 +888,7 @@ function ServiceDialogContent({
           client_id: "",
           contract_date: new Date(),
           final_date: null,
+          restitution_date: null,
           payment_method: "In_Cash",
           installments: 1,
           observations: "",
@@ -883,6 +923,7 @@ function ServiceDialogContent({
       id: service_id,
       contract_date: data.contract_date || new Date(),
       final_date: data.final_date || null,
+      restitution_date: data.restitution_date || null,
       payment_method: data.payment_method || "In_Cash",
       installments: data.installments || null,
       observations: data.observations || null,
