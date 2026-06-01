@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.1] - 2026-06-01
+
+### Fixed
+
+- **Correção de Ortografia**: Corrigidos erros de digitação nos enums de banco de dados ("Consulta Fical" -> "Consulta Fiscal", "Comercy" -> "Commerce").
+- **Consistência de Dados**: Implementada migração automática para atualizar registros existentes com os nomes corrigidos sem perda de informação.
+
 ## [2.6.0] - 2026-06-01
 
 ### Added
