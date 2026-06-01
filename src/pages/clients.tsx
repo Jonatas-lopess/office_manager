@@ -861,9 +861,10 @@ function ClientDialog({
                           <SelectValue placeholder="Selecione o tipo..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Comercy">Comércio</SelectItem>
+                          <SelectItem value="Commerce">Comércio</SelectItem>
                           <SelectItem value="Service">Serviço</SelectItem>
                           <SelectItem value="Production">Produção</SelectItem>
+
                           <SelectItem value="Specific">
                             Outro Específico
                           </SelectItem>

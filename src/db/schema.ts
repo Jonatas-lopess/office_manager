@@ -25,7 +25,7 @@ export const clientsTable = sqliteTable("clients", {
   cnpj: text("cnpj"),
   cnpj_begin_date: integer("cnpj_begin_date", { mode: "timestamp_ms" }),
   mei_type: text("mei_type", {
-    enum: ["Comercy", "Service", "Production", "Specific"],
+    enum: ["Commerce", "Service", "Production", "Specific"],
   }),
   nirf: text("nirf"),
   cib: text("cib"),
@@ -48,7 +48,7 @@ export const serviceTypesArray = [
   "Declaração Anual de MEI",
   "Abertura de MEI",
   "Encerramento de MEI",
-  "Declaração Encerramento MEI",
+  "Declaração de Encerramento do MEI",
   "Parcelamento Dívida Ativa",
   "Parcelamento DAS Atrasado",
   "Parcelamento IR Atrasado",
@@ -58,7 +58,7 @@ export const serviceTypesArray = [
   "Abertura de Processo INSS",
   "Declaração Retificadora IR",
   "Alteração de CNPJ",
-  "Consulta Fical",
+  "Consulta Fiscal",
   "SISPATRI",
   "Outros",
 ] as const;

@@ -250,6 +250,7 @@ export default function ServicesPage() {
     services,
     q,
     status,
+    paymentStatus,
     selectedType,
     selectedTagIds,
     serviceTagsMap,
