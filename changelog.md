@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.3] - 2026-06-01
+
+### Added
+
+- **Checar Atualizações**: Adicionado botão para verificar atualizações disponíveis do sistema.
+
+### Fixed
+
+- **Função de Backup**: Corrigido problema de backup que não estava gerando o arquivo corretamente.
+
 ## [2.6.2] - 2026-06-01
 
 ### Fixed
