@@ -74,9 +74,7 @@ export function TagInput({
 
   const exactMatch = useMemo(
     () =>
-      allTags.some(
-        (t) => t.name.toLowerCase() === search.toLowerCase().trim(),
-      ),
+      allTags.some((t) => t.name.toLowerCase() === search.toLowerCase().trim()),
     [allTags, search],
   );
 
@@ -107,7 +105,10 @@ export function TagInput({
   };
 
   return (
-    <div className={cn("grid gap-1.5", className)} data-testid="field-service-tags">
+    <div
+      className={cn("grid gap-1.5", className)}
+      data-testid="field-service-tags"
+    >
       {/* Selected tags */}
       <div className="flex flex-wrap gap-1.5 min-h-[28px]">
         {selectedTags.map((tag) => (
@@ -186,7 +187,9 @@ export function TagInput({
                             className="h-3 w-3 rounded-full shrink-0 border"
                             style={{ backgroundColor: tag.color }}
                           />
-                          <span className="flex-1 truncate text-sm">{tag.name}</span>
+                          <span className="flex-1 truncate text-sm">
+                            {tag.name}
+                          </span>
                           {isSelected && (
                             <Check className="h-4 w-4 text-primary shrink-0" />
                           )}
@@ -226,7 +229,7 @@ export function TagInput({
                       data-testid="button-create-tag"
                     >
                       <Plus className="h-3 w-3" />
-                      Criar "{search.trim()}"
+                      Criar &quot;{search.trim()}&quot;
                     </Button>
                   </div>
                 )}

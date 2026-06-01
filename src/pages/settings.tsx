@@ -84,7 +84,9 @@ export default function SettingsPage() {
 
   const handleDeleteTag = async () => {
     if (!tagToDelete) return;
-    await orm.delete(serviceTagsTable).where(eq(serviceTagsTable.tag_id, tagToDelete.id));
+    await orm
+      .delete(serviceTagsTable)
+      .where(eq(serviceTagsTable.tag_id, tagToDelete.id));
     await orm.delete(tagsTable).where(eq(tagsTable.id, tagToDelete.id));
     toast({
       variant: "destructive",
@@ -631,7 +633,8 @@ export default function SettingsPage() {
                               style={{ backgroundColor: tag.color }}
                               onClick={() => {
                                 const idx = TAG_COLORS.indexOf(tag.color);
-                                const next = TAG_COLORS[(idx + 1) % TAG_COLORS.length];
+                                const next =
+                                  TAG_COLORS[(idx + 1) % TAG_COLORS.length];
                                 handleChangeTagColor(tag.id, next);
                               }}
                               data-testid={`tag-color-cycle-${tag.id}`}
@@ -804,7 +807,7 @@ export default function SettingsPage() {
             <AlertDialogDescription>
               Tem certeza que deseja excluir a etiqueta{" "}
               <span className="font-bold text-foreground">
-                "{tagToDelete?.name}"
+                &quot;{tagToDelete?.name}&quot;
               </span>
               ? Ela será removida de todos os serviços.
             </AlertDialogDescription>

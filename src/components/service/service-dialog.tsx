@@ -53,7 +53,12 @@ import {
 } from "@/db/validations";
 import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
-import { serviceTypesArray, paymentsTable, tagsTable, serviceTagsTable } from "@/db/schema";
+import {
+  serviceTypesArray,
+  paymentsTable,
+  tagsTable,
+  serviceTagsTable,
+} from "@/db/schema";
 import ClickToCopy from "@/components/ui/click-to-copy";
 import { maskCurrencyInput, parseFreeFormCurrency } from "@/lib/masks";
 import { TagInput, type TagOption } from "@/components/ui/tag-input";
@@ -370,14 +375,11 @@ const ServiceDetailsSection = React.memo(
                       placeholder="Notas rápidas sobre a entrega"
                       autoComplete="off"
                       onFocus={() => setOpen(true)}
-                      onBlur={() => {
-                        // Delay closing to allow clicking suggestions
-                        setTimeout(() => setOpen(false), 200);
-                      }}
                       onPointerDown={(e) => {
-                        // Prevent the PopoverTrigger from toggling it off when clicking
-                        if (open) e.stopPropagation();
+                        // Prevent the PopoverTrigger from toggling it
+                        e.stopPropagation();
                       }}
+                      onClick={() => setOpen(true)}
                       disabled={isView}
                       className={cn(isView && "pointer-events-none")}
                       data-testid="input-service-description"
@@ -391,6 +393,10 @@ const ServiceDetailsSection = React.memo(
             className="w-[var(--radix-popover-trigger-width)] p-0"
             align="start"
             onOpenAutoFocus={(e) => e.preventDefault()}
+            onPointerDown={(e) => {
+              // Prevent losing focus when clicking/scrolling in the popover
+              e.preventDefault();
+            }}
           >
             <Command shouldFilter={false}>
               <CommandList className="max-h-50">
@@ -786,7 +792,10 @@ function ServiceDialogContent({
     }
   }, [initialTagIds]);
 
-  const handleCreateTag = async (name: string, color: string): Promise<TagOption> => {
+  const handleCreateTag = async (
+    name: string,
+    color: string,
+  ): Promise<TagOption> => {
     const id = uuidv7();
     await orm.insert(tagsTable).values({ id, name, color });
     return { id, name, color };
