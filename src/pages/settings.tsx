@@ -56,6 +56,7 @@ import packageJson from "../../package.json";
 import { join } from "@tauri-apps/api/path";
 import { writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { checkInternalUpdate } from "@/lib/updater";
 
 export default function SettingsPage() {
   const { orm, db } = useDb();
@@ -597,11 +598,21 @@ export default function SettingsPage() {
                 >
                   Versão
                 </div>
-                <div
-                  className="font-mono text-xs"
-                  data-testid="text-workspace-version-value"
-                >
-                  v{packageJson.version}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="font-mono text-xs"
+                    data-testid="text-workspace-version-value"
+                  >
+                    v{packageJson.version}
+                  </div>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => checkInternalUpdate(true)}
+                  >
+                    Verificar agora
+                  </Button>
                 </div>
               </div>
               <div
