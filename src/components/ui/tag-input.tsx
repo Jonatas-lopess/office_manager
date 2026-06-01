@@ -110,7 +110,7 @@ export function TagInput({
       data-testid="field-service-tags"
     >
       {/* Selected tags */}
-      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+      <div className="flex flex-wrap gap-1.5 min-h-7">
         {selectedTags.map((tag) => (
           <Badge
             key={tag.id}

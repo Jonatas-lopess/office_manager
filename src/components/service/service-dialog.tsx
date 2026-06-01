@@ -164,7 +164,7 @@ const ClientSection = React.memo(
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[var(--radix-popover-trigger-width)] p-0"
+            className="w-(--radix-popover-trigger-width) p-0"
             align="start"
           >
             <Command shouldFilter={false}>
@@ -390,7 +390,7 @@ const ServiceDetailsSection = React.memo(
             </div>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[var(--radix-popover-trigger-width)] p-0"
+            className="w-(--radix-popover-trigger-width) p-0"
             align="start"
             onOpenAutoFocus={(e) => e.preventDefault()}
             onPointerDown={(e) => {

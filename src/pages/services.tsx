@@ -437,7 +437,7 @@ export default function ServicesPage() {
                     onValueChange={(v) => setStatus(v as any)}
                   >
                     <SelectTrigger
-                      className="w-[140px]"
+                      className="w-35"
                       data-testid="select-service-status"
                     >
                       <SelectValue placeholder="Status" />
@@ -564,7 +564,7 @@ export default function ServicesPage() {
                             type="date"
                             value={dateFrom}
                             onChange={(e) => setDateFrom(e.target.value)}
-                            className="w-[155px] h-9 text-sm"
+                            className="w-38.75 h-9 text-sm"
                             title="Data inicial"
                           />
                           <span className="text-muted-foreground text-xs">
@@ -574,7 +574,7 @@ export default function ServicesPage() {
                             type="date"
                             value={dateTo}
                             onChange={(e) => setDateTo(e.target.value)}
-                            className="w-[155px] h-9 text-sm"
+                            className="w-38.75 h-9 text-sm"
                             title="Data final"
                           />
                         </div>

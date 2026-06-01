@@ -42,7 +42,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-
 export function currency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -92,7 +91,6 @@ function Topbar({
             >
               {title}
             </div>
-
           </div>
           {subtitle ? (
             <div
@@ -336,7 +334,7 @@ export function AppShell({
     >
       <SidebarContent_ />
       <SidebarInset className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-6 px-6 py-8">
+        <div className="mx-auto flex h-full w-full max-w-350 flex-col gap-6 px-6 py-8">
           <Topbar title={title} subtitle={subtitle} right={right} />
           <div
             className="mt-2 flex-1 flex flex-col min-h-0"
@@ -349,7 +347,6 @@ export function AppShell({
     </div>
   );
 }
-
 
 export function StatCard({
   label,
@@ -369,7 +366,10 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("panel-card hover-lift", className)} data-testid={dataTestId}>
+    <Card
+      className={cn("panel-card hover-lift", className)}
+      data-testid={dataTestId}
+    >
       <div className="p-4 sm:p-5">
         <div
           className="flex items-center justify-between gap-3"
@@ -473,7 +473,7 @@ export function RowSkeleton({
         <div
           key={i}
           className={cn(
-            "flex items-center justify-between gap-4 p-4 border-b last:border-0 h-[72px]",
+            "flex items-center justify-between gap-4 p-4 border-b last:border-0 h-18",
             className,
           )}
         >
@@ -571,4 +571,3 @@ export function DebouncedSearch({
     </div>
   );
 }
-

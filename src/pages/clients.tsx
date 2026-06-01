@@ -210,7 +210,7 @@ export default function ClientsPage() {
           >
             <Select value={status} onValueChange={(v) => setStatus(v as any)}>
               <SelectTrigger
-                className="w-[170px]"
+                className="w-42.5"
                 data-testid="select-client-status"
               >
                 <SelectValue placeholder="Status" />
