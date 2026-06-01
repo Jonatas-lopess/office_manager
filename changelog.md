@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.7.0] - 2026-06-01
+
+### Added
+
+- **Data de Restituição**: Adicionado campo de data de restituição para o serviço de IRPF.
+
 ## [2.6.3] - 2026-06-01
 
 ### Added
