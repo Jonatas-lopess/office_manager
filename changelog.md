@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.2] - 2026-06-01
+
+### Fixed
+
+- **Correção de Uso de Estilos**: Corrigido uso impreciso de estilos nos componentes da interface.
+
 ## [2.6.1] - 2026-06-01
 
 ### Fixed
