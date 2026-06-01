@@ -97,7 +97,9 @@ const ClientSection = React.memo(
 
     const filteredClients = React.useMemo(() => {
       const searchLower = search.toLowerCase();
-      return clients.filter((c) => c.name.toLowerCase().includes(searchLower));
+      return clients
+        .filter((c) => c.name.toLowerCase().includes(searchLower))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
     }, [clients, search]);
 
     const displayedClients = React.useMemo(() => {
@@ -265,12 +267,16 @@ const BasicInfoSection = React.memo(({ isView }: { isView: boolean }) => {
             control={control}
             name="price"
             render={({ field }) => {
-              const [localValue, setLocalValue] = useState(() => 
-                maskCurrencyInput((field.value || 0).toString().replace(".", ","))
+              const [localValue, setLocalValue] = useState(() =>
+                maskCurrencyInput(
+                  (field.value || 0).toString().replace(".", ","),
+                ),
               );
 
               useEffect(() => {
-                const currentVal = (field.value || 0).toString().replace(".", ",");
+                const currentVal = (field.value || 0)
+                  .toString()
+                  .replace(".", ",");
                 if (parseFreeFormCurrency(localValue) !== field.value) {
                   setLocalValue(maskCurrencyInput(currentVal));
                 }
@@ -288,7 +294,9 @@ const BasicInfoSection = React.memo(({ isView }: { isView: boolean }) => {
                     field.onChange(parseFreeFormCurrency(masked));
                   }}
                   onBlur={() => {
-                    const normalized = (field.value || 0).toFixed(2).replace(".", ",");
+                    const normalized = (field.value || 0)
+                      .toFixed(2)
+                      .replace(".", ",");
                     setLocalValue(maskCurrencyInput(normalized));
                   }}
                   className={isView ? "pointer-events-none" : ""}
@@ -634,12 +642,16 @@ const InitialPaymentAccordion = React.memo(() => {
                   control={control}
                   name="payment_amount"
                   render={({ field }) => {
-                    const [localValue, setLocalValue] = useState(() => 
-                      maskCurrencyInput((field.value || 0).toString().replace(".", ","))
+                    const [localValue, setLocalValue] = useState(() =>
+                      maskCurrencyInput(
+                        (field.value || 0).toString().replace(".", ","),
+                      ),
                     );
 
                     useEffect(() => {
-                      const currentVal = (field.value || 0).toString().replace(".", ",");
+                      const currentVal = (field.value || 0)
+                        .toString()
+                        .replace(".", ",");
                       if (parseFreeFormCurrency(localValue) !== field.value) {
                         setLocalValue(maskCurrencyInput(currentVal));
                       }

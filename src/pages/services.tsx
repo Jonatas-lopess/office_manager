@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Lock, LockOpen, Wind } from "lucide-react";
+import { Plus, Search, Lock, LockOpen, Wind, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -11,6 +11,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   AppShell,
   currency,
@@ -43,24 +49,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, normalizeString } from "@/lib/utils";
 
 import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
-import { servicesTable, clientsTable, paymentsTable } from "@/db/schema";
 import {
-  and,
-  desc,
-  eq,
-  like,
-  or,
-  sql,
-  isNotNull,
-  ne,
-  not,
-  inArray,
-} from "drizzle-orm";
+  servicesTable,
+  clientsTable,
+  paymentsTable,
+  serviceTypesArray,
+} from "@/db/schema";
+import { and, desc, eq, sql, isNotNull, ne, not, inArray } from "drizzle-orm";
 
 import { logAction } from "@/lib/logger";
 import { useToast } from "@/hooks/use-toast";
@@ -106,10 +106,15 @@ export default function ServicesPage() {
       setIsPasswordDialogOpen(true);
     }
   };
-  const STATUS = ["Draft", "In progress", "Delivered"];
+  const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
 
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | ServiceStatus>("all");
+  const [status, setStatus] = useState<"all" | ServiceStatus | "Invoiced">(
+    "all",
+  );
+  const [selectedType, setSelectedType] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   const [selectedService, setSelectedService] = useState<any | null>(null);
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">(
@@ -122,7 +127,7 @@ export default function ServicesPage() {
   const [financialService, setFinancialService] = useState<any | null>(null);
 
   const servicesQuery = useMemo(() => {
-    let base = orm
+    return orm
       .select({
         id: servicesTable.id,
         type: servicesTable.type,
@@ -143,42 +148,58 @@ export default function ServicesPage() {
       .from(servicesTable)
       .leftJoin(clientsTable, eq(servicesTable.client_id, clientsTable.id))
       .leftJoin(paymentsTable, eq(servicesTable.id, paymentsTable.service_id))
-      .groupBy(servicesTable.id);
-
-    const conditions = [];
-
-    if (q.trim()) {
-      const searchTerm = `%${q.trim()}%`;
-      conditions.push(
-        or(
-          like(servicesTable.type, searchTerm),
-          like(clientsTable.name, searchTerm),
-        ),
-      );
-    }
-
-    if (status !== "all") {
-      // Invoiced is now automated
-      if (status === ("Invoiced" as any)) {
-        // This won't work perfectly via SQL status since we removed it from enum
-        // but let's keep it if we can find another way, or just filter via JS.
-      } else {
-        conditions.push(eq(servicesTable.status, status));
-      }
-    }
-
-    if (conditions.length > 0) {
-      base = base.where(and(...conditions)) as any;
-    }
-
-    return base.orderBy(desc(servicesTable.contract_date)).toSQL();
-  }, [orm, q, status]);
+      .groupBy(servicesTable.id)
+      .orderBy(desc(servicesTable.contract_date))
+      .toSQL();
+  }, [orm]);
 
   const { data: rawServices, loading: servicesLoading } = useLocalQuery<any>(
     db,
     servicesQuery,
   );
   const services = useMemo(() => rawServices || [], [rawServices]);
+
+  const filtered = useMemo(() => {
+    const search = normalizeString(q.trim());
+    return services.filter((s) => {
+      // Status filter
+      if (status !== "all") {
+        const isPaid =
+          (s.total_paid || 0) >= (s.price || 0) && (s.price || 0) > 0;
+        if (status === ("Invoiced" as any)) {
+          if (!isPaid) return false;
+        } else {
+          if (s.status !== status) return false;
+        }
+      }
+
+      // Type filter
+      if (selectedType !== "all" && s.type !== selectedType) {
+        return false;
+      }
+
+      // Period filter
+      if (dateFrom) {
+        const from = new Date(dateFrom).getTime();
+        if (s.contract_date < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (s.contract_date > to.getTime()) return false;
+      }
+
+      // Search filter
+      if (search) {
+        const content = normalizeString(
+          (s.client_name || "") + (s.description || ""),
+        );
+        if (!content.includes(search)) return false;
+      }
+
+      return true;
+    });
+  }, [services, q, status, selectedType, dateFrom, dateTo]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -221,23 +242,21 @@ export default function ServicesPage() {
     }, {});
   }, [clients]);
 
-  const filtered = services;
-
   const totalRevenue = useMemo(() => {
-    return services.reduce(
+    return filtered.reduce(
       (acc: number, s: any) => acc + (s.total_paid || 0),
       0,
     );
-  }, [services]);
+  }, [filtered]);
 
   const totalToReceive = useMemo(() => {
-    return services
+    return filtered
       .filter((s: any) => s.status !== "Draft")
       .reduce((acc: number, s: any) => {
         const balance = s.price - (s.total_paid || 0);
         return acc + (balance > 0 ? balance : 0);
       }, 0);
-  }, [services]);
+  }, [filtered]);
 
   const handleGarbageCollector = async () => {
     // Silent cleanup of orphaned payments using ORM for consistency and safety
@@ -337,64 +356,147 @@ export default function ServicesPage() {
             className="panel-card flex flex-col min-h-0 lg:col-span-2"
             data-testid="card-services"
           >
-            <div
-              className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="bar-services-controls"
-            >
-              <div
-                className="relative flex-1"
-                data-testid="wrap-service-search"
-              >
-                <DebouncedSearch
-                  onSearch={setQ}
-                  placeholder="Buscar por serviço ou cliente…"
-                  className="pl-9"
-                  data-testid="input-service-search"
-                />
+            <div className="p-4 space-y-3" data-testid="bar-services-controls">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  className="relative flex-1"
+                  data-testid="wrap-service-search"
+                >
+                  <DebouncedSearch
+                    onSearch={setQ}
+                    placeholder="Buscar por cliente ou descrição…"
+                    className="pl-9"
+                    data-testid="input-service-search"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={status}
+                    onValueChange={(v) => setStatus(v as any)}
+                  >
+                    <SelectTrigger
+                      className="w-[140px]"
+                      data-testid="select-service-status"
+                    >
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        value="all"
+                        data-testid="option-service-status-all"
+                      >
+                        Todos os status
+                      </SelectItem>
+                      {STATUS.map((s) => {
+                        const labels: Record<string, string> = {
+                          Draft: "Rascunho",
+                          "In progress": "Em andamento",
+                          Delivered: "Entregue",
+                          Invoiced: "Faturado",
+                          Inactive: "Inativo",
+                        };
+                        return (
+                          <SelectItem
+                            key={s}
+                            value={s}
+                            data-testid={`option-service-status-${s}`}
+                          >
+                            {labels[s] || s}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
+                  {(status !== "all" ||
+                    selectedType !== "all" ||
+                    dateFrom ||
+                    dateTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setStatus("all");
+                        setSelectedType("all");
+                        setDateFrom("");
+                        setDateTo("");
+                      }}
+                      className="h-8 px-2 text-xs text-muted-foreground hover:text-primary"
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              <div
-                className="flex items-center gap-2"
-                data-testid="wrap-service-filters"
+              <Accordion
+                type="single"
+                collapsible
+                className="w-full border-none"
               >
-                <Select
-                  value={status}
-                  onValueChange={(v) => setStatus(v as any)}
-                >
-                  <SelectTrigger
-                    className="w-[180px]"
-                    data-testid="select-service-status"
-                  >
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      value="all"
-                      data-testid="option-service-status-all"
+                <AccordionItem value="filters" className="border-none">
+                  <AccordionTrigger className="py-0 h-6 text-xs text-muted-foreground hover:no-underline justify-end gap-2">
+                    Mais filtros
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-3 pb-1 px-0.5">
+                    <div
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="wrap-service-advanced-filters"
                     >
-                      Todos os status
-                    </SelectItem>
-                    {STATUS.map((s) => {
-                      const labels: Record<string, string> = {
-                        Draft: "Rascunho",
-                        "In progress": "Em andamento",
-                        Delivered: "Entregue",
-                        Invoiced: "Faturado",
-                        Inactive: "Inativo",
-                      };
-                      return (
-                        <SelectItem
-                          key={s}
-                          value={s}
-                          data-testid={`option-service-status-${s}`}
+                      <div className="grid gap-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                          Tipo de serviço
+                        </Label>
+                        <Select
+                          value={selectedType}
+                          onValueChange={setSelectedType}
                         >
-                          {labels[s] || s}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
+                          <SelectTrigger
+                            className="w-60 h-9"
+                            data-testid="select-service-type"
+                          >
+                            <SelectValue placeholder="Tipo de serviço" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os tipos</SelectItem>
+                            {serviceTypesArray.map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {t}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                          Período (Contrato)
+                        </Label>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="w-[155px] h-9 text-sm"
+                            title="Data inicial"
+                          />
+                          <span className="text-muted-foreground text-xs">
+                            -
+                          </span>
+                          <Input
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="w-[155px] h-9 text-sm"
+                            title="Data final"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
             <ScrollArea className="flex-1 pr-4">
               <div className="divide-y" data-testid="list-services">

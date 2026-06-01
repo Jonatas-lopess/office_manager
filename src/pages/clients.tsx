@@ -34,7 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AppShell, StatusBadge, InfiniteList, DebouncedSearch } from "@/components/panel/panel-kit";
+import {
+  AppShell,
+  StatusBadge,
+  InfiniteList,
+  DebouncedSearch,
+} from "@/components/panel/panel-kit";
+import { normalizeString } from "@/lib/utils";
 import { v7 as uuidv7 } from "uuid";
 import {
   Client,
@@ -96,17 +102,18 @@ export default function ClientsPage() {
   const [pendingClient, setPendingClient] = useState<Client | null>(null);
 
   const filtered = useMemo(() => {
+    const search = normalizeString(q.trim());
     return (clients || [])
       .filter((c) => {
-        const matchQ = (c.name + (c.email || "") + (c.observations ?? ""))
-          .toLowerCase()
-          .includes(q.toLowerCase().trim());
+        const content = normalizeString(
+          (c.name || "") + (c.email || "") + (c.observations ?? ""),
+        );
+        const matchQ = content.includes(search);
         const matchS = status === "all" ? true : c.status === status;
         return matchQ && matchS;
       })
-      .sort((a, b) => (a.name > b.name ? 1 : -1));
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [clients, q, status]);
-
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -126,8 +133,6 @@ export default function ClientsPage() {
     setIsDeleteDialogOpen(false);
     setSelectedClient(null);
   };
-
-
 
   const openDialog = (mode: "create" | "edit" | "view", client?: Client) => {
     setDialogMode(mode);
@@ -153,7 +158,10 @@ export default function ClientsPage() {
         .select()
         .from(clientsTable)
         .where(
-          and(eq(clientsTable.cnpj, client.cnpj), ne(clientsTable.id, client.id)),
+          and(
+            eq(clientsTable.cnpj, client.cnpj),
+            ne(clientsTable.id, client.id),
+          ),
         )
         .limit(1);
 
@@ -169,7 +177,6 @@ export default function ClientsPage() {
       subtitle="Contatos, detalhes da empresa e status."
       right={
         <div className="flex items-center gap-2">
-
           <Button
             onClick={() => openDialog("create")}
             className="gap-2 cursor-pointer"
@@ -196,7 +203,6 @@ export default function ClientsPage() {
               className="pl-9"
               data-testid="input-client-search"
             />
-
           </div>
           <div
             className="flex items-center gap-2"
@@ -430,8 +436,6 @@ export default function ClientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-
     </AppShell>
   );
 }
@@ -479,8 +483,12 @@ function ClientDialog({
       if (initialData) {
         form.reset({
           ...initialData,
-          birth_date: initialData.birth_date ? new Date(initialData.birth_date) : null,
-          cnpj_begin_date: initialData.cnpj_begin_date ? new Date(initialData.cnpj_begin_date) : null,
+          birth_date: initialData.birth_date
+            ? new Date(initialData.birth_date)
+            : null,
+          cnpj_begin_date: initialData.cnpj_begin_date
+            ? new Date(initialData.cnpj_begin_date)
+            : null,
           has_serious_illness: !!initialData.has_serious_illness,
         } as any);
       } else {
@@ -525,7 +533,6 @@ function ClientDialog({
     cpf,
   } = form.watch();
 
-
   const onSubmit = async (data: NewClientType) => {
     if (isView) return;
 
@@ -535,7 +542,9 @@ function ClientDialog({
       status: data.status || "Active",
       name: data.name || "",
       id: initialData?.id || uuidv7(),
-      created_at: initialData?.created_at ? new Date(initialData.created_at) : new Date(),
+      created_at: initialData?.created_at
+        ? new Date(initialData.created_at)
+        : new Date(),
       updated_at: new Date(),
       email: data.email || null,
       observations: data.observations || null,
@@ -693,7 +702,9 @@ function ClientDialog({
                       }
                       onChange={(e) => {
                         const val = e.target.value;
-                        field.onChange(val ? new Date(val + "T12:00:00") : null);
+                        field.onChange(
+                          val ? new Date(val + "T12:00:00") : null,
+                        );
                       }}
                       disabled={isView}
                       className={isView ? "pointer-events-none" : ""}
@@ -703,14 +714,22 @@ function ClientDialog({
               />
             </div>
 
-            <div className="flex items-center gap-2 mt-auto pb-2" data-testid="field-client-serious-illness">
+            <div
+              className="flex items-center gap-2 mt-auto pb-2"
+              data-testid="field-client-serious-illness"
+            >
               <Switch
                 id="client-serious-illness"
                 checked={hasSeriousIllness}
-                onCheckedChange={(checked) => form.setValue("has_serious_illness", checked)}
+                onCheckedChange={(checked) =>
+                  form.setValue("has_serious_illness", checked)
+                }
                 disabled={isView}
               />
-              <Label htmlFor="client-serious-illness" className="cursor-pointer">
+              <Label
+                htmlFor="client-serious-illness"
+                className="cursor-pointer"
+              >
                 Portador de Doença Grave
               </Label>
             </div>
@@ -734,11 +753,7 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cpf">
                     <Label htmlFor="client-cpf">CPF</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={cpf || ""}
-                      label="CPF"
-                    >
+                    <ClickToCopy enabled={isView} value={cpf || ""} label="CPF">
                       <Input
                         id="client-cpf"
                         {...form.register("cpf", {
@@ -800,7 +815,8 @@ function ClientDialog({
                           <ClickToCopy
                             enabled={isView}
                             value={
-                              field.value instanceof Date && isValid(field.value)
+                              field.value instanceof Date &&
+                              isValid(field.value)
                                 ? format(field.value as Date, "dd/MM/yyyy")
                                 : ""
                             }
@@ -811,13 +827,16 @@ function ClientDialog({
                               type="date"
                               {...field}
                               value={
-                                field.value instanceof Date && isValid(field.value)
+                                field.value instanceof Date &&
+                                isValid(field.value)
                                   ? format(field.value as Date, "yyyy-MM-dd")
                                   : ""
                               }
                               onChange={(e) => {
                                 const val = e.target.value;
-                                field.onChange(val ? new Date(val + "T12:00:00") : null);
+                                field.onChange(
+                                  val ? new Date(val + "T12:00:00") : null,
+                                );
                               }}
                               disabled={isView}
                               className={isView ? "pointer-events-none" : ""}
@@ -1004,11 +1023,7 @@ function ClientDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2" data-testid="field-client-cib">
                     <Label htmlFor="client-cib">CIB</Label>
-                    <ClickToCopy
-                      enabled={isView}
-                      value={cib || ""}
-                      label="CIB"
-                    >
+                    <ClickToCopy enabled={isView} value={cib || ""} label="CIB">
                       <Input
                         id="client-cib"
                         {...form.register("cib")}
@@ -1095,5 +1110,3 @@ function ClientDialog({
     </Dialog>
   );
 }
-
-
