@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6.0] - 2026-06-01
+
+### Added
+
+- **Etiquetas Personalizadas**: Adicionado sistema completo de tags/etiquetas para organização de serviços. É possível criar, atribuir, editar cores (8 opções) e excluir etiquetas. As etiquetas sincronizam com todos os nós via CRSQLite.
+- **Filtro de Etiquetas**: Adicionado filtro múltiplo de etiquetas no menu "Mais filtros" da tela de Serviços.
+- **Gerenciamento de Etiquetas**: Nova aba "Etiquetas" nas Configurações para gerenciar globalmente as etiquetas criadas (renomear, trocar cor e excluir).
+- **Filtros Avançados (Serviços)**: Implementados novos filtros por Tipo de Serviço, Pagamento e Período (Data de Contrato).
+- **Status Virtual "Faturado"**: Adicionada opção de filtrar serviços totalmente pagos (Invoiced) diretamente no menu de status.
+
+### Changed
+
+- **Busca Inteligente**: Otimizada a busca nas páginas de Clientes e Serviços para ignorar acentos e diferença entre maiúsculas/minúsculas.
+- **Ordenação Alfabética**: Listas de clientes (página principal e seleção de serviços) agora são ordenadas de A a Z utilizando `localeCompare` para suporte correto a acentuação.
+
+### Fixed
+
+- **Manutenção de Código**: Removidos imports não utilizados e resolvidos avisos do linter.
+- **Fechamento do Popover**: Resolvido problemas de foco do campo de descrição no dialog de serviços.
+
 ## [2.5.0] - 2026-03-21
 
 ### Added
