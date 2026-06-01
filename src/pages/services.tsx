@@ -108,12 +108,13 @@ export default function ServicesPage() {
       setIsPasswordDialogOpen(true);
     }
   };
-  const STATUS = ["Draft", "In progress", "Delivered", "Invoiced"];
+  const STATUS = ["Draft", "In progress", "Delivered"];
 
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | ServiceStatus | "Invoiced">(
-    "all",
-  );
+  const [status, setStatus] = useState<"all" | ServiceStatus>("all");
+  const [paymentStatus, setPaymentStatus] = useState<
+    "all" | "paid" | "pending"
+  >("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -166,7 +167,10 @@ export default function ServicesPage() {
   const tagsQuery = useMemo(() => {
     return orm.select().from(tagsTable).toSQL();
   }, [orm]);
-  const { data: rawTags, loading: tagsLoading } = useLocalQuery<any>(db, tagsQuery);
+  const { data: rawTags, loading: tagsLoading } = useLocalQuery<any>(
+    db,
+    tagsQuery,
+  );
   const allTags = useMemo(() => rawTags || [], [rawTags]);
 
   // Load all service_tags mappings
@@ -200,15 +204,13 @@ export default function ServicesPage() {
     const search = normalizeString(q.trim());
     return services.filter((s) => {
       // Status filter
-      if (status !== "all") {
-        const isPaid =
-          (s.total_paid || 0) >= (s.price || 0) && (s.price || 0) > 0;
-        if (status === ("Invoiced" as any)) {
-          if (!isPaid) return false;
-        } else {
-          if (s.status !== status) return false;
-        }
-      }
+      if (status !== "all" && s.status !== status) return false;
+
+      // Payment filter
+      const isPaid =
+        (s.total_paid || 0) >= (s.price || 0) && (s.price || 0) > 0;
+      if (paymentStatus === "paid" && !isPaid) return false;
+      if (paymentStatus === "pending" && isPaid) return false;
 
       // Type filter
       if (selectedType !== "all" && s.type !== selectedType) {
@@ -244,7 +246,16 @@ export default function ServicesPage() {
 
       return true;
     });
-  }, [services, q, status, selectedType, selectedTagIds, serviceTagsMap, dateFrom, dateTo]);
+  }, [
+    services,
+    q,
+    status,
+    selectedType,
+    selectedTagIds,
+    serviceTagsMap,
+    dateFrom,
+    dateTo,
+  ]);
 
   const clientsQuery = useMemo(() => {
     return orm.select().from(clientsTable).toSQL();
@@ -278,7 +289,8 @@ export default function ServicesPage() {
     return rawDesc.map((d: any) => d.description);
   }, [rawDesc]);
 
-  const loading = servicesLoading || clientsLoading || descLoading || tagsLoading;
+  const loading =
+    servicesLoading || clientsLoading || descLoading || tagsLoading;
 
   const clientsMap = useMemo(() => {
     return clients.reduce((acc: Record<string, any>, c: any) => {
@@ -321,7 +333,9 @@ export default function ServicesPage() {
     if (!selectedService) return;
     const { id, type } = selectedService;
     await orm.delete(paymentsTable).where(eq(paymentsTable.service_id, id));
-    await orm.delete(serviceTagsTable).where(eq(serviceTagsTable.service_id, id));
+    await orm
+      .delete(serviceTagsTable)
+      .where(eq(serviceTagsTable.service_id, id));
     await orm.delete(servicesTable).where(eq(servicesTable.id, id));
     await logAction(orm, {
       action: `Serviço excluído: ${type}`,
@@ -439,7 +453,6 @@ export default function ServicesPage() {
                           Draft: "Rascunho",
                           "In progress": "Em andamento",
                           Delivered: "Entregue",
-                          Invoiced: "Faturado",
                           Inactive: "Inativo",
                         };
                         return (
@@ -456,6 +469,7 @@ export default function ServicesPage() {
                   </Select>
 
                   {(status !== "all" ||
+                    paymentStatus !== "all" ||
                     selectedType !== "all" ||
                     selectedTagIds.length > 0 ||
                     dateFrom ||
@@ -465,6 +479,7 @@ export default function ServicesPage() {
                       size="sm"
                       onClick={() => {
                         setStatus("all");
+                        setPaymentStatus("all");
                         setSelectedType("all");
                         setSelectedTagIds([]);
                         setDateFrom("");
@@ -492,6 +507,28 @@ export default function ServicesPage() {
                       className="flex flex-wrap items-center gap-3"
                       data-testid="wrap-service-advanced-filters"
                     >
+                      <div className="grid gap-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                          Pagamento
+                        </Label>
+                        <Select
+                          value={paymentStatus}
+                          onValueChange={(v) => setPaymentStatus(v as any)}
+                        >
+                          <SelectTrigger
+                            className="w-40 h-9"
+                            data-testid="select-service-payment"
+                          >
+                            <SelectValue placeholder="Pagamento" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="paid">Faturado</SelectItem>
+                            <SelectItem value="pending">Pendente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="grid gap-1.5">
                         <Label className="text-[11px] text-muted-foreground">
                           Tipo de serviço
@@ -619,9 +656,9 @@ export default function ServicesPage() {
                       clientName={
                         clientsMap[s.client_id]?.name || "Desconhecido"
                       }
-                      tags={(serviceTagsMap[s.id] || []).map(
-                        (tid: string) => tagsMap[tid],
-                      ).filter(Boolean)}
+                      tags={(serviceTagsMap[s.id] || [])
+                        .map((tid: string) => tagsMap[tid])
+                        .filter(Boolean)}
                       onView={(s) => openDialog("view", s)}
                       onFinancial={(s) => openFinancialDialog(s)}
                       onEdit={(s) => openDialog("edit", s)}
