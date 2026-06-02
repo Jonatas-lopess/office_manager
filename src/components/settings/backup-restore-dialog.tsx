@@ -690,7 +690,10 @@ export function BackupRestoreDialog({
               <div className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-sm p-3 rounded-lg flex gap-2 items-start">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
-                  <strong>Atenção:</strong> O banco contém {totalExisting} registros. Restaurar este backup apagará permanentemente todos os registros atuais e redefinirá o sincronismo em todos os dispositivos.
+                  <strong>Atenção:</strong> O banco contém {totalExisting}{" "}
+                  registros. Restaurar este backup apagará permanentemente todos
+                  os registros atuais e redefinirá o sincronismo em todos os
+                  dispositivos.
                 </span>
               </div>
 
@@ -828,7 +831,7 @@ export function BackupRestoreDialog({
                   ? "Restauração Parcial"
                   : "Restauração Concluída!"}
               </p>
-              <p className="text-xs text-muted-foreground max-w-[280px]">
+              <p className="text-xs text-muted-foreground max-w-70">
                 {restoreErrorCount > 0 ? (
                   <>
                     {restoreData.length - restoreErrorCount} alterações

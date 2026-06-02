@@ -71,8 +71,23 @@ export default function SettingsPage() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isClearLogsDialogOpen, setIsClearLogsDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const [customBackupPath, setCustomBackupPath] = useState(
+    () => localStorage.getItem("customBackupPath") || "",
+  );
+  const [backupPathInput, setBackupPathInput] = useState(
+    () => localStorage.getItem("customBackupPath") || "",
+  );
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
+
+  const handleSaveBackupPath = () => {
+    setCustomBackupPath(backupPathInput);
+    localStorage.setItem("customBackupPath", backupPathInput);
+    toast({
+      title: "Configuração salva",
+      description: "O caminho da pasta de backup foi atualizado.",
+    });
+  };
 
   // --- Tags management ---
   const tagsQuery = useMemo(() => {
@@ -161,7 +176,7 @@ export default function SettingsPage() {
 
   const handleBackupChanges = async () => {
     try {
-      const updatePath = import.meta.env.VITE_UPDATE_PATH;
+      const updatePath = customBackupPath || import.meta.env.VITE_UPDATE_PATH;
 
       // 1. Get changes (The Sync-Native Backup)
       const changes = await db.execO("SELECT * FROM crsql_changes");
@@ -221,12 +236,12 @@ export default function SettingsPage() {
 
   const handleOpenBackupDir = async () => {
     try {
-      const updatePath = import.meta.env.VITE_UPDATE_PATH;
+      const updatePath = customBackupPath || import.meta.env.VITE_UPDATE_PATH;
       if (!updatePath) {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: "Caminho de rede (VITE_UPDATE_PATH) não configurado.",
+          description: "Pasta de backup não configurada (Danger Zone).",
         });
         return;
       }
@@ -329,43 +344,6 @@ export default function SettingsPage() {
                     )}
                   </Button>
                 </div>
-
-                <div
-                  className="flex items-center justify-between gap-4"
-                  data-testid="row-shortcuts"
-                >
-                  <div>
-                    <div
-                      className="text-sm font-medium"
-                      data-testid="text-shortcuts-label"
-                    >
-                      Atalhos de teclado
-                    </div>
-                    <div
-                      className="mt-1 text-sm text-muted-foreground"
-                      data-testid="text-shortcuts-desc"
-                    >
-                      Navegação rápida.
-                    </div>
-                  </div>
-                  <div
-                    className="flex items-center gap-2"
-                    data-testid="kbd-shortcuts"
-                  >
-                    <span
-                      className="kbd rounded-md px-2 py-1 text-xs"
-                      data-testid="kbd-g"
-                    >
-                      G
-                    </span>
-                    <span
-                      className="kbd rounded-md px-2 py-1 text-xs"
-                      data-testid="kbd-d"
-                    >
-                      D
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </Card>
@@ -441,6 +419,27 @@ export default function SettingsPage() {
               </p>
 
               <div className="mt-4 pt-4 border-t border-destructive/10">
+                <div className="flex flex-col gap-2 mb-4 pb-4 border-b border-destructive/10">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium">Pasta de Backup</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Caminho local ou de rede para salvar os backups.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={backupPathInput}
+                      onChange={(e) => setBackupPathInput(e.target.value)}
+                      onBlur={handleSaveBackupPath}
+                      placeholder="Ex: C:\Backups ou \\Servidor\Backups"
+                      className="h-8 text-xs bg-white/50"
+                      data-testid="input-custom-backup-path"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-sm font-medium">
