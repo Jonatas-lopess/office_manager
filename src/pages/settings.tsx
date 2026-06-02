@@ -156,74 +156,6 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleBackup = async () => {
-    try {
-      const updatePath = import.meta.env.VITE_UPDATE_PATH;
-
-      // 1. Get binary data (The Perfect Snapshot)
-      let data: Uint8Array;
-      try {
-        const api = db.api as any;
-        if (api.export_db) {
-          data = await api.export_db(db.db);
-        } else {
-          data = await api.serialize(db.db, "main");
-        }
-      } catch (exportErr) {
-        console.error("Export failed:", exportErr);
-        throw new Error("Falha ao ler a base de dados da memória.");
-      }
-
-      const dateStr = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .slice(0, 19);
-
-      // 2. Try to save to network share if configured
-      if (updatePath) {
-        try {
-          const backupDir = await join(updatePath, "Backups");
-          if (!(await exists(backupDir))) {
-            await mkdir(backupDir, { recursive: true });
-          }
-          const backupPath = await join(backupDir, `backup_${dateStr}.db`);
-          await writeFile(backupPath, data);
-
-          toast({
-            title: "Backup Concluído",
-            description: `Cópia salva em: ${backupPath}`,
-          });
-
-          await logAction(orm, {
-            action: `BACKUP BINÁRIO: Backup salvo em rede`,
-            module: "Configurações",
-            status: "Success",
-          });
-          return;
-        } catch (netErr) {
-          console.error(
-            "Network backup failed, falling back to download:",
-            netErr,
-          );
-        }
-      }
-
-      // 3. Fallback: Browser download
-      downloadFile(data, `backup_${dateStr}.db`);
-      toast({
-        title: "Backup baixado",
-        description: "A cópia foi baixada pelo navegador.",
-      });
-    } catch (err) {
-      console.error("Backup process failed:", err);
-      toast({
-        variant: "destructive",
-        title: "Falha no Backup",
-        description: "Não foi possível realizar o backup binário.",
-      });
-    }
-  };
-
   const handleBackupChanges = async () => {
     try {
       const updatePath = import.meta.env.VITE_UPDATE_PATH;
@@ -449,21 +381,12 @@ export default function SettingsPage() {
               <div className="mt-5 grid gap-2">
                 <Button
                   variant="outline"
-                  onClick={handleBackup}
-                  className="w-full gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
-                  data-testid="button-backup-db"
-                >
-                  <Save className="h-4 w-4" />
-                  Backup Binário (.db)
-                </Button>
-                <Button
-                  variant="outline"
                   onClick={handleBackupChanges}
                   className="w-full gap-2 border-blue-500/20 bg-blue-500/5 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700"
                   data-testid="button-backup-json"
                 >
                   <Save className="h-4 w-4" />
-                  Backup Sincronismo (.json)
+                  Backup Síncrono (.json)
                 </Button>
                 <Button
                   variant="outline"

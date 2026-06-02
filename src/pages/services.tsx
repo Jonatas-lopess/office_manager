@@ -119,6 +119,7 @@ export default function ServicesPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [restitutionDate, setRestitutionDate] = useState<string>("");
 
   const [selectedService, setSelectedService] = useState<any | null>(null);
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">(
@@ -141,6 +142,7 @@ export default function ServicesPage() {
         contract_date: servicesTable.contract_date,
         price: servicesTable.price,
         final_date: servicesTable.final_date,
+        restitution_date: servicesTable.restitution_date,
         payment_method: servicesTable.payment_method,
         installments: servicesTable.installments,
         observations: servicesTable.observations,
@@ -236,6 +238,20 @@ export default function ServicesPage() {
         if (s.contract_date > to.getTime()) return false;
       }
 
+      // Restitution Date filter
+      if (restitutionDate) {
+        if (!s.restitution_date) return false;
+        const targetDate = new Date(restitutionDate);
+        const sDate = new Date(s.restitution_date);
+        if (
+          targetDate.getFullYear() !== sDate.getFullYear() ||
+          targetDate.getMonth() !== sDate.getMonth() ||
+          targetDate.getDate() !== sDate.getDate()
+        ) {
+          return false;
+        }
+      }
+
       // Search filter
       if (search) {
         const content = normalizeString(
@@ -256,6 +272,7 @@ export default function ServicesPage() {
     serviceTagsMap,
     dateFrom,
     dateTo,
+    restitutionDate,
   ]);
 
   const clientsQuery = useMemo(() => {
@@ -474,7 +491,8 @@ export default function ServicesPage() {
                     selectedType !== "all" ||
                     selectedTagIds.length > 0 ||
                     dateFrom ||
-                    dateTo) && (
+                    dateTo ||
+                    restitutionDate) && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -485,6 +503,7 @@ export default function ServicesPage() {
                         setSelectedTagIds([]);
                         setDateFrom("");
                         setDateTo("");
+                        setRestitutionDate("");
                       }}
                       className="h-8 px-2 text-xs text-muted-foreground hover:text-primary"
                     >
@@ -578,6 +597,19 @@ export default function ServicesPage() {
                             title="Data final"
                           />
                         </div>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                          Data de Restituição
+                        </Label>
+                        <Input
+                          type="date"
+                          value={restitutionDate}
+                          onChange={(e) => setRestitutionDate(e.target.value)}
+                          className="w-38.75 h-9 text-sm"
+                          title="Data de restituição"
+                        />
                       </div>
 
                       <div className="grid gap-1.5">
