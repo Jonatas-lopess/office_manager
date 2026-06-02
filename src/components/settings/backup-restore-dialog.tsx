@@ -302,9 +302,7 @@ export function BackupRestoreDialog({
 
     for (const tableName of EXPECTED_TABLES) {
       try {
-        const [[count]] = await db.execA(
-          `SELECT COUNT(*) FROM "${tableName}"`,
-        );
+        const [[count]] = await db.execA(`SELECT COUNT(*) FROM "${tableName}"`);
         counts[tableName] = Number(count);
         if (Number(count) > 0) hasData = true;
       } catch {
@@ -441,10 +439,7 @@ export function BackupRestoreDialog({
     (a, b) => a + b,
     0,
   );
-  const totalBackup = Object.values(restoreSummary).reduce(
-    (a, b) => a + b,
-    0,
-  );
+  const totalBackup = Object.values(restoreSummary).reduce((a, b) => a + b, 0);
   const progressPct =
     restoreProgress.total > 0
       ? Math.round((restoreProgress.current / restoreProgress.total) * 100)
@@ -497,7 +492,7 @@ export function BackupRestoreDialog({
                     <Folder className="h-3.5 w-3.5" />
                     Backups na Rede ({networkBackups.length})
                   </div>
-                  <ScrollArea className="max-h-[220px] border rounded-lg">
+                  <ScrollArea className="max-h-55 border rounded-lg">
                     <div className="p-1.5 space-y-1">
                       {networkBackups.map((b) => (
                         <button
@@ -644,28 +639,25 @@ export function BackupRestoreDialog({
               <div className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm p-3 rounded-lg flex gap-2 items-start">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
-                  O banco contém{" "}
-                  <strong>{totalExisting} registros</strong>. Escolha como
-                  proceder:
+                  O banco contém <strong>{totalExisting} registros</strong>.
+                  Escolha como proceder:
                 </span>
               </div>
 
               <div className="border rounded-lg divide-y">
-                {EXPECTED_TABLES.filter((t) => (existingCounts[t] ?? 0) > 0).map(
-                  (t) => (
-                    <div
-                      key={t}
-                      className="flex items-center justify-between px-4 py-2"
-                    >
-                      <span className="text-sm">
-                        {TABLE_LABELS[t] || t}
-                      </span>
-                      <span className="text-sm font-mono font-medium">
-                        {existingCounts[t]}
-                      </span>
-                    </div>
-                  ),
-                )}
+                {EXPECTED_TABLES.filter(
+                  (t) => (existingCounts[t] ?? 0) > 0,
+                ).map((t) => (
+                  <div
+                    key={t}
+                    className="flex items-center justify-between px-4 py-2"
+                  >
+                    <span className="text-sm">{TABLE_LABELS[t] || t}</span>
+                    <span className="text-sm font-mono font-medium">
+                      {existingCounts[t]}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div className="grid gap-2">
@@ -756,8 +748,8 @@ export function BackupRestoreDialog({
               {clearBeforeRestore && (
                 <div className="bg-destructive/10 text-destructive text-xs p-2.5 rounded-lg flex gap-2 items-center">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  Clientes, serviços, pagamentos, tags e vínculos serão removidos
-                  antes da restauração.
+                  Clientes, serviços, pagamentos, tags e vínculos serão
+                  removidos antes da restauração.
                 </div>
               )}
             </div>
@@ -818,10 +810,7 @@ export function BackupRestoreDialog({
         {/* ─── FOOTER ─── */}
         <DialogFooter className="p-6 pt-3 border-t bg-muted/10">
           {step === "browse" && (
-            <Button
-              variant="secondary"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
           )}
@@ -868,10 +857,7 @@ export function BackupRestoreDialog({
 
           {step === "error" && (
             <>
-              <Button
-                variant="secondary"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button variant="secondary" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>
               <Button variant="outline" onClick={reset}>

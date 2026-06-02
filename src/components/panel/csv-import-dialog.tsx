@@ -550,7 +550,7 @@ export function CSVImportDialog({
               <div className="bg-muted/30 border rounded-lg p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <FileText className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm font-medium truncate max-w-[200px]">
+                  <span className="text-sm font-medium truncate max-w-50">
                     {file?.name}
                   </span>
                   <Badge variant="secondary" className="text-[10px]">
@@ -602,7 +602,7 @@ export function CSVImportDialog({
 
                       <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
 
-                      <div className="w-[200px]">
+                      <div className="w-50">
                         <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
                           Campo Destino
                         </p>
