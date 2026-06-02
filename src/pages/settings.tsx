@@ -286,68 +286,9 @@ export default function SettingsPage() {
   ];
 
   return (
-    <AppShell
-      title="Configurações"
-      subtitle="Preferências e padrões do painel."
-    >
+    <AppShell title="Configurações" subtitle="Gerencie padrões e segurança.">
       <ScrollArea className="flex-1 pr-4">
         <div className="grid gap-4 lg:grid-cols-3" data-testid="grid-settings">
-          <Card
-            className="panel-card lg:col-span-2"
-            data-testid="card-preferences"
-          >
-            <div className="p-5">
-              <div
-                className="text-sm font-medium"
-                data-testid="text-preferences-title"
-              >
-                Preferências
-              </div>
-              <div className="mt-4 grid gap-4" data-testid="list-preferences">
-                <div
-                  className="flex items-center justify-between gap-4"
-                  data-testid="row-theme"
-                >
-                  <div>
-                    <div
-                      className="text-sm font-medium"
-                      data-testid="text-theme-label"
-                    >
-                      Tema
-                    </div>
-                    <div
-                      className="mt-1 text-sm text-muted-foreground"
-                      data-testid="text-theme-desc"
-                    >
-                      Alternar entre claro e escuro.
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setDark((v) => !v);
-                      document.documentElement.classList.toggle("dark");
-                    }}
-                    className="gap-2"
-                    data-testid="button-toggle-theme"
-                  >
-                    {dark ? (
-                      <>
-                        <SunMedium className="h-4 w-4" />
-                        Claro
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="h-4 w-4" />
-                        Escuro
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-
           <Card className="panel-card" data-testid="card-backup">
             <div className="p-5">
               <div className="flex items-center gap-2 text-sm font-medium">
@@ -521,6 +462,39 @@ export default function SettingsPage() {
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   Ativo
                 </div>
+              </div>
+              <div
+                className="flex items-center justify-between"
+                data-testid="row-workspace-theme"
+              >
+                <div
+                  className="text-muted-foreground"
+                  data-testid="text-workspace-theme-label"
+                >
+                  Tema
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setDark((v) => !v);
+                    document.documentElement.classList.toggle("dark");
+                  }}
+                  className="h-8 gap-2 text-xs"
+                  data-testid="button-toggle-theme"
+                >
+                  {dark ? (
+                    <>
+                      <SunMedium className="h-4 w-4" />
+                      Claro
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4" />
+                      Escuro
+                    </>
+                  )}
+                </Button>
               </div>
               <div
                 className="flex items-center justify-between"
