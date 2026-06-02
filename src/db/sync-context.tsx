@@ -14,15 +14,17 @@ const SyncContext = createContext<SyncContextState | null>(null);
 export function SyncProvider({
   hubIp,
   isTauri,
+  isolatedMode = false,
   children,
 }: {
   hubIp: string | null;
   isTauri: boolean;
+  isolatedMode?: boolean;
   children: ReactNode;
 }) {
   const { db, hub } = useDb();
   const wsUrl = hubIp ? `ws://${hubIp}:1234/ws` : `ws://localhost:1234/ws`;
-  const syncState = useSyncBridge(db, hub, wsUrl, isTauri);
+  const syncState = useSyncBridge(db, hub, wsUrl, isTauri, isolatedMode);
 
   return (
     <SyncContext.Provider value={syncState}>{children}</SyncContext.Provider>

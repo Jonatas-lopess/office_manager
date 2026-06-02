@@ -42,8 +42,6 @@ function LoadingScreen({
 function AppLoader() {
   const { isInitialSyncFinished, connectionStatus } = useSync();
 
-
-
   if (!isInitialSyncFinished) {
     let message = "Synchronizing data...";
     let subMessage = "Fetching the latest updates from the network";
@@ -71,6 +69,9 @@ function Root() {
   const [isTauri, setIsTauri] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Set to true to skip network scanning and hub election
+  const isolatedMode = false;
+
   useEffect(() => {
     async function bootSequence() {
       if (isBooting) return;
@@ -79,7 +80,7 @@ function Root() {
       try {
         // 1. Initialize the database first
         const dbContext = await initDb();
-        
+
         let discoveredIp = null;
         let isTauriEnv = false;
 
@@ -87,12 +88,17 @@ function Root() {
         try {
           if ((window as any).__TAURI_INTERNALS__) {
             isTauriEnv = true;
-            discoveredIp = await invoke<string | null>("find_hub_ip");
+            if (!isolatedMode) {
+              discoveredIp = await invoke<string | null>("find_hub_ip");
+            }
           } else {
             // Running in standard browser. Skipping TCP scan.
           }
         } catch (invokeErr) {
-          console.warn("Tauri invoke failed (likely not in Tauri environment):", invokeErr);
+          console.warn(
+            "Tauri invoke failed (likely not in Tauri environment):",
+            invokeErr,
+          );
         }
 
         // 3. Set the state
@@ -127,7 +133,7 @@ function Root() {
 
   return (
     <DbProvider db={dbState.db} orm={dbState.orm} hub={dbState.hub}>
-      <SyncProvider hubIp={hubIp} isTauri={isTauri}>
+      <SyncProvider hubIp={hubIp} isTauri={isTauri} isolatedMode={isolatedMode}>
         <AppLoader />
       </SyncProvider>
     </DbProvider>

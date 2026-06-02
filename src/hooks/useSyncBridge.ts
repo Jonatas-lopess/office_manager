@@ -36,7 +36,6 @@ const deserializeMsg = (str: any) => {
   });
 };
 
-
 export type ConnectionStatus =
   | "disconnected"
   | "connecting"
@@ -55,6 +54,7 @@ export function useSyncBridge(
   hub: DBChangeHub,
   initialHubUrl: string,
   isTauri: boolean,
+  isolatedMode: boolean = false,
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const lastVersionRef = useRef(0n);
@@ -83,14 +83,15 @@ export function useSyncBridge(
     isInitialSyncFinishedRef.current = finished;
   }, []);
 
-
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
   // ==========================================
   const connect = useCallback(async () => {
     if (isUnmountingRef.current) return;
     if (isConnectingRef.current) {
-      console.log("⏳ [Network] Connection attempt already in progress. Skipping.");
+      console.log(
+        "⏳ [Network] Connection attempt already in progress. Skipping.",
+      );
       return;
     }
 
@@ -112,42 +113,42 @@ export function useSyncBridge(
       );
 
       let targetUrl: string = initialHubUrl;
-      
+
       // On failover or initial connection as Tauri, we scan for a hub.
-      if (isTauri) {
+      if (isTauri && !isolatedMode) {
         console.log(`🔍 [Election] Scanning for an existing Hub...`);
         let hubIp = await invoke<string | null>("find_hub_ip");
-        
+
         // Option B: Master Election retries
         if (!hubIp) {
-            console.log(`⚠️ [Election] Scan 1 failed. Retrying...`);
-            await new Promise(r => setTimeout(r, 1000));
-            hubIp = await invoke<string | null>("find_hub_ip");
+          console.log(`⚠️ [Election] Scan 1 failed. Retrying...`);
+          await new Promise((r) => setTimeout(r, 1000));
+          hubIp = await invoke<string | null>("find_hub_ip");
         }
         if (!hubIp) {
-            console.log(`⚠️ [Election] Scan 2 failed. Retrying...`);
-            await new Promise(r => setTimeout(r, 1000));
-            hubIp = await invoke<string | null>("find_hub_ip");
+          console.log(`⚠️ [Election] Scan 2 failed. Retrying...`);
+          await new Promise((r) => setTimeout(r, 1000));
+          hubIp = await invoke<string | null>("find_hub_ip");
         }
 
         if (isUnmountingRef.current) {
-            isConnectingRef.current = false;
-            return;
+          isConnectingRef.current = false;
+          return;
         }
-        
+
         if (hubIp) {
-            console.log(`✅ [Election] Found existing Hub at ${hubIp}`);
-            targetUrl = `ws://${hubIp}:1234/ws`;
+          console.log(`✅ [Election] Found existing Hub at ${hubIp}`);
+          targetUrl = `ws://${hubIp}:1234/ws`;
         } else {
-            console.log(`❌ [Election] No Hub found. Electing SELF as Hub.`);
-            try {
-                await invoke("start_hub");
-                // Wait briefly for Rust to bind port
-                await new Promise(r => setTimeout(r, 1500));
-            } catch (err) {
-                console.error("Failed to start local rust hub:", err);
-            }
-            targetUrl = `ws://localhost:1234/ws`;
+          console.log(`❌ [Election] No Hub found. Electing SELF as Hub.`);
+          try {
+            await invoke("start_hub");
+            // Wait briefly for Rust to bind port
+            await new Promise((r) => setTimeout(r, 1500));
+          } catch (err) {
+            console.error("Failed to start local rust hub:", err);
+          }
+          targetUrl = `ws://localhost:1234/ws`;
         }
       }
 
@@ -164,263 +165,267 @@ export function useSyncBridge(
         isConnectingRef.current = false;
         if (isUnmountingRef.current) return;
         console.log(`🟢 [Network] Connected to Hub at ${targetUrl}`);
-      setConnectionStatus("connected");
-      reconnectAttemptsRef.current = 0;
+        setConnectionStatus("connected");
+        reconnectAttemptsRef.current = 0;
 
-      // Query local max versions per site for incremental sync
-      const knowledgeMap: Record<string, string> = {
-        // "hex_site_id": "max_version"
+        // Query local max versions per site for incremental sync
+        const knowledgeMap: Record<string, string> = {
+          // "hex_site_id": "max_version"
+        };
+
+        try {
+          const siteVersions = await ctx.execA(
+            `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
+          );
+          for (const [siteIdHex, maxVersion] of siteVersions) {
+            knowledgeMap[siteIdHex] = maxVersion.toString();
+          }
+
+          // Ensure our own site is always included in the knowledge map
+          if (
+            mySiteIdHexRef.current &&
+            !(mySiteIdHexRef.current in knowledgeMap)
+          ) {
+            knowledgeMap[mySiteIdHexRef.current] =
+              lastVersionRef.current.toString();
+          }
+        } catch (err) {
+          console.error(`❌ [Knowledge Map Error]:`, err);
+        }
+
+        // Asking peers to sync their history with us INCREMENTALLY
+        ws.send(
+          serializeMsg({
+            type: "request_sync",
+            payload: { knowledgeMap },
+          }),
+        );
+
+        // If we don't receive any sync messages within 1.5 seconds after connecting,
+        // assume we are up to date or the hub has no data.
+        if (syncDebounceTimeoutRef.current) {
+          clearTimeout(syncDebounceTimeoutRef.current);
+        }
+        syncDebounceTimeoutRef.current = setTimeout(() => {
+          setSyncFinished(true);
+        }, 1500);
       };
 
-      try {
-        const siteVersions = await ctx.execA(
-          `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
-        );
-        for (const [siteIdHex, maxVersion] of siteVersions) {
-          knowledgeMap[siteIdHex] = maxVersion.toString();
-        }
+      ws.onerror = (err) => {
+        console.error(`❌ [Network] Socket Error:`, err);
+        isConnectingRef.current = false;
+        // ws.onclose will be called next, which handles reconnection.
+      };
 
-        // Ensure our own site is always included in the knowledge map
-        if (mySiteIdHexRef.current && !(mySiteIdHexRef.current in knowledgeMap)) {
-          knowledgeMap[mySiteIdHexRef.current] = lastVersionRef.current.toString();
-        }
-      } catch (err) {
-        console.error(`❌ [Knowledge Map Error]:`, err);
-      }
+      ws.onclose = () => {
+        isConnectingRef.current = false;
+        console.log(`⚠️ [Network] Disconnected from Hub.`);
+        wsRef.current = null;
 
-      // Asking peers to sync their history with us INCREMENTALLY
-      ws.send(
-        serializeMsg({
-          type: "request_sync",
-          payload: { knowledgeMap },
-        }),
-      );
-
-      // If we don't receive any sync messages within 1.5 seconds after connecting,
-      // assume we are up to date or the hub has no data.
-      if (syncDebounceTimeoutRef.current) {
-        clearTimeout(syncDebounceTimeoutRef.current);
-      }
-      syncDebounceTimeoutRef.current = setTimeout(() => {
-        setSyncFinished(true);
-      }, 1500);
-
-    };
-
-    ws.onerror = (err) => {
-      console.error(`❌ [Network] Socket Error:`, err);
-      isConnectingRef.current = false;
-      // ws.onclose will be called next, which handles reconnection.
-    };
-
-    ws.onclose = () => {
-      isConnectingRef.current = false;
-      console.log(`⚠️ [Network] Disconnected from Hub.`);
-      wsRef.current = null;
-
-      // Do not attempt to reconnect if the component is unmounting.
-      if (isUnmountingRef.current) {
-        setConnectionStatus("disconnected");
-        return;
-      }
-
-      setConnectionStatus("reconnecting");
-
-      const attempts = reconnectAttemptsRef.current;
-      // Exponential backoff with jitter
-      const delay =
-        Math.min(
-          MAX_RECONNECT_DELAY,
-          BASE_RECONNECT_DELAY * Math.pow(2, attempts),
-        ) +
-        Math.random() * JITTER_AMOUNT;
-
-      console.log(
-        `[Failover] Will attempt to reconnect in ${Math.round(
-          delay / 1000,
-        )}s (attempt #${attempts + 1})`,
-      );
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        reconnectAttemptsRef.current += 1;
-        connect();
-      }, delay);
-    };
-
-    ws.onmessage = async (event) => {
-      const message = deserializeMsg(event.data);
-
-      if (message.type === "identity") {
-        setMyId(message.payload);
-        return;
-      }
-
-      if (message.type === "presence") {
-        setConnectedPeers(message.payload);
-        return;
-      }
-
-      if (message.type === "request_sync") {
-        const theirMap = message.payload?.knowledgeMap || {};
-
-        if (!ctx) return;
-        try {
-          // Get all sites we know about
-          const ourSites = await ctx.execA(
-            `SELECT hex(site_id) FROM crsql_changes GROUP BY site_id`,
-          );
-
-          let allChanges: any[] = [];
-
-          for (const [siteIdHex] of ourSites) {
-            const lastKnownVersion = theirMap[siteIdHex]
-              ? BigInt(theirMap[siteIdHex])
-              : -1n;
-
-            const changes = await ctx.execA(
-              `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
-              FROM crsql_changes
-              WHERE site_id = x'${siteIdHex}' AND db_version > ?
-              ORDER BY db_version, seq`,
-              [lastKnownVersion],
-            );
-            allChanges = allChanges.concat(changes);
-          }
-
-          if (allChanges.length > 0) {
-            // Sort merged changes to maintain causal order across sites (best effort)
-            allChanges.sort((a, b) => {
-              const va = BigInt(a[5]);
-              const vb = BigInt(b[5]);
-              if (va < vb) return -1;
-              if (va > vb) return 1;
-              return Number(BigInt(a[8]) - BigInt(b[8])); // seq
-            });
-
-            // Send in batches to avoid blocking main thread and potential IPC limits
-            for (let i = 0; i < allChanges.length; i += SYNC_BATCH_SIZE) {
-              const batch = allChanges.slice(i, i + SYNC_BATCH_SIZE);
-              ws.send(serializeMsg({ type: "sync", payload: batch }));
-              // Small yield to let UI remain responsive between batches if there are many
-              if (allChanges.length > SYNC_BATCH_SIZE) {
-                await new Promise((resolve) => setTimeout(resolve, 0));
-              }
-            }
-          }
-
-          // Anti-Entropy Check: Do they have stuff we don't?
-          let weAreMissingData = false;
-          for (const siteIdHex in theirMap) {
-            const theirVersion = BigInt(theirMap[siteIdHex]);
-            const ourRow = ourSites.find((s) => s[0] === siteIdHex);
-            // If they have a site we don't know, or a newer version of a site we do know
-            if (!ourRow) {
-              weAreMissingData = true;
-              break;
-            }
-            // Need to get the actual max version for this site from our DB
-            const [[ourMax]] = await ctx.execA(
-              `SELECT max(db_version) FROM crsql_changes WHERE site_id = x'${siteIdHex}'`,
-            );
-            if (theirVersion > (ourMax || -1n)) {
-              weAreMissingData = true;
-              break;
-            }
-          }
-
-          if (weAreMissingData) {
-            const siteVersions = await ctx.execA(
-              `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
-            );
-            const myKnowledgeMap: Record<string, string> = {};
-            for (const [siteIdHex, maxVersion] of siteVersions) {
-              myKnowledgeMap[siteIdHex] = maxVersion.toString();
-            }
-
-            // Ensure our own site is always included
-            if (mySiteIdHexRef.current && !(mySiteIdHexRef.current in myKnowledgeMap)) {
-               myKnowledgeMap[mySiteIdHexRef.current] = lastVersionRef.current.toString();
-            }
-
-            ws.send(
-              serializeMsg({
-                type: "request_sync",
-                payload: { knowledgeMap: myKnowledgeMap },
-              }),
-            );
-          } else {
-             // Anti-entropy determined we are fully up to date with this request
-               if (!isInitialSyncFinishedRef.current) {
-                 if (syncDebounceTimeoutRef.current) {
-                   clearTimeout(syncDebounceTimeoutRef.current);
-                 }
-                 setSyncFinished(true);
-               }
-          }
-
-        } catch (err) {
-          console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
-        }
-        return;
-      }
-
-      if (message.type === "sync" && message.payload.length > 0) {
-        if (!ctx) {
-          console.warn(`⚠️ [Inbound] Database context not ready, skipping.`);
+        // Do not attempt to reconnect if the component is unmounting.
+        if (isUnmountingRef.current) {
+          setConnectionStatus("disconnected");
           return;
         }
 
-        const stmt = await ctx.prepare(
-          `INSERT INTO crsql_changes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        setConnectionStatus("reconnecting");
+
+        const attempts = reconnectAttemptsRef.current;
+        // Exponential backoff with jitter
+        const delay =
+          Math.min(
+            MAX_RECONNECT_DELAY,
+            BASE_RECONNECT_DELAY * Math.pow(2, attempts),
+          ) +
+          Math.random() * JITTER_AMOUNT;
+
+        console.log(
+          `[Failover] Will attempt to reconnect in ${Math.round(
+            delay / 1000,
+          )}s (attempt #${attempts + 1})`,
         );
 
-        ctx
-          .tx(async (tx) => {
-            for (const row of message.payload) {
-              // We removed the aggressive 'skip from self' logic because:
-              // 1. The Hub already performs echo cancellation based on client UUID
-              // 2. If we do receive our own changes from other peers, we should let 
-              //    crsqlite handle them (it's idempotent) so our local state 
-              //    stays in sync and the anti-entropy check terminates.
-
-              await stmt.run(tx, ...row).catch((err) => {
-                console.error(`❌ [Inbound SQL Error]:`, err);
-                console.error(`Failing Row Data:`, row);
-                throw err;
-              });
-            }
-
-              // Success merging remote changes
-          })
-          .catch((err) => {
-            console.error(`❌ [Transaction Error]:`, err);
-          })
-          .finally(() => {
-            stmt.finalize(null);
-          });
-          
-        // Reset the debounce timer on every received sync message
-        if (!isInitialSyncFinishedRef.current) {
-          if (syncDebounceTimeoutRef.current) {
-            clearTimeout(syncDebounceTimeoutRef.current);
-          }
-          syncDebounceTimeoutRef.current = setTimeout(() => {
-            setSyncFinished(true);
-          }, 1000);
-        }
-
-      }
-    };
-    
-    } catch (e) {
-       console.error("❌ [Network] Unexpected error in connect():", e);
-       isConnectingRef.current = false;
-       
-       // Trigger a retry manually if we didn't even reach the WebSocket
-       reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current += 1;
           connect();
-       }, BASE_RECONNECT_DELAY);
+        }, delay);
+      };
+
+      ws.onmessage = async (event) => {
+        const message = deserializeMsg(event.data);
+
+        if (message.type === "identity") {
+          setMyId(message.payload);
+          return;
+        }
+
+        if (message.type === "presence") {
+          setConnectedPeers(message.payload);
+          return;
+        }
+
+        if (message.type === "request_sync") {
+          const theirMap = message.payload?.knowledgeMap || {};
+
+          if (!ctx) return;
+          try {
+            // Get all sites we know about
+            const ourSites = await ctx.execA(
+              `SELECT hex(site_id) FROM crsql_changes GROUP BY site_id`,
+            );
+
+            let allChanges: any[] = [];
+
+            for (const [siteIdHex] of ourSites) {
+              const lastKnownVersion = theirMap[siteIdHex]
+                ? BigInt(theirMap[siteIdHex])
+                : -1n;
+
+              const changes = await ctx.execA(
+                `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
+              FROM crsql_changes
+              WHERE site_id = x'${siteIdHex}' AND db_version > ?
+              ORDER BY db_version, seq`,
+                [lastKnownVersion],
+              );
+              allChanges = allChanges.concat(changes);
+            }
+
+            if (allChanges.length > 0) {
+              // Sort merged changes to maintain causal order across sites (best effort)
+              allChanges.sort((a, b) => {
+                const va = BigInt(a[5]);
+                const vb = BigInt(b[5]);
+                if (va < vb) return -1;
+                if (va > vb) return 1;
+                return Number(BigInt(a[8]) - BigInt(b[8])); // seq
+              });
+
+              // Send in batches to avoid blocking main thread and potential IPC limits
+              for (let i = 0; i < allChanges.length; i += SYNC_BATCH_SIZE) {
+                const batch = allChanges.slice(i, i + SYNC_BATCH_SIZE);
+                ws.send(serializeMsg({ type: "sync", payload: batch }));
+                // Small yield to let UI remain responsive between batches if there are many
+                if (allChanges.length > SYNC_BATCH_SIZE) {
+                  await new Promise((resolve) => setTimeout(resolve, 0));
+                }
+              }
+            }
+
+            // Anti-Entropy Check: Do they have stuff we don't?
+            let weAreMissingData = false;
+            for (const siteIdHex in theirMap) {
+              const theirVersion = BigInt(theirMap[siteIdHex]);
+              const ourRow = ourSites.find((s) => s[0] === siteIdHex);
+              // If they have a site we don't know, or a newer version of a site we do know
+              if (!ourRow) {
+                weAreMissingData = true;
+                break;
+              }
+              // Need to get the actual max version for this site from our DB
+              const [[ourMax]] = await ctx.execA(
+                `SELECT max(db_version) FROM crsql_changes WHERE site_id = x'${siteIdHex}'`,
+              );
+              if (theirVersion > (ourMax || -1n)) {
+                weAreMissingData = true;
+                break;
+              }
+            }
+
+            if (weAreMissingData) {
+              const siteVersions = await ctx.execA(
+                `SELECT hex(site_id), max(db_version) FROM crsql_changes GROUP BY site_id`,
+              );
+              const myKnowledgeMap: Record<string, string> = {};
+              for (const [siteIdHex, maxVersion] of siteVersions) {
+                myKnowledgeMap[siteIdHex] = maxVersion.toString();
+              }
+
+              // Ensure our own site is always included
+              if (
+                mySiteIdHexRef.current &&
+                !(mySiteIdHexRef.current in myKnowledgeMap)
+              ) {
+                myKnowledgeMap[mySiteIdHexRef.current] =
+                  lastVersionRef.current.toString();
+              }
+
+              ws.send(
+                serializeMsg({
+                  type: "request_sync",
+                  payload: { knowledgeMap: myKnowledgeMap },
+                }),
+              );
+            } else {
+              // Anti-entropy determined we are fully up to date with this request
+              if (!isInitialSyncFinishedRef.current) {
+                if (syncDebounceTimeoutRef.current) {
+                  clearTimeout(syncDebounceTimeoutRef.current);
+                }
+                setSyncFinished(true);
+              }
+            }
+          } catch (err) {
+            console.error(`❌ [Outbound] Failed to fulfill request_sync:`, err);
+          }
+          return;
+        }
+
+        if (message.type === "sync" && message.payload.length > 0) {
+          if (!ctx) {
+            console.warn(`⚠️ [Inbound] Database context not ready, skipping.`);
+            return;
+          }
+
+          const stmt = await ctx.prepare(
+            `INSERT INTO crsql_changes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          );
+
+          ctx
+            .tx(async (tx) => {
+              for (const row of message.payload) {
+                // We removed the aggressive 'skip from self' logic because:
+                // 1. The Hub already performs echo cancellation based on client UUID
+                // 2. If we do receive our own changes from other peers, we should let
+                //    crsqlite handle them (it's idempotent) so our local state
+                //    stays in sync and the anti-entropy check terminates.
+
+                await stmt.run(tx, ...row).catch((err) => {
+                  console.error(`❌ [Inbound SQL Error]:`, err);
+                  console.error(`Failing Row Data:`, row);
+                  throw err;
+                });
+              }
+
+              // Success merging remote changes
+            })
+            .catch((err) => {
+              console.error(`❌ [Transaction Error]:`, err);
+            })
+            .finally(() => {
+              stmt.finalize(null);
+            });
+
+          // Reset the debounce timer on every received sync message
+          if (!isInitialSyncFinishedRef.current) {
+            if (syncDebounceTimeoutRef.current) {
+              clearTimeout(syncDebounceTimeoutRef.current);
+            }
+            syncDebounceTimeoutRef.current = setTimeout(() => {
+              setSyncFinished(true);
+            }, 1000);
+          }
+        }
+      };
+    } catch (e) {
+      console.error("❌ [Network] Unexpected error in connect():", e);
+      isConnectingRef.current = false;
+
+      // Trigger a retry manually if we didn't even reach the WebSocket
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectAttemptsRef.current += 1;
+        connect();
+      }, BASE_RECONNECT_DELAY);
     }
   }, [initialHubUrl, ctx, isTauri]);
 
@@ -444,7 +449,6 @@ export function useSyncBridge(
       setConnectionStatus("disconnected");
       setSyncFinished(false);
     };
-
   }, [connect]);
 
   // ==========================================
