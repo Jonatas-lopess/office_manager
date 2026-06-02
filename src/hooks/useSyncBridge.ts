@@ -97,6 +97,13 @@ export function useSyncBridge(
 
     isConnectingRef.current = true;
 
+    if (isolatedMode) {
+      setConnectionStatus("disconnected");
+      setSyncFinished(true);
+      isConnectingRef.current = false;
+      return;
+    }
+
     try {
       // Clean up any existing connections or timers
       if (wsRef.current) {
@@ -427,7 +434,7 @@ export function useSyncBridge(
         connect();
       }, BASE_RECONNECT_DELAY);
     }
-  }, [initialHubUrl, ctx, isTauri]);
+  }, [initialHubUrl, ctx, isTauri, isolatedMode]);
 
   useEffect(() => {
     isUnmountingRef.current = false;
