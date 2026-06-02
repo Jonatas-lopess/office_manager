@@ -12,6 +12,7 @@ import {
   Lock as LockIcon,
   Pencil,
   Tag,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,6 +58,7 @@ import { join } from "@tauri-apps/api/path";
 import { writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { checkInternalUpdate } from "@/lib/updater";
+import { BackupRestoreDialog } from "@/components/settings/backup-restore-dialog";
 
 export default function SettingsPage() {
   const { orm, db } = useDb();
@@ -68,6 +70,7 @@ export default function SettingsPage() {
   );
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isClearLogsDialogOpen, setIsClearLogsDialogOpen] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
 
@@ -387,6 +390,15 @@ export default function SettingsPage() {
                 >
                   <Save className="h-4 w-4" />
                   Backup Síncrono (.json)
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRestoreDialogOpen(true)}
+                  className="w-full gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                  data-testid="button-restore-backup"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Restaurar Backup (.json)
                 </Button>
                 <Button
                   variant="outline"
@@ -857,6 +869,11 @@ export default function SettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BackupRestoreDialog
+        open={isRestoreDialogOpen}
+        onOpenChange={setIsRestoreDialogOpen}
+      />
     </AppShell>
   );
 }
