@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-06-02
+
+### Added
+
+- **P2P Synch Epoch**: Adicionado sincronia baseada em epochs para controle de versão e alinhamento com sistema de backup.
+- **Sistema de Restauração**: Adicionado sistema para restaurar o banco de dados a partir de um arquivo de backup.
+- **Filtro de Restituição**: Adicionado filtro para o serviço de IRPF por data da restituição.
+- **Modo Isolado**: Adicionado modo isolado para testes e depuração.
+ 
+### Changed
+
+- **Organização da Tela de Configuração**: Estilo da tela de configuração para melhor organização e acesso aos parâmetros do sistema.
+
+### Fixed
+
+- **Criação de Novos Serviços**: Corrigido problema com a criação de serviços com etiquetas e pagamentos.
+
 ## [2.7.0] - 2026-06-01
 
 ### Added
