@@ -70,7 +70,7 @@ function Root() {
   const [error, setError] = useState<string | null>(null);
 
   // Set to true to skip network scanning and hub election
-  const isolatedMode = true;
+  const isolatedMode = false;
 
   useEffect(() => {
     async function bootSequence() {

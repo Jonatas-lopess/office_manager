@@ -53,17 +53,12 @@ import {
 } from "@/db/validations";
 import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
-import {
-  serviceTypesArray,
-  paymentsTable,
-  tagsTable,
-  serviceTagsTable,
-} from "@/db/schema";
+import { serviceTypesArray, serviceTagsTable } from "@/db/schema";
 import ClickToCopy from "@/components/ui/click-to-copy";
 import { maskCurrencyInput, parseFreeFormCurrency } from "@/lib/masks";
 import { TagInput, type TagOption } from "@/components/ui/tag-input";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export type ServiceStatus = Service["status"];
 
