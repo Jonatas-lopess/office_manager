@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { v7 as uuidv7 } from "uuid";
 import {
   Dialog,
   DialogContent,
@@ -756,7 +757,9 @@ export default function ServicesPage() {
           historicDescriptions={historicDescriptions}
           allTags={allTags}
           onFinancialAction={openFinancialDialog}
-          onSave={async (svc) => {
+          onSave={async (svc, tagsData, paymentData) => {
+            const now = new Date();
+            // 1. Persist the service
             if (dialogMode === "create") {
               await orm.insert(servicesTable).values(svc);
               await logAction(orm, {
@@ -787,7 +790,50 @@ export default function ServicesPage() {
                 description: `As alterações foram salvas.`,
               });
             }
-            setIsDialogOpen(false);
+
+            // 2. Persist new tags
+            for (const tag of tagsData.pendingTags) {
+              await orm.insert(tagsTable).values({
+                id: tag.id,
+                name: tag.name,
+                color: tag.color,
+                created_at: now,
+              });
+            }
+
+            // 3. Persist tag associations
+            const oldTagIds = new Set(tagsData.initialTagIds);
+            const newTagIds = new Set(tagsData.selectedTagIds);
+
+            for (const tagId of oldTagIds) {
+              if (!newTagIds.has(tagId as string)) {
+                await orm
+                  .delete(serviceTagsTable)
+                  .where(
+                    sql`${serviceTagsTable.service_id} = ${svc.id} AND ${serviceTagsTable.tag_id} = ${tagId}`,
+                  );
+              }
+            }
+            for (const tagId of newTagIds) {
+              if (!oldTagIds.has(tagId)) {
+                await orm
+                  .insert(serviceTagsTable)
+                  .values({ service_id: svc.id, tag_id: tagId });
+              }
+            }
+
+            // 4. Persist payment
+            if (paymentData) {
+              await orm.insert(paymentsTable).values({
+                id: uuidv7(),
+                service_id: svc.id,
+                amount: paymentData.amount,
+                payment_type: paymentData.type as any,
+                payment_date: paymentData.date,
+                created_at: now,
+                updated_at: now,
+              });
+            }
           }}
         />
 

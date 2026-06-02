@@ -75,7 +75,15 @@ interface ServiceDialogProps {
   clients: any[];
   historicDescriptions: string[];
   allTags: TagOption[];
-  onSave: (service: any) => Promise<void>;
+  onSave: (
+    service: any,
+    tags: {
+      selectedTagIds: string[];
+      pendingTags: TagOption[];
+      initialTagIds: string[];
+    },
+    payment?: { amount: number; type: string; date: Date },
+  ) => Promise<void>;
   onFinancialAction?: (service: any) => void;
 }
 
@@ -819,6 +827,12 @@ function ServiceDialogContent({
   }, [rawServiceTags]);
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [pendingTags, setPendingTags] = useState<TagOption[]>([]);
+
+  const combinedTags = useMemo(
+    () => [...allTags, ...pendingTags],
+    [allTags, pendingTags],
+  );
 
   // Sync initial tag ids when they load
   useEffect(() => {
@@ -832,8 +846,9 @@ function ServiceDialogContent({
     color: string,
   ): Promise<TagOption> => {
     const id = uuidv7();
-    await orm.insert(tagsTable).values({ id, name, color });
-    return { id, name, color };
+    const newTag = { id, name, color };
+    setPendingTags((prev) => [...prev, newTag]);
+    return newTag;
   };
 
   const form = useForm<NewServiceType>({
@@ -857,6 +872,7 @@ function ServiceDialogContent({
 
   useEffect(() => {
     if (open) {
+      setPendingTags([]);
       if (initialData) {
         form.reset({
           ...initialData,
@@ -914,6 +930,7 @@ function ServiceDialogContent({
     if (isView) return;
     const now = new Date();
     const service_id = initialData?.id || uuidv7();
+
     const svc: Service = {
       ...(initialData || {}),
       ...data,
@@ -931,45 +948,26 @@ function ServiceDialogContent({
       updated_at: now,
     };
 
-    await onSave(svc);
+    const tagsData = {
+      selectedTagIds,
+      pendingTags: pendingTags.filter((t) => selectedTagIds.includes(t.id)),
+      initialTagIds,
+    };
 
-    // Save tags — diff old vs new
-    const oldTagIds = new Set(initialTagIds);
-    const newTagIds = new Set(selectedTagIds);
+    const paymentData =
+      mode === "create" && data.payment_amount && data.payment_amount > 0
+        ? {
+            amount: data.payment_amount,
+            type: (data.payment_type as any) || "Pix",
+            date: data.payment_date || new Date(),
+          }
+        : undefined;
 
-    // Remove unassigned tags
-    for (const tagId of oldTagIds) {
-      if (!newTagIds.has(tagId as string)) {
-        await orm
-          .delete(serviceTagsTable)
-          .where(
-            sql`${serviceTagsTable.service_id} = ${service_id} AND ${serviceTagsTable.tag_id} = ${tagId}`,
-          );
-      }
-    }
-    // Add newly assigned tags
-    for (const tagId of newTagIds) {
-      if (!oldTagIds.has(tagId)) {
-        await orm
-          .insert(serviceTagsTable)
-          .values({ service_id: service_id, tag_id: tagId });
-      }
-    }
+    // Fire and forget (it will persist because onSave is in parent scope)
+    onSave(svc, tagsData, paymentData);
 
-    // Save payment if provided
-    const formVals = form.getValues() as any;
-    if (mode === "create" && formVals.payment_amount > 0) {
-      const np = {
-        id: uuidv7(),
-        service_id: service_id,
-        amount: formVals.payment_amount,
-        payment_type: formVals.payment_type,
-        payment_date: formVals.payment_date || new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-      await orm.insert(paymentsTable).values(np);
-    }
+    // Close immediately for a snappy UI
+    onOpenChange(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -1021,7 +1019,7 @@ function ServiceDialogContent({
           />
           <TagsSection
             isView={isView}
-            allTags={allTags}
+            allTags={combinedTags}
             selectedTagIds={selectedTagIds}
             onSelectedTagIdsChange={setSelectedTagIds}
             onCreateTag={handleCreateTag}
