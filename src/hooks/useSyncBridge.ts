@@ -49,6 +49,13 @@ export interface Peer {
 
 import { DBChangeHub } from "@/db/change-hub";
 
+const parseEpoch = (str: string): number => {
+  if (str && /^\d+$/.test(str)) {
+    return parseInt(str, 10);
+  }
+  return 0;
+};
+
 export function useSyncBridge(
   ctx: DB,
   hub: DBChangeHub,
@@ -65,6 +72,7 @@ export function useSyncBridge(
   const isUnmountingRef = useRef(false);
   const isConnectingRef = useRef(false);
   const isSyncingRef = useRef(false);
+  const isWipingRef = useRef(false);
   const mySiteIdRef = useRef<Uint8Array | null>(null);
   const mySiteIdHexRef = useRef<string | null>(null);
 
@@ -77,6 +85,21 @@ export function useSyncBridge(
   const syncDebounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  const [epoch, setEpoch] = useState<string>(() => {
+    let val = localStorage.getItem("sync_epoch");
+    if (!val) {
+      val = Date.now().toString();
+      localStorage.setItem("sync_epoch", val);
+    }
+    return val;
+  });
+  const epochRef = useRef(epoch);
+  useEffect(() => {
+    epochRef.current = epoch;
+  }, [epoch]);
+
+  const performWipeRef = useRef<((newEpoch: string) => Promise<void>) | null>(null);
 
   const setSyncFinished = useCallback((finished: boolean) => {
     setIsInitialSyncFinished(finished);
@@ -204,7 +227,7 @@ export function useSyncBridge(
         ws.send(
           serializeMsg({
             type: "request_sync",
-            payload: { knowledgeMap },
+            payload: { knowledgeMap, epoch: epochRef.current },
           }),
         );
 
@@ -271,7 +294,46 @@ export function useSyncBridge(
           return;
         }
 
+        if (message.type === "epoch_reset") {
+          const remoteEpochStr = message.payload?.epoch;
+          if (remoteEpochStr && remoteEpochStr !== epochRef.current) {
+            const remoteEpoch = parseEpoch(remoteEpochStr);
+            const localEpoch = parseEpoch(epochRef.current);
+            if (remoteEpoch > localEpoch) {
+              console.log(`🔄 [Sync] Received newer remote epoch reset to ${remoteEpochStr}. Wiping and resyncing...`);
+              if (performWipeRef.current) {
+                await performWipeRef.current(remoteEpochStr);
+              }
+            } else {
+              console.log(`🔄 [Sync] Received older remote epoch reset to ${remoteEpochStr}, ignoring.`);
+            }
+          }
+          return;
+        }
+
         if (message.type === "request_sync") {
+          const remoteEpochStr = message.payload?.epoch;
+          if (remoteEpochStr && remoteEpochStr !== epochRef.current) {
+            const remoteEpoch = parseEpoch(remoteEpochStr);
+            const localEpoch = parseEpoch(epochRef.current);
+
+            if (remoteEpoch > localEpoch) {
+              console.log(`⚠️ [Sync] Remote epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Wiping local data...`);
+              if (performWipeRef.current) {
+                await performWipeRef.current(remoteEpochStr);
+              }
+            } else {
+              console.log(`⚠️ [Sync] Local epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Sending epoch_reset...`);
+              ws.send(
+                serializeMsg({
+                  type: "epoch_reset",
+                  payload: { epoch: epochRef.current },
+                }),
+              );
+            }
+            return;
+          }
+
           const theirMap = message.payload?.knowledgeMap || {};
 
           if (!ctx) return;
@@ -436,6 +498,74 @@ export function useSyncBridge(
     }
   }, [initialHubUrl, ctx, isTauri, isolatedMode]);
 
+  const resetSyncEpoch = useCallback((newEpoch: string) => {
+    localStorage.setItem("sync_epoch", newEpoch);
+    setEpoch(newEpoch);
+    epochRef.current = newEpoch;
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        serializeMsg({
+          type: "epoch_reset",
+          payload: { epoch: newEpoch },
+        })
+      );
+    }
+
+    connect();
+  }, [connect]);
+
+  const performLocalWipeAndAdoptEpoch = useCallback(async (newEpoch: string) => {
+    if (isWipingRef.current) {
+      console.log("⏳ [Sync] Local wipe already in progress. Skipping.");
+      return;
+    }
+    isWipingRef.current = true;
+
+    const CLEARABLE_TABLES = [
+      "payments",
+      "service_tags",
+      "services",
+      "tags",
+      "clients",
+    ];
+
+    try {
+      for (const tableName of CLEARABLE_TABLES) {
+        let inAlter = false;
+        try {
+          await ctx.exec(`SELECT crsql_begin_alter('${tableName}')`);
+          inAlter = true;
+          await ctx.exec(`DELETE FROM "${tableName}"`);
+          try {
+            await ctx.exec(`DELETE FROM "${tableName}__crsql_clock"`);
+          } catch (e) {
+            console.warn(`Could not clear clocks for ${tableName}:`, e);
+          }
+        } finally {
+          if (inAlter) {
+            await ctx.exec(`SELECT crsql_commit_alter('${tableName}')`);
+          }
+        }
+      }
+
+      localStorage.setItem("sync_epoch", newEpoch);
+      setEpoch(newEpoch);
+      epochRef.current = newEpoch;
+
+      console.log(`✅ [Sync] Clean wipe complete. Connected under new epoch: ${newEpoch}`);
+      connect();
+    } catch (err) {
+      console.error("❌ [Sync] Failed to perform local wipe on epoch mismatch:", err);
+    } finally {
+      isWipingRef.current = false;
+    }
+  }, [ctx, connect]);
+
+  useEffect(() => {
+    performWipeRef.current = performLocalWipeAndAdoptEpoch;
+  }, [performLocalWipeAndAdoptEpoch]);
+
   useEffect(() => {
     isUnmountingRef.current = false;
     connect();
@@ -538,5 +668,5 @@ export function useSyncBridge(
     };
   }, []);
 
-  return { myId, connectedPeers, connectionStatus, isInitialSyncFinished };
+  return { myId, connectedPeers, connectionStatus, isInitialSyncFinished, resetSyncEpoch };
 }

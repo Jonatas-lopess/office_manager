@@ -7,6 +7,7 @@ export interface SyncContextState {
   connectedPeers: Peer[];
   connectionStatus: ConnectionStatus;
   isInitialSyncFinished: boolean;
+  resetSyncEpoch: (newEpoch: string) => void;
 }
 
 const SyncContext = createContext<SyncContextState | null>(null);

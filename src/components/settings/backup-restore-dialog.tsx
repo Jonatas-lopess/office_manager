@@ -14,6 +14,7 @@ import { useDb } from "@/db/context";
 import { useSync } from "@/db/sync-context";
 import { useToast } from "@/hooks/use-toast";
 import { logAction } from "@/lib/logger";
+import { cn } from "@/lib/utils";
 import { join } from "@tauri-apps/api/path";
 import { readDir, readTextFile, exists } from "@tauri-apps/plugin-fs";
 import {
@@ -117,17 +118,26 @@ function formatBackupDate(filename: string): string {
  */
 function convertChangeRow(obj: Record<string, any>): any[] {
   return CHANGE_COLUMNS.map((col) => {
-    const val = obj[col];
+    let val = obj[col];
 
-    if (col === "site_id") {
-      if (val instanceof Uint8Array) return val;
-      if (Array.isArray(val)) return new Uint8Array(val);
-      if (val && typeof val === "object")
-        return new Uint8Array(Object.values(val));
-      return val;
+    // Handle Blob/Uint8Array columns that were serialized to JSON objects/arrays
+    // (pk and site_id are always blobs; val can be a blob depending on the column)
+    if (col === "site_id" || col === "pk" || col === "val") {
+      if (
+        val !== null &&
+        typeof val === "object" &&
+        !(val instanceof Uint8Array)
+      ) {
+        if (Array.isArray(val)) {
+          val = new Uint8Array(val);
+        } else {
+          // It's a {0:x, 1:y, ...} object from JSON.stringify of a Uint8Array
+          val = new Uint8Array(Object.values(val));
+        }
+      }
     }
 
-    if (BIGINT_FIELDS.has(col)) {
+    if (BIGINT_FIELDS.has(col) && val !== null) {
       return BigInt(val);
     }
 
@@ -145,7 +155,7 @@ export function BackupRestoreDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { orm, db } = useDb();
-  const { myId, connectedPeers } = useSync();
+  const { myId, connectedPeers, resetSyncEpoch } = useSync();
   const { toast } = useToast();
 
   const [step, setStep] = useState<RestoreStep>("browse");
@@ -165,8 +175,9 @@ export function BackupRestoreDialog({
     total: 0,
   });
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreErrorCount, setRestoreErrorCount] = useState(0);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
-  const [clearBeforeRestore, setClearBeforeRestore] = useState(false);
+  const [clearBeforeRestore, setClearBeforeRestore] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -182,8 +193,9 @@ export function BackupRestoreDialog({
     setSchemaValid(false);
     setRestoreProgress({ current: 0, total: 0 });
     setRestoreError(null);
+    setRestoreErrorCount(0);
     setSelectedSource(null);
-    setClearBeforeRestore(false);
+    setClearBeforeRestore(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -300,7 +312,7 @@ export function BackupRestoreDialog({
     const counts: Record<string, number> = {};
     let hasData = false;
 
-    for (const tableName of EXPECTED_TABLES) {
+    for (const tableName of CLEARABLE_TABLES) {
       try {
         const [[count]] = await db.execA(`SELECT COUNT(*) FROM "${tableName}"`);
         counts[tableName] = Number(count);
@@ -359,15 +371,36 @@ export function BackupRestoreDialog({
     let errorCount = 0;
 
     try {
+      // Get local site ID to detect loopback
+      const [[localSiteId]] = (await db.execA(
+        "SELECT crsql_site_id()",
+      )) as Uint8Array[][];
+
       // Tombstone-free clear: bypass CRR tracking during deletion
       // so the backup's older versions aren't rejected by tombstones.
       if (clearBeforeRestore) {
         for (const tableName of CLEARABLE_TABLES) {
-          await db.exec(`SELECT crsql_begin_alter('${tableName}')`);
-          await db.exec(`DELETE FROM "${tableName}"`);
-          await db.exec(`SELECT crsql_commit_alter('${tableName}')`);
-          await db.exec(`SELECT crsql_as_crr('${tableName}')`);
+          let inAlter = false;
+          try {
+            await db.exec(`SELECT crsql_begin_alter('${tableName}')`);
+            inAlter = true;
+            await db.exec(`DELETE FROM "${tableName}"`);
+            // Also clear clocks so old versions in backup can win
+            try {
+              await db.exec(`DELETE FROM "${tableName}__crsql_clock"`);
+            } catch (e) {
+              console.warn(`Could not clear clocks for ${tableName}:`, e);
+            }
+          } finally {
+            if (inAlter) {
+              await db.exec(`SELECT crsql_commit_alter('${tableName}')`);
+            }
+          }
         }
+
+        // Generate a new sync epoch and trigger reset on all connected peers
+        const newEpoch = Date.now().toString();
+        resetSyncEpoch(newEpoch);
       }
 
       // Convert object rows → positional arrays
@@ -377,6 +410,10 @@ export function BackupRestoreDialog({
         `INSERT INTO crsql_changes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
+      // Create a "Restore Migration" site ID (all zeros) to ensure data applies
+      // if it was originally from the same site ID (loopback protection)
+      const MIGRATION_SITE_ID = new Uint8Array(16).fill(0);
+
       try {
         for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
           const chunk = rows.slice(i, i + CHUNK_SIZE);
@@ -384,6 +421,16 @@ export function BackupRestoreDialog({
           await db.tx(async (tx) => {
             for (const row of chunk) {
               try {
+                // If site_id matches local, cr-sqlite ignores it as loopback.
+                // We masquerade it as a migration site to force acceptance.
+                if (
+                  localSiteId &&
+                  row[6] instanceof Uint8Array &&
+                  localSiteId.every((v, idx) => v === row[6][idx])
+                ) {
+                  row[6] = MIGRATION_SITE_ID;
+                }
+
                 await stmt.run(tx, ...row);
               } catch (err) {
                 console.error("[Restore] Row error:", err);
@@ -411,6 +458,7 @@ export function BackupRestoreDialog({
         device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
       });
 
+      setRestoreErrorCount(errorCount);
       setStep("done");
 
       if (errorCount > 0) {
@@ -472,7 +520,10 @@ export function BackupRestoreDialog({
             {step === "conflict" && "Dados existentes detectados."}
             {step === "summary" && "Confirme a restauração."}
             {step === "applying" && "Aplicando alterações..."}
-            {step === "done" && "Restauração concluída!"}
+            {step === "done" &&
+              (restoreErrorCount > 0
+                ? "Restauração concluída com avisos."
+                : "Restauração concluída!")}
             {step === "error" && "Ocorreu um erro."}
           </DialogDescription>
         </DialogHeader>
@@ -636,11 +687,10 @@ export function BackupRestoreDialog({
           {/* ─── CONFLICT ─── */}
           {step === "conflict" && (
             <div className="space-y-4">
-              <div className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm p-3 rounded-lg flex gap-2 items-start">
+              <div className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-sm p-3 rounded-lg flex gap-2 items-start">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
-                  O banco contém <strong>{totalExisting} registros</strong>.
-                  Escolha como proceder:
+                  <strong>Atenção:</strong> O banco contém {totalExisting} registros. Restaurar este backup apagará permanentemente todos os registros atuais e redefinirá o sincronismo em todos os dispositivos.
                 </span>
               </div>
 
@@ -662,25 +712,8 @@ export function BackupRestoreDialog({
 
               <div className="grid gap-2">
                 <Button
-                  variant="outline"
-                  className="w-full gap-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 justify-start"
-                  onClick={() => {
-                    setClearBeforeRestore(false);
-                    setStep("summary");
-                  }}
-                  data-testid="button-merge-data"
-                >
-                  <Check className="h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">Manter e Mesclar</div>
-                    <div className="text-[10px] text-muted-foreground font-normal">
-                      Dados atuais permanecem, backup é mesclado via CRDT
-                    </div>
-                  </div>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 justify-start"
+                  variant="destructive"
+                  className="w-full gap-2 justify-center"
                   onClick={() => {
                     setClearBeforeRestore(true);
                     setStep("summary");
@@ -688,12 +721,7 @@ export function BackupRestoreDialog({
                   data-testid="button-clear-then-restore"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">Limpar antes de Restaurar</div>
-                    <div className="text-[10px] text-muted-foreground font-normal">
-                      Remove dados atuais e aplica o backup do zero
-                    </div>
-                  </div>
+                  Entendi, Limpar e Prosseguir
                 </Button>
               </div>
             </div>
@@ -780,13 +808,39 @@ export function BackupRestoreDialog({
 
           {/* ─── DONE ─── */}
           {step === "done" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-12">
-              <div className="h-14 w-14 rounded-full bg-emerald-500/10 flex items-center justify-center animate-in fade-in zoom-in duration-300">
-                <Check className="h-7 w-7 text-emerald-500" />
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+              <div
+                className={cn(
+                  "h-14 w-14 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-300",
+                  restoreErrorCount > 0
+                    ? "bg-amber-500/10"
+                    : "bg-emerald-500/10",
+                )}
+              >
+                {restoreErrorCount > 0 ? (
+                  <AlertCircle className="h-7 w-7 text-amber-500" />
+                ) : (
+                  <Check className="h-7 w-7 text-emerald-500" />
+                )}
               </div>
-              <p className="text-sm font-medium">Restauração concluída!</p>
-              <p className="text-xs text-muted-foreground">
-                {restoreData.length} alterações aplicadas.
+              <p className="text-sm font-medium">
+                {restoreErrorCount > 0
+                  ? "Restauração Parcial"
+                  : "Restauração Concluída!"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-[280px]">
+                {restoreErrorCount > 0 ? (
+                  <>
+                    {restoreData.length - restoreErrorCount} alterações
+                    aplicadas,{" "}
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">
+                      {restoreErrorCount} falhas
+                    </span>
+                    .
+                  </>
+                ) : (
+                  `${restoreData.length} alterações aplicadas com sucesso.`
+                )}
               </p>
             </div>
           )}
