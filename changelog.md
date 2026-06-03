@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2026-06-03
+
+### Added
+
+- **Robustes na Sincronização**: Adicionado melhor controle e comunicação de epochs para sincronização robusta.
+
+### Fixed
+
+- **Problemas Críticos na Sincronização**: Corrigido problemas de sincronização envolvendo o controle de epochs.
+- **Correção de Epoch Reset**: Corrigido problema de reset de epoch que ocorria quando o sistema iniciava.
+
 ## [3.0.0] - 2026-06-02
 
 ### Added
