@@ -93,7 +93,9 @@ export function useSyncBridge(
   const [epoch, setEpoch] = useState<string>(() => {
     let val = localStorage.getItem("sync_epoch");
     if (!val) {
-      val = Date.now().toString();
+      // A fresh install starts at epoch "0" so it adopts the network's epoch
+      // instead of forcing the network to adopt a newer, empty epoch.
+      val = "0";
       localStorage.setItem("sync_epoch", val);
     }
     return val;
@@ -453,7 +455,10 @@ export function useSyncBridge(
               ws.send(
                 serializeMsg({
                   type: "request_sync",
-                  payload: { knowledgeMap: myKnowledgeMap, epoch: epochRef.current },
+                  payload: {
+                    knowledgeMap: myKnowledgeMap,
+                    epoch: epochRef.current,
+                  },
                 }),
               );
             } else {
