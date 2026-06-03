@@ -381,21 +381,11 @@ export function BackupRestoreDialog({
       // so the backup's older versions aren't rejected by tombstones.
       if (clearBeforeRestore) {
         for (const tableName of CLEARABLE_TABLES) {
-          let inAlter = false;
+          await db.exec(`DELETE FROM "${tableName}"`);
           try {
-            await db.exec(`SELECT crsql_begin_alter('${tableName}')`);
-            inAlter = true;
-            await db.exec(`DELETE FROM "${tableName}"`);
-            // Also clear clocks so old versions in backup can win
-            try {
-              await db.exec(`DELETE FROM "${tableName}__crsql_clock"`);
-            } catch (e) {
-              console.warn(`Could not clear clocks for ${tableName}:`, e);
-            }
-          } finally {
-            if (inAlter) {
-              await db.exec(`SELECT crsql_commit_alter('${tableName}')`);
-            }
+            await db.exec(`DELETE FROM "${tableName}__crsql_clock"`);
+          } catch (e) {
+            console.warn(`Could not clear clock for ${tableName}:`, e);
           }
         }
 

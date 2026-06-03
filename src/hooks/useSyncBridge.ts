@@ -453,7 +453,7 @@ export function useSyncBridge(
               ws.send(
                 serializeMsg({
                   type: "request_sync",
-                  payload: { knowledgeMap: myKnowledgeMap },
+                  payload: { knowledgeMap: myKnowledgeMap, epoch: epochRef.current },
                 }),
               );
             } else {
@@ -552,6 +552,14 @@ export function useSyncBridge(
       isWipingRef.current = true;
       setSyncFinished(false);
 
+      // Go offline before wiping to prevent stale sync during the process
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      isConnectingRef.current = false;
+
       const CLEARABLE_TABLES = [
         "payments",
         "service_tags",
@@ -565,20 +573,11 @@ export function useSyncBridge(
         console.log(`[Sync] Starting clean wipe for epoch ${newEpoch}...`);
 
         for (const tableName of CLEARABLE_TABLES) {
-          let inAlter = false;
+          await ctx.exec(`DELETE FROM "${tableName}"`);
           try {
-            await ctx.exec(`SELECT crsql_begin_alter('${tableName}')`);
-            inAlter = true;
-            await ctx.exec(`DELETE FROM "${tableName}"`);
-            try {
-              await ctx.exec(`DELETE FROM "${tableName}__crsql_clock"`);
-            } catch (e) {
-              console.warn(`Could not clear clocks for ${tableName}:`, e);
-            }
-          } finally {
-            if (inAlter) {
-              await ctx.exec(`SELECT crsql_commit_alter('${tableName}')`);
-            }
+            await ctx.exec(`DELETE FROM "${tableName}__crsql_clock"`);
+          } catch (e) {
+            console.warn(`Could not clear clock for ${tableName}:`, e);
           }
         }
 
