@@ -20,7 +20,7 @@ export class DBChangeHub {
     });
   }
 
-  private broadcast() {
+  public broadcast() {
     setTimeout(() => {
       this.listeners.forEach((cb) => {
         try {

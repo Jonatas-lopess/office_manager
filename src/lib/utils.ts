@@ -34,3 +34,24 @@ export function NIRFvalidator(nirf: string) {
 
   return dvCalculado === dvInformado;
 }
+
+import { type DB } from "@vlcn.io/crsqlite-wasm";
+
+/**
+ * Fetches current site identification and max database version from crsqlite.
+ * Used during boot sequence and after clean wipes.
+ */
+export async function getSiteMetadata(db: DB) {
+  const [[[siteId, siteIdHex]], [[maxV]]] = await Promise.all([
+    db.execA("SELECT crsql_site_id(), hex(crsql_site_id())"),
+    db.execA(
+      `SELECT max(db_version) FROM crsql_changes WHERE site_id = crsql_site_id()`,
+    ),
+  ]);
+
+  return {
+    siteId: siteId as Uint8Array,
+    siteIdHex: siteIdHex as string,
+    version: maxV ? BigInt(maxV) : 0n,
+  };
+}

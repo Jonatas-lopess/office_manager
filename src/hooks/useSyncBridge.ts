@@ -48,6 +48,7 @@ export interface Peer {
 }
 
 import { DBChangeHub } from "@/db/change-hub";
+import { getSiteMetadata } from "@/lib/utils";
 
 const parseEpoch = (str: string): number => {
   if (str && /^\d+$/.test(str)) {
@@ -62,9 +63,12 @@ export function useSyncBridge(
   initialHubUrl: string,
   isTauri: boolean,
   isolatedMode: boolean = false,
+  siteId?: Uint8Array,
+  siteIdHex?: string,
+  initialVersion?: bigint,
 ) {
   const wsRef = useRef<WebSocket | null>(null);
-  const lastVersionRef = useRef(0n);
+  const lastVersionRef = useRef(initialVersion ?? 0n);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -73,8 +77,8 @@ export function useSyncBridge(
   const isConnectingRef = useRef(false);
   const isSyncingRef = useRef(false);
   const isWipingRef = useRef(false);
-  const mySiteIdRef = useRef<Uint8Array | null>(null);
-  const mySiteIdHexRef = useRef<string | null>(null);
+  const mySiteIdRef = useRef<Uint8Array | null>(siteId ?? null);
+  const mySiteIdHexRef = useRef<string | null>(siteIdHex ?? null);
 
   const [myId, setMyId] = useState<string | null>(null);
   const [connectedPeers, setConnectedPeers] = useState<Peer[]>([]);
@@ -95,16 +99,35 @@ export function useSyncBridge(
     return val;
   });
   const epochRef = useRef(epoch);
+
   useEffect(() => {
     epochRef.current = epoch;
   }, [epoch]);
 
-  const performWipeRef = useRef<((newEpoch: string) => Promise<void>) | null>(null);
+  const performWipeRef = useRef<((newEpoch: string) => Promise<void>) | null>(
+    null,
+  );
 
   const setSyncFinished = useCallback((finished: boolean) => {
     setIsInitialSyncFinished(finished);
     isInitialSyncFinishedRef.current = finished;
   }, []);
+
+  const initLocalState = useCallback(async () => {
+    if (!ctx) return;
+    try {
+      // Initialize site identification and local version tracker
+      const { siteId, siteIdHex, version } = await getSiteMetadata(ctx);
+      mySiteIdRef.current = siteId;
+      mySiteIdHexRef.current = siteIdHex;
+      console.log(
+        `📑 [Init] Site ID: ${siteIdHex}, version tracker: ${version}`,
+      );
+      lastVersionRef.current = version;
+    } catch (err) {
+      console.error(`❌ [Init] Failed to initialize sync parameters:`, err);
+    }
+  }, [ctx]);
 
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
@@ -300,12 +323,16 @@ export function useSyncBridge(
             const remoteEpoch = parseEpoch(remoteEpochStr);
             const localEpoch = parseEpoch(epochRef.current);
             if (remoteEpoch > localEpoch) {
-              console.log(`🔄 [Sync] Received newer remote epoch reset to ${remoteEpochStr}. Wiping and resyncing...`);
+              console.log(
+                `🔄 [Sync] Received newer remote epoch reset to ${remoteEpochStr}. Wiping and resyncing...`,
+              );
               if (performWipeRef.current) {
                 await performWipeRef.current(remoteEpochStr);
               }
             } else {
-              console.log(`🔄 [Sync] Received older remote epoch reset to ${remoteEpochStr}, ignoring.`);
+              console.log(
+                `🔄 [Sync] Received older remote epoch reset to ${remoteEpochStr}, ignoring.`,
+              );
             }
           }
           return;
@@ -318,12 +345,16 @@ export function useSyncBridge(
             const localEpoch = parseEpoch(epochRef.current);
 
             if (remoteEpoch > localEpoch) {
-              console.log(`⚠️ [Sync] Remote epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Wiping local data...`);
+              console.log(
+                `⚠️ [Sync] Remote epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Wiping local data...`,
+              );
               if (performWipeRef.current) {
                 await performWipeRef.current(remoteEpochStr);
               }
             } else {
-              console.log(`⚠️ [Sync] Local epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Sending epoch_reset...`);
+              console.log(
+                `⚠️ [Sync] Local epoch is newer in request_sync (us: ${localEpoch}, remote: ${remoteEpoch}). Sending epoch_reset...`,
+              );
               ws.send(
                 serializeMsg({
                   type: "epoch_reset",
@@ -453,12 +484,6 @@ export function useSyncBridge(
           ctx
             .tx(async (tx) => {
               for (const row of message.payload) {
-                // We removed the aggressive 'skip from self' logic because:
-                // 1. The Hub already performs echo cancellation based on client UUID
-                // 2. If we do receive our own changes from other peers, we should let
-                //    crsqlite handle them (it's idempotent) so our local state
-                //    stays in sync and the anti-entropy check terminates.
-
                 await stmt.run(tx, ...row).catch((err) => {
                   console.error(`❌ [Inbound SQL Error]:`, err);
                   console.error(`Failing Row Data:`, row);
@@ -498,69 +523,94 @@ export function useSyncBridge(
     }
   }, [initialHubUrl, ctx, isTauri, isolatedMode]);
 
-  const resetSyncEpoch = useCallback((newEpoch: string) => {
-    localStorage.setItem("sync_epoch", newEpoch);
-    setEpoch(newEpoch);
-    epochRef.current = newEpoch;
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        serializeMsg({
-          type: "epoch_reset",
-          payload: { epoch: newEpoch },
-        })
-      );
-    }
-
-    connect();
-  }, [connect]);
-
-  const performLocalWipeAndAdoptEpoch = useCallback(async (newEpoch: string) => {
-    if (isWipingRef.current) {
-      console.log("⏳ [Sync] Local wipe already in progress. Skipping.");
-      return;
-    }
-    isWipingRef.current = true;
-
-    const CLEARABLE_TABLES = [
-      "payments",
-      "service_tags",
-      "services",
-      "tags",
-      "clients",
-    ];
-
-    try {
-      for (const tableName of CLEARABLE_TABLES) {
-        let inAlter = false;
-        try {
-          await ctx.exec(`SELECT crsql_begin_alter('${tableName}')`);
-          inAlter = true;
-          await ctx.exec(`DELETE FROM "${tableName}"`);
-          try {
-            await ctx.exec(`DELETE FROM "${tableName}__crsql_clock"`);
-          } catch (e) {
-            console.warn(`Could not clear clocks for ${tableName}:`, e);
-          }
-        } finally {
-          if (inAlter) {
-            await ctx.exec(`SELECT crsql_commit_alter('${tableName}')`);
-          }
-        }
-      }
-
+  const resetSyncEpoch = useCallback(
+    (newEpoch: string) => {
       localStorage.setItem("sync_epoch", newEpoch);
       setEpoch(newEpoch);
       epochRef.current = newEpoch;
 
-      console.log(`✅ [Sync] Clean wipe complete. Connected under new epoch: ${newEpoch}`);
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          serializeMsg({
+            type: "epoch_reset",
+            payload: { epoch: newEpoch },
+          }),
+        );
+      }
+
       connect();
-    } catch (err) {
-      console.error("❌ [Sync] Failed to perform local wipe on epoch mismatch:", err);
-    } finally {
-      isWipingRef.current = false;
-    }
-  }, [ctx, connect]);
+    },
+    [connect],
+  );
+
+  const performLocalWipeAndAdoptEpoch = useCallback(
+    async (newEpoch: string) => {
+      if (isWipingRef.current) {
+        console.log("⏳ [Sync] Local wipe already in progress. Skipping.");
+        return;
+      }
+      isWipingRef.current = true;
+      setSyncFinished(false);
+
+      const CLEARABLE_TABLES = [
+        "payments",
+        "service_tags",
+        "services",
+        "tags",
+        "clients",
+        "logs",
+      ];
+
+      try {
+        console.log(`[Sync] Starting clean wipe for epoch ${newEpoch}...`);
+
+        for (const tableName of CLEARABLE_TABLES) {
+          let inAlter = false;
+          try {
+            await ctx.exec(`SELECT crsql_begin_alter('${tableName}')`);
+            inAlter = true;
+            await ctx.exec(`DELETE FROM "${tableName}"`);
+            try {
+              await ctx.exec(`DELETE FROM "${tableName}__crsql_clock"`);
+            } catch (e) {
+              console.warn(`Could not clear clocks for ${tableName}:`, e);
+            }
+          } finally {
+            if (inAlter) {
+              await ctx.exec(`SELECT crsql_commit_alter('${tableName}')`);
+            }
+          }
+        }
+
+        // Clear the global changes table and rotate site ID to ensure a fresh identity in the new epoch
+        await ctx.exec(`DELETE FROM crsql_changes`);
+        await ctx.exec(`SELECT crsql_site_id(random_blob(16))`);
+
+        localStorage.setItem("sync_epoch", newEpoch);
+        setEpoch(newEpoch);
+        epochRef.current = newEpoch;
+
+        // Reset local version tracker and identity refs
+        await initLocalState();
+
+        // Notify UI that tables are empty
+        hub.broadcast();
+
+        console.log(
+          `✅ [Sync] Clean wipe complete. Reconnecting under new epoch: ${newEpoch}`,
+        );
+        connect();
+      } catch (err) {
+        console.error(
+          "❌ [Sync] Failed to perform local wipe on epoch mismatch:",
+          err,
+        );
+      } finally {
+        isWipingRef.current = false;
+      }
+    },
+    [ctx, connect, setSyncFinished, initLocalState, hub],
+  );
 
   useEffect(() => {
     performWipeRef.current = performLocalWipeAndAdoptEpoch;
@@ -593,26 +643,6 @@ export function useSyncBridge(
   // ==========================================
   useEffect(() => {
     if (!ctx) return;
-
-    // Initialize site identification and local version tracker
-    Promise.all([
-      ctx.execA("SELECT crsql_site_id(), hex(crsql_site_id())"),
-      ctx.execA(
-        `SELECT max(db_version) FROM crsql_changes WHERE site_id = crsql_site_id()`,
-      ),
-    ])
-      .then(([[[siteId, siteIdHex]], [[maxV]]]) => {
-        mySiteIdRef.current = siteId;
-        mySiteIdHexRef.current = siteIdHex;
-        const version = maxV ? BigInt(maxV) : 0n;
-        console.log(
-          `📑 [Init] Site ID: ${siteIdHex}, version tracker: ${version}`,
-        );
-        lastVersionRef.current = version;
-      })
-      .catch((err) => {
-        console.error(`❌ [Init] Failed to initialize sync parameters:`, err);
-      });
 
     // Subscribing via the multiplexing Hub to avoid conflicting with other listeners
     const unsubscribe = hub.subscribe(async () => {
@@ -668,5 +698,11 @@ export function useSyncBridge(
     };
   }, []);
 
-  return { myId, connectedPeers, connectionStatus, isInitialSyncFinished, resetSyncEpoch };
+  return {
+    myId,
+    connectedPeers,
+    connectionStatus,
+    isInitialSyncFinished,
+    resetSyncEpoch,
+  };
 }

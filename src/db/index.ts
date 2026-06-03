@@ -3,6 +3,7 @@ import * as schema from "./schema";
 import initWasm, { DB } from "@vlcn.io/crsqlite-wasm";
 import { runMigrations } from "./migrator";
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
+import { getSiteMetadata } from "@/lib/utils";
 
 const createDrizzle = (ctx: DB) => {
   return drizzle(
@@ -43,17 +44,33 @@ import { DBChangeHub } from "./change-hub";
 
 export type DrizzleDB = ReturnType<typeof createDrizzle>;
 
-export async function initDb(): Promise<{
+export interface DBInitResult {
   db: DB;
   orm: DrizzleDB;
   hub: DBChangeHub;
-}> {
+  siteId: Uint8Array;
+  siteIdHex: string;
+  initialVersion: bigint;
+}
+
+export async function initDb(): Promise<DBInitResult> {
   const crsqlite = await initWasm(() => wasmUrl);
   const db = await crsqlite.open("my_local_database.db");
 
   await runMigrations(db);
 
+  // Initialize site identification and local version tracker
+  const { siteId, siteIdHex, version } = await getSiteMetadata(db);
+  console.log(`📑 [Init] Site ID: ${siteIdHex}, version: ${version}`);
+
   const orm = createDrizzle(db);
   const hub = new DBChangeHub(db);
-  return { db, orm, hub };
+  return {
+    db,
+    orm,
+    hub,
+    siteId,
+    siteIdHex,
+    initialVersion: version,
+  };
 }
