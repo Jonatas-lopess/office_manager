@@ -333,7 +333,13 @@ export function useSyncBridge(
               }
             } else {
               console.log(
-                `🔄 [Sync] Received older remote epoch reset to ${remoteEpochStr}, ignoring.`,
+                `🔄 [Sync] Received older remote epoch reset to ${remoteEpochStr}. Sending corrective reset...`,
+              );
+              ws.send(
+                serializeMsg({
+                  type: "epoch_reset",
+                  payload: { epoch: epochRef.current },
+                }),
               );
             }
           }
@@ -494,6 +500,21 @@ export function useSyncBridge(
                   console.error(`Failing Row Data:`, row);
                   throw err;
                 });
+
+                // Update local version tracker if we receive our own changes back from another device
+                if (
+                  mySiteIdRef.current &&
+                  row[6] instanceof Uint8Array &&
+                  row[6].every(
+                    (byte: number, i: number) =>
+                      byte === mySiteIdRef.current![i],
+                  )
+                ) {
+                  const rowVersion = BigInt(row[5]);
+                  if (rowVersion > lastVersionRef.current) {
+                    lastVersionRef.current = rowVersion;
+                  }
+                }
               }
 
               // Success merging remote changes
