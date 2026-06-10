@@ -63,6 +63,8 @@ const PERIODS = [
   { id: "7d", label: "Últimos 7 dias", days: 7 },
   { id: "30d", label: "Últimos 30 dias", days: 30 },
   { id: "90d", label: "Últimos 90 dias", days: 90 },
+  { id: "180d", label: "Últimos 6 meses", days: 180 },
+  { id: "365d", label: "Últimos 12 meses", days: 365 },
 ] as const;
 
 type PeriodId = (typeof PERIODS)[number]["id"];
@@ -206,7 +208,10 @@ export default function Dashboard() {
       servicesInRange,
       revenue,
       toReceive,
-      rangeLabel: `${format(start, "MMM d")} – ${format(end, "MMM d")}`,
+      rangeLabel:
+        selected.days > 90
+          ? `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`
+          : `${format(start, "MMM d")} – ${format(end, "MMM d")}`,
       chart,
     };
   }, [isUnlocked, period, clients, services, payments]);
@@ -435,6 +440,7 @@ export default function Dashboard() {
                               tickLine={false}
                               axisLine={false}
                               fontSize={12}
+                              minTickGap={32}
                             />
                             <YAxis
                               tickLine={false}
