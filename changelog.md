@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.2] - 2026-06-10
+
+### Added
+
+- **Períodos no Dashboard**: Adicionadas opções de visualização de 6 e 12 meses no gráfico de acompanhamento de renda.
+
+### Changed
+
+- **Legibilidade do Gráfico**: Melhorada a exibição de datas no gráfico para evitar sobreposição de textos e adicionado o ano no intervalo de datas para períodos longos.
+
 ## [3.0.1] - 2026-06-03
 
 ### Added
