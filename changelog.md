@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] - 2026-06-23
+
+### Added
+
+- **Pasta de Clientes**: Configuração de um diretório base local ou de rede para salvar arquivos dos clientes na página de Configurações.
+- **Ação de Abrir Pasta**: Botão de atalho para abrir ou criar a pasta específica do cliente (usando Tauri) diretamente na lista de clientes e no modal de edição/visualização.
+- **Modal do Cliente em Serviços**: Botão de redirecionamento integrado no seletor de cliente do modal de Serviços para abrir os dados do cliente diretamente na página de Serviços, sem sair do contexto atual.
+
+### Changed
+
+- **Scroll do Filtro de Serviço**: Adicionado limite de altura máxima e rolagem no menu de seleção do filtro de Tipo de Serviço na página de Serviços.
+
 ## [3.0.2] - 2026-06-10
 
 ### Added
