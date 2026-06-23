@@ -2,10 +2,13 @@ import { useMemo, useState, useEffect } from "react";
 import { format, isValid } from "date-fns";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Search, UserPlus, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, UserPlus, Eye, Pencil, Trash2, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { join } from "@tauri-apps/api/path";
+import { mkdir, exists } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +82,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ClientStatus = Client["status"];
 
+const sanitizeFolderName = (name: string) => {
+  return name.replace(/[\\/:*?"<>|]/g, "").trim();
+};
+
 export default function ClientsPage() {
   const { db, orm } = useDb();
   const { myId, connectedPeers } = useSync();
@@ -89,6 +96,49 @@ export default function ClientsPage() {
   }, [orm]);
   const { data: clientsRaw, loading } = useLocalQuery<Client>(db, clientsQuery);
   const clients = useMemo(() => clientsRaw || [], [clientsRaw]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (openId && clients.length > 0) {
+      const client = clients.find((c) => c.id === openId);
+      if (client) {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+        openDialog("view", client);
+      }
+    }
+  }, [clients]);
+
+  const handleOpenClientFolder = async (clientName: string) => {
+    try {
+      const baseDir = localStorage.getItem("customClientFolderPath");
+      if (!baseDir) {
+        toast({
+          variant: "destructive",
+          title: "Pasta base não configurada",
+          description: "Configure a pasta de clientes nas Configurações.",
+        });
+        return;
+      }
+
+      const clientFolderName = sanitizeFolderName(clientName);
+      const clientDir = await join(baseDir, clientFolderName);
+
+      if (!(await exists(clientDir))) {
+        await mkdir(clientDir, { recursive: true });
+      }
+
+      await openPath(clientDir);
+    } catch (err) {
+      console.error("Failed to open client folder:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir pasta",
+        description: "Não foi possível abrir a pasta do cliente.",
+      });
+    }
+  };
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ClientStatus>("all");
@@ -315,6 +365,20 @@ export default function ClientsPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => handleOpenClientFolder(c.name)}
+                          data-testid={`button-client-folder-${c.id}`}
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Abrir Pasta</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
@@ -356,6 +420,7 @@ export default function ClientsPage() {
         onOpenChange={setIsDialogOpen}
         mode={dialogMode}
         initialData={selectedClient}
+        onOpenFolder={handleOpenClientFolder}
         onSave={async (client) => {
           if (await checkExistingClient(client)) {
             toast({
@@ -440,17 +505,19 @@ export default function ClientsPage() {
   );
 }
 
-function ClientDialog({
+export function ClientDialog({
   open,
   onOpenChange,
   mode,
   initialData,
+  onOpenFolder,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit" | "view";
   initialData: Client | null;
+  onOpenFolder?: (name: string) => Promise<void>;
   onSave: (client: Client) => Promise<void>;
 }) {
   const form = useForm<NewClientType>({
@@ -1085,6 +1152,18 @@ function ClientDialog({
             className="flex items-center justify-end gap-2 mt-4"
             data-testid="group-add-client-actions"
           >
+            {mode !== "create" && onOpenFolder && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenFolder(name)}
+                className="gap-2 mr-auto"
+                data-testid="button-open-client-folder-dialog"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Abrir Pasta
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"

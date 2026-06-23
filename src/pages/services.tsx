@@ -76,6 +76,10 @@ import {
 } from "@/components/service/service-dialog";
 import { FinancialDialog } from "@/components/service/financial-dialog";
 import { ServiceListItem } from "@/components/service/service-list-item";
+import { ClientDialog } from "@/pages/clients";
+import { join } from "@tauri-apps/api/path";
+import { mkdir, exists } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 export default function ServicesPage() {
   const { db, orm } = useDb();
@@ -131,6 +135,57 @@ export default function ServicesPage() {
 
   const [isFinancialDialogOpen, setIsFinancialDialogOpen] = useState(false);
   const [financialService, setFinancialService] = useState<any | null>(null);
+
+  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  const [selectedClientData, setSelectedClientData] = useState<any | null>(null);
+
+  const sanitizeFolderName = (name: string) => {
+    return name.replace(/[\\/:*?"<>|]/g, "").trim();
+  };
+
+  const handleOpenClientFolder = async (clientName: string) => {
+    try {
+      const baseDir = localStorage.getItem("customClientFolderPath");
+      if (!baseDir) {
+        toast({
+          variant: "destructive",
+          title: "Pasta base não configurada",
+          description: "Configure a pasta de clientes nas Configurações.",
+        });
+        return;
+      }
+
+      const clientFolderName = sanitizeFolderName(clientName);
+      const clientDir = await join(baseDir, clientFolderName);
+
+      if (!(await exists(clientDir))) {
+        await mkdir(clientDir, { recursive: true });
+      }
+
+      await openPath(clientDir);
+    } catch (err) {
+      console.error("Failed to open client folder:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir pasta",
+        description: "Não foi possível abrir a pasta do cliente.",
+      });
+    }
+  };
+
+  const handleGoToClient = (clientId: string) => {
+    const client = clients.find((c: any) => c.id === clientId);
+    if (client) {
+      setSelectedClientData(client);
+      setIsClientDialogOpen(true);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Cliente não encontrado.",
+      });
+    }
+  };
 
   const servicesQuery = useMemo(() => {
     return orm
@@ -564,7 +619,7 @@ export default function ServicesPage() {
                           >
                             <SelectValue placeholder="Tipo de serviço" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-60">
                             <SelectItem value="all">Todos os tipos</SelectItem>
                             {serviceTypesArray.map((t) => (
                               <SelectItem key={t} value={t}>
@@ -748,6 +803,15 @@ export default function ServicesPage() {
           service={financialService}
         />
 
+        <ClientDialog
+          open={isClientDialogOpen}
+          onOpenChange={setIsClientDialogOpen}
+          mode="view"
+          initialData={selectedClientData}
+          onOpenFolder={handleOpenClientFolder}
+          onSave={async () => {}}
+        />
+
         <ServiceDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
@@ -757,6 +821,7 @@ export default function ServicesPage() {
           historicDescriptions={historicDescriptions}
           allTags={allTags}
           onFinancialAction={openFinancialDialog}
+          onGoToClient={handleGoToClient}
           onSave={async (svc, tagsData, paymentData) => {
             const now = new Date();
             // 1. Persist the service

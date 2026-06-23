@@ -77,6 +77,12 @@ export default function SettingsPage() {
   const [backupPathInput, setBackupPathInput] = useState(
     () => localStorage.getItem("customBackupPath") || "",
   );
+  const [customClientFolderPath, setCustomClientFolderPath] = useState(
+    () => localStorage.getItem("customClientFolderPath") || "",
+  );
+  const [clientFolderPathInput, setClientFolderPathInput] = useState(
+    () => localStorage.getItem("customClientFolderPath") || "",
+  );
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
 
@@ -87,6 +93,42 @@ export default function SettingsPage() {
       title: "Configuração salva",
       description: "O caminho da pasta de backup foi atualizado.",
     });
+  };
+
+  const handleSaveClientFolderPath = () => {
+    setCustomClientFolderPath(clientFolderPathInput);
+    localStorage.setItem("customClientFolderPath", clientFolderPathInput);
+    toast({
+      title: "Configuração salva",
+      description: "O caminho da pasta de clientes foi atualizado.",
+    });
+  };
+
+  const handleOpenClientFolderBase = async () => {
+    try {
+      const path = customClientFolderPath;
+      if (!path) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Pasta de clientes não configurada.",
+        });
+        return;
+      }
+
+      if (!(await exists(path))) {
+        await mkdir(path, { recursive: true });
+      }
+
+      await openPath(path);
+    } catch (err) {
+      console.error("Failed to open client folder base:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir pasta",
+        description: "Não foi possível abrir a pasta de clientes.",
+      });
+    }
   };
 
   // --- Tags management ---
@@ -434,6 +476,40 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
+          </Card>
+
+          <Card className="panel-card" data-testid="card-client-folder">
+            <div className="p-5">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Folder className="h-4 w-4" />
+                Pasta dos Clientes
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                Configure o diretório base local ou de rede para armazenar arquivos e documentos dos clientes.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={clientFolderPathInput}
+                    onChange={(e) => setClientFolderPathInput(e.target.value)}
+                    onBlur={handleSaveClientFolderPath}
+                    placeholder="Ex: C:\Clientes ou \\Servidor\Clientes"
+                    className="h-8 text-xs bg-white/50"
+                    data-testid="input-custom-client-folder-path"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenClientFolderBase}
+                  className="w-full gap-2 mt-2"
+                  data-testid="button-open-client-folder-base"
+                >
+                  <Folder className="h-4 w-4" />
+                  Abrir Pasta Base
+                </Button>
+              </div>
+            </div>
           </Card>
 
           <TableCard

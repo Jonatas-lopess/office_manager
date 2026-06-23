@@ -7,7 +7,8 @@ import {
   useFormContext,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, Receipt } from "lucide-react";
+import { Check, ChevronsUpDown, Receipt, User } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,6 +81,7 @@ interface ServiceDialogProps {
     payment?: { amount: number; type: string; date: Date },
   ) => Promise<void>;
   onFinancialAction?: (service: any) => void;
+  onGoToClient?: (clientId: string) => void;
 }
 
 // Thin shell — only renders the Dialog primitive; inner content mounts on open
@@ -95,7 +97,15 @@ import React from "react";
 // --- Sub-components (Memoized for performance) ---
 
 const ClientSection = React.memo(
-  ({ clients, isView }: { clients: any[]; isView: boolean }) => {
+  ({
+    clients,
+    isView,
+    onGoToClient,
+  }: {
+    clients: any[];
+    isView: boolean;
+    onGoToClient?: () => void;
+  }) => {
     const {
       setValue,
       watch,
@@ -145,71 +155,86 @@ const ClientSection = React.memo(
         <Label htmlFor="service-client" data-testid="label-service-client">
           Cliente *
         </Label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              id="service-client"
-              variant="outline"
-              role="combobox"
-              disabled={isView}
-              aria-expanded={open}
-              className={cn(
-                "w-full justify-between font-normal text-left h-auto min-h-9 py-2",
-                !watchedClientId && "text-muted-foreground",
-                isView && "pointer-events-none",
-              )}
-              data-testid="select-service-client"
+        <div className="flex gap-2">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                id="service-client"
+                variant="outline"
+                role="combobox"
+                disabled={isView}
+                aria-expanded={open}
+                className={cn(
+                  "flex-1 justify-between font-normal text-left h-auto min-h-9 py-2",
+                  !watchedClientId && "text-muted-foreground",
+                  isView && "pointer-events-none",
+                )}
+                data-testid="select-service-client"
+              >
+                <span className="truncate">
+                  {selectedClient?.name || "Selecione um cliente"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-(--radix-popover-trigger-width) p-0"
+              align="start"
             >
-              <span className="truncate">
-                {selectedClient?.name || "Selecione um cliente"}
-              </span>
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Buscar client..."
+                  value={search}
+                  onValueChange={(val) => {
+                    setSearch(val);
+                    setLimit(20);
+                  }}
+                />
+                <CommandList className="max-h-60" onScroll={handleScroll}>
+                  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {displayedClients.map((c) => (
+                      <CommandItem
+                        key={c.id}
+                        value={c.name}
+                        onSelect={() => {
+                          setValue("client_id", c.id, { shouldValidate: true });
+                          setOpen(false);
+                          setSearch("");
+                          setLimit(20);
+                        }}
+                        data-testid={`option-service-client-${c.id}`}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            watchedClientId === c.id
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        {c.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {watchedClientId && onGoToClient && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onGoToClient}
+              title="Ver dados do cliente"
+              className="shrink-0 h-9 w-9"
+              data-testid="button-go-to-client"
+            >
+              <User className="h-4 w-4" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-(--radix-popover-trigger-width) p-0"
-            align="start"
-          >
-            <Command shouldFilter={false}>
-              <CommandInput
-                placeholder="Buscar cliente..."
-                value={search}
-                onValueChange={(val) => {
-                  setSearch(val);
-                  setLimit(20);
-                }}
-              />
-              <CommandList className="max-h-60" onScroll={handleScroll}>
-                <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                <CommandGroup>
-                  {displayedClients.map((c) => (
-                    <CommandItem
-                      key={c.id}
-                      value={c.name}
-                      onSelect={() => {
-                        setValue("client_id", c.id, { shouldValidate: true });
-                        setOpen(false);
-                        setSearch("");
-                        setLimit(20);
-                      }}
-                      data-testid={`option-service-client-${c.id}`}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          watchedClientId === c.id
-                            ? "opacity-100"
-                            : "opacity-0",
-                        )}
-                      />
-                      {c.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+          )}
+        </div>
         {errors.client_id && (
           <span className="text-xs text-destructive">
             {errors.client_id.message as string}
@@ -798,6 +823,7 @@ function ServiceDialogContent({
   allTags,
   onSave,
   onFinancialAction,
+  onGoToClient,
 }: ServiceDialogProps) {
   const { db, orm } = useDb();
 
@@ -862,6 +888,13 @@ function ServiceDialogContent({
       observations: "",
     },
   });
+
+  const handleGoToClient = () => {
+    const client_id = form.getValues("client_id");
+    if (client_id && onGoToClient) {
+      onGoToClient(client_id);
+    }
+  };
 
   const isView = mode === "view";
 
@@ -1006,7 +1039,11 @@ function ServiceDialogContent({
           className="grid gap-3 mt-4"
           data-testid="form-new-service"
         >
-          <ClientSection clients={clients} isView={isView} />
+          <ClientSection
+            clients={clients}
+            isView={isView}
+            onGoToClient={initialData?.id ? handleGoToClient : undefined}
+          />
           <BasicInfoSection isView={isView} />
           <ServiceDetailsSection
             isView={isView}
