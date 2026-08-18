@@ -4,11 +4,24 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
+// Disabled pending a signed/hash-checked installer flow — see TODO.md.
+// It currently trusts version.txt and the .msi it points to unconditionally,
+// which means anyone who can write to the network share can get their file
+// opened as "the update" on every machine in the office.
+const UPDATER_DISABLED = true;
+
 /**
  * Checks for updates in a internal network shared folder.
  * This is a simplified version of the Tauri updater for office environments.
  */
 export async function checkInternalUpdate(isManual = false) {
+  if (UPDATER_DISABLED) {
+    if (isManual) {
+      toast.info("Verificação de atualização desativada temporariamente.");
+    }
+    return;
+  }
+
   try {
     const updatePath = import.meta.env.VITE_UPDATE_PATH;
     if (!updatePath) {

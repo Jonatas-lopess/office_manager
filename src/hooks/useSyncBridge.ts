@@ -57,6 +57,29 @@ const parseEpoch = (str: string): number => {
   return 0;
 };
 
+// Shared office secret. Must be identical on every device — the hub rejects
+// the WS upgrade for anyone who doesn't present it (see src-tauri/src/lib.rs).
+const SYNC_TOKEN = import.meta.env.VITE_SYNC_TOKEN || "";
+if (!SYNC_TOKEN) {
+  console.warn(
+    "⚠️ [Sync] VITE_SYNC_TOKEN is not set — this device cannot join or host the sync network until it's configured (see .env).",
+  );
+}
+
+const SITE_ID_HEX_RE = /^[0-9a-fA-F]{32}$/;
+
+// A 16-byte site_id, hex-encoded, is the only shape crsql_site_id() ever
+// produces locally. Reject anything else instead of trusting it — these
+// values can originate in a message sent by another device on the network.
+function siteIdHexToBytes(hex: string): Uint8Array | null {
+  if (!SITE_ID_HEX_RE.test(hex)) return null;
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) {
+    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
 export function useSyncBridge(
   ctx: DB,
   hub: DBChangeHub,
@@ -197,7 +220,7 @@ export function useSyncBridge(
         } else {
           console.log(`❌ [Election] No Hub found. Electing SELF as Hub.`);
           try {
-            await invoke("start_hub");
+            await invoke("start_hub", { token: SYNC_TOKEN });
             // Wait briefly for Rust to bind port
             await new Promise((r) => setTimeout(r, 1500));
           } catch (err) {
@@ -212,8 +235,9 @@ export function useSyncBridge(
         return;
       }
 
+      const authedUrl = `${targetUrl}?token=${encodeURIComponent(SYNC_TOKEN)}`;
       console.log(`[Network] Attempting to connect to ${targetUrl}...`);
-      const ws = new WebSocket(targetUrl);
+      const ws = new WebSocket(authedUrl);
       wsRef.current = ws;
 
       ws.onopen = async () => {
@@ -385,6 +409,9 @@ export function useSyncBridge(
             let allChanges: any[] = [];
 
             for (const [siteIdHex] of ourSites) {
+              const siteIdBytes = siteIdHexToBytes(siteIdHex);
+              if (!siteIdBytes) continue; // our own hex() output should always be valid; skip defensively
+
               const lastKnownVersion = theirMap[siteIdHex]
                 ? BigInt(theirMap[siteIdHex])
                 : -1n;
@@ -392,9 +419,9 @@ export function useSyncBridge(
               const changes = await ctx.execA(
                 `SELECT "table", pk, cid, val, col_version, db_version, site_id, cl, seq
               FROM crsql_changes
-              WHERE site_id = x'${siteIdHex}' AND db_version > ?
+              WHERE site_id = ? AND db_version > ?
               ORDER BY db_version, seq`,
-                [lastKnownVersion],
+                [siteIdBytes, lastKnownVersion],
               );
               allChanges = allChanges.concat(changes);
             }
@@ -423,6 +450,11 @@ export function useSyncBridge(
             // Anti-Entropy Check: Do they have stuff we don't?
             let weAreMissingData = false;
             for (const siteIdHex in theirMap) {
+              // theirMap is attacker-reachable (parsed straight from a peer's WS
+              // message) — never let its keys anywhere near a SQL string.
+              const siteIdBytes = siteIdHexToBytes(siteIdHex);
+              if (!siteIdBytes) continue;
+
               const theirVersion = BigInt(theirMap[siteIdHex]);
               const ourRow = ourSites.find((s) => s[0] === siteIdHex);
               // If they have a site we don't know, or a newer version of a site we do know
@@ -432,7 +464,8 @@ export function useSyncBridge(
               }
               // Need to get the actual max version for this site from our DB
               const [[ourMax]] = await ctx.execA(
-                `SELECT max(db_version) FROM crsql_changes WHERE site_id = x'${siteIdHex}'`,
+                `SELECT max(db_version) FROM crsql_changes WHERE site_id = ?`,
+                [siteIdBytes],
               );
               if (theirVersion > (ourMax || -1n)) {
                 weAreMissingData = true;

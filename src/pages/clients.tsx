@@ -44,6 +44,7 @@ import {
   DebouncedSearch,
 } from "@/components/panel/panel-kit";
 import { normalizeString } from "@/lib/utils";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { v7 as uuidv7 } from "uuid";
 import {
   Client,
@@ -184,9 +185,21 @@ export default function ClientsPage() {
     setSelectedClient(null);
   };
 
-  const openDialog = (mode: "create" | "edit" | "view", client?: Client) => {
+  const openDialog = async (
+    mode: "create" | "edit" | "view",
+    client?: Client,
+  ) => {
     setDialogMode(mode);
-    setSelectedClient(client || null);
+    if (client) {
+      // gov_password is stored encrypted (see onSave below) — decrypt it
+      // only for the moment it's shown in the form, never in the list.
+      setSelectedClient({
+        ...client,
+        gov_password: await decryptSecret(client.gov_password),
+      });
+    } else {
+      setSelectedClient(null);
+    }
     setIsDialogOpen(true);
   };
 
@@ -434,9 +447,16 @@ export default function ClientsPage() {
           setPendingClient(client);
           setIsDialogOpen(false);
 
+          // Encrypt before it ever touches the database or the sync channel —
+          // `client` (plaintext) stays local for the optimistic UI above only.
+          const clientToStore: Client = {
+            ...client,
+            gov_password: await encryptSecret(client.gov_password),
+          };
+
           try {
             if (dialogMode === "create") {
-              await orm.insert(clientsTable).values(client);
+              await orm.insert(clientsTable).values(clientToStore);
               await logAction(orm, {
                 action: `Novo cliente cadastrado: ${client.name}`,
                 module: "Clientes",
@@ -451,7 +471,7 @@ export default function ClientsPage() {
             } else if (dialogMode === "edit" && selectedClient) {
               await orm
                 .update(clientsTable)
-                .set(client)
+                .set(clientToStore)
                 .where(eq(clientsTable.id, selectedClient.id));
               await logAction(orm, {
                 action: `Cliente atualizado: ${client.name}`,

@@ -1,8 +1,10 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        ConnectInfo, State,
+        ConnectInfo, Query, State,
     },
+    http::StatusCode,
+    response::IntoResponse,
     routing::get,
     Router,
 };
@@ -21,6 +23,9 @@ struct AppState {
     // The broadcast channel now holds a (sender_uuid, msg) tuple.
     tx: broadcast::Sender<(Uuid, String)>,
     connected_clients: Mutex<HashMap<Uuid, String>>,
+    // Shared office secret (VITE_SYNC_TOKEN). Connections must present this
+    // as a `?token=` query param before we upgrade to WebSocket.
+    token: String,
 }
 
 struct HubState {
@@ -103,22 +108,23 @@ async fn find_hub_ip() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-async fn start_hub(state: tauri::State<'_, HubState>, app_handle: tauri::AppHandle) -> Result<bool, String> {
+async fn start_hub(token: String, state: tauri::State<'_, HubState>, app_handle: tauri::AppHandle) -> Result<bool, String> {
     let mut lock = state.shutdown_tx.lock().unwrap();
     if lock.is_some() {
         return Ok(true); // already running
     }
-    
+
     let (tx, shutdown_rx) = oneshot::channel::<()>();
     *lock = Some(tx);
 
     let handle = app_handle.clone();
-    
+
     tokio::spawn(async move {
         let (tx, _rx) = broadcast::channel(100);
         let app_state = Arc::new(AppState {
             tx,
             connected_clients: Mutex::new(HashMap::new()),
+            token,
         });
 
         let axum_app = Router::new()
@@ -197,7 +203,16 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> axum::response::Response {
+    // Reject before the WS upgrade so unauthenticated peers never join the
+    // broadcast group (they can't send/receive sync or epoch_reset messages).
+    let provided = params.get("token").map(|s| s.as_str()).unwrap_or("");
+    if provided.is_empty() || provided != state.token.as_str() {
+        eprintln!("🚫 [Hub] Rejected connection from {}: bad sync token", addr);
+        return (StatusCode::UNAUTHORIZED, "invalid sync token").into_response();
+    }
+
     let ip = addr.ip().to_string();
     // **FIX**: Generate a unique ID for this specific connection.
     let client_uuid = Uuid::new_v4();

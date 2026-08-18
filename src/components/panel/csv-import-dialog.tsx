@@ -28,6 +28,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
 import { clientsTable } from "@/db/schema";
 import { logAction } from "@/lib/logger";
+import { encryptSecret } from "@/lib/crypto";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useSync } from "@/db/sync-context";
@@ -355,6 +356,9 @@ export function CSVImportDialog({
       // Run local validation
       try {
         const validated = insertClientSchema.parse(data);
+        if (validated.gov_password) {
+          validated.gov_password = await encryptSecret(validated.gov_password);
+        }
         const clientExists = await checkExistingClient(validated);
 
         if (clientExists) {
