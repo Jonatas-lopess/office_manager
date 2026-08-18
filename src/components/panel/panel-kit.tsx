@@ -8,6 +8,7 @@ import {
   Building2,
   History as HistoryIcon,
   LayoutGrid,
+  Landmark,
   Settings,
   Users,
   Download,
@@ -119,6 +120,7 @@ function SidebarContent_() {
     { href: "/", label: "Dashboard", icon: LayoutGrid },
     { href: "/clients", label: "Clientes", icon: Users },
     { href: "/services", label: "Serviços", icon: BarChart3 },
+    { href: "/refunds", label: "Restituições", icon: Landmark },
     { href: "/logs", label: "Logs", icon: HistoryIcon },
     { href: "/settings", label: "Configurações", icon: Settings },
   ];

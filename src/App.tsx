@@ -5,6 +5,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ClientsPage from "@/pages/clients";
 import ServicesPage from "@/pages/services";
+import RefundsPage from "@/pages/refunds";
 import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
 import { useEffect } from "react";
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/services" component={ServicesPage} />
+      <Route path="/refunds" component={RefundsPage} />
       <Route path="/logs" component={LogsPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
