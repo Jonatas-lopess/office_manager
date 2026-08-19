@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-08-18
+
+### Added
+
+- **Página de Restituições**: Nova página para acompanhamento de restituições de IRPF.
+
+### Fixed
+
+- **Segurança de Caminho de Pasta**: Corrigida vulnerabilidade de path traversal no fluxo de abertura da pasta do cliente.
+- **Fluxo de Abertura de Pasta**: Corrigido fluxo quebrado de abertura da pasta do cliente.
+- **Filtros de Serviços**: Seção "Mais filtros" agora permanece expandida por padrão na página de Serviços.
+
 ## [3.1.0] - 2026-06-23
 
 ### Added
