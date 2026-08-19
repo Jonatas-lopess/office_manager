@@ -572,6 +572,7 @@ export default function ServicesPage() {
               <Accordion
                 type="single"
                 collapsible
+                defaultValue="filters"
                 className="w-full border-none"
               >
                 <AccordionItem value="filters" className="border-none">
