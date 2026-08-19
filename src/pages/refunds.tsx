@@ -184,11 +184,14 @@ export default function RefundsPage() {
       .update(servicesTable)
       .set({ restitution_date: date, updated_at: new Date() })
       .where(eq(servicesTable.id, serviceId));
+    const clientName = refunds.find((r) => r.id === serviceId)?.client_name;
     await logAction(orm, {
-      action: "Data de restituição atualizada",
+      action: `Data de restituição atualizada: ${clientName || "Cliente"}`,
       module: "Restituições",
       status: "Success",
       device,
+      entityType: "service",
+      entityId: serviceId,
     });
   };
 
@@ -215,11 +218,14 @@ export default function RefundsPage() {
           .values({ service_id: serviceId, tag_id: tagId });
       }
     }
+    const clientName = refunds.find((r) => r.id === serviceId)?.client_name;
     await logAction(orm, {
-      action: "Etiquetas de restituição atualizadas",
+      action: `Etiquetas de restituição atualizadas: ${clientName || "Cliente"}`,
       module: "Restituições",
       status: "Success",
       device,
+      entityType: "service",
+      entityId: serviceId,
     });
   };
 

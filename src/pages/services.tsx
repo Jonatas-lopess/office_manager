@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Lock, LockOpen, Wind } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -209,6 +209,19 @@ export default function ServicesPage() {
   );
   const services = useMemo(() => rawServices || [], [rawServices]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (openId && services.length > 0) {
+      const service = services.find((s) => s.id === openId);
+      if (service) {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+        openDialog("view", service);
+      }
+    }
+  }, [services]);
+
   // Load all tags
   const tagsQuery = useMemo(() => {
     return orm.select().from(tagsTable).toSQL();
@@ -400,7 +413,7 @@ export default function ServicesPage() {
       .where(eq(serviceTagsTable.service_id, id));
     await orm.delete(servicesTable).where(eq(servicesTable.id, id));
     await logAction(orm, {
-      action: `Serviço excluído: ${type}`,
+      action: `Serviço excluído: ${type} — ${selectedService.client_name || "Cliente"}`,
       module: "Serviços",
       status: "Warning",
       device: connectedPeers.find((p) => p.id === myId)?.ip || undefined,
@@ -817,11 +830,13 @@ export default function ServicesPage() {
             if (dialogMode === "create") {
               await orm.insert(servicesTable).values(svc);
               await logAction(orm, {
-                action: `Novo serviço criado: ${svc.type}`,
+                action: `Novo serviço criado: ${svc.type} — ${clientsMap[svc.client_id]?.name || "Cliente"}`,
                 module: "Serviços",
                 status: "Success",
                 device:
                   connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                entityType: "service",
+                entityId: svc.id,
               });
               toast({
                 title: "Serviço criado",
@@ -833,11 +848,13 @@ export default function ServicesPage() {
                 .set(svc)
                 .where(eq(servicesTable.id, svc.id));
               await logAction(orm, {
-                action: `Serviço atualizado: ${svc.type}`,
+                action: `Serviço atualizado: ${svc.type} — ${clientsMap[svc.client_id]?.name || "Cliente"}`,
                 module: "Serviços",
                 status: "Success",
                 device:
                   connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                entityType: "service",
+                entityId: svc.id,
               });
               toast({
                 title: "Serviço atualizado",

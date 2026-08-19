@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -7,10 +8,18 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  ArrowUpRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AppShell, InfiniteList } from "@/components/panel/panel-kit";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDb } from "@/db/context";
@@ -35,7 +44,9 @@ function StatusIcon({ status }: { status: string }) {
 
 export default function LogsPage() {
   const { db, orm } = useDb();
+  const [, setLocation] = useLocation();
   const [q, setQ] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all");
 
   const logsQuery = useMemo(() => {
     return orm.select().from(logsTable).orderBy(desc(logsTable.created_at)).toSQL();
@@ -44,11 +55,17 @@ export default function LogsPage() {
   const { data: rawLogs } = useLocalQuery<Log>(db, logsQuery);
   const logs = useMemo(() => rawLogs || [], [rawLogs]);
 
+  const modules = useMemo(
+    () => Array.from(new Set(logs.map((l) => l.module))).sort(),
+    [logs],
+  );
+
   const filtered = logs.filter(
     (l) =>
-      l.action.toLowerCase().includes(q.toLowerCase()) ||
-      (l.device && l.device.toLowerCase().includes(q.toLowerCase())) ||
-      l.module.toLowerCase().includes(q.toLowerCase()),
+      (moduleFilter === "all" || l.module === moduleFilter) &&
+      (l.action.toLowerCase().includes(q.toLowerCase()) ||
+        (l.device && l.device.toLowerCase().includes(q.toLowerCase())) ||
+        l.module.toLowerCase().includes(q.toLowerCase())),
   );
 
 
@@ -59,8 +76,8 @@ export default function LogsPage() {
       subtitle="Rastreamento de atividades e dispositivos."
     >
       <Card className="panel-card flex-1 flex flex-col min-h-0" data-testid="card-logs">
-        <div className="p-4 border-b">
-          <div className="relative" data-testid="wrap-log-search">
+        <div className="p-4 border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1" data-testid="wrap-log-search">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
@@ -70,6 +87,21 @@ export default function LogsPage() {
               data-testid="input-log-search"
             />
           </div>
+          <Select value={moduleFilter} onValueChange={setModuleFilter}>
+            <SelectTrigger className="w-full sm:w-45" data-testid="select-log-module">
+              <SelectValue placeholder="Módulo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" data-testid="option-log-module-all">
+                Todos os módulos
+              </SelectItem>
+              {modules.map((m) => (
+                <SelectItem key={m} value={m} data-testid={`option-log-module-${m}`}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <ScrollArea className="flex-1 pr-4">
@@ -114,6 +146,21 @@ export default function LogsPage() {
                             locale: ptBR,
                           })}
                         </span>
+                        {log.entity_id && log.entity_type && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLocation(
+                                `/${log.entity_type === "client" ? "clients" : "services"}?open=${log.entity_id}`,
+                              )
+                            }
+                            className="flex items-center gap-0.5 text-xs text-primary hover:underline"
+                            data-testid={`link-log-entity-${log.id}`}
+                          >
+                            Ver {log.entity_type === "client" ? "cliente" : "serviço"}
+                            <ArrowUpRight className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

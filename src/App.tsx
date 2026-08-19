@@ -10,6 +10,8 @@ import LogsPage from "@/pages/logs";
 import SettingsPage from "@/pages/settings";
 import { useEffect } from "react";
 import { checkInternalUpdate } from "./lib/updater";
+import { getLogRetentionDays, pruneOldLogs } from "./lib/logger";
+import { useDb } from "@/db/context";
 import { Toaster as SonnerToaster } from "sonner";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -28,9 +30,12 @@ function Router() {
 }
 
 export default function App() {
+  const { orm } = useDb();
+
   useEffect(() => {
     checkInternalUpdate();
-  }, []);
+    pruneOldLogs(orm, getLogRetentionDays());
+  }, [orm]);
 
   return (
     <TooltipProvider>

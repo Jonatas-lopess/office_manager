@@ -101,6 +101,8 @@ export const logsTable = sqliteTable("logs", {
   action: text("action").notNull().default(""),
   module: text("module").notNull().default(""),
   device: text("device"),
+  entity_type: text("entity_type", { enum: ["client", "service"] }),
+  entity_id: text("entity_id"),
   status: text("status", {
     enum: ["Success", "Error", "Warning"],
   })

@@ -29,6 +29,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AppShell, TableCard } from "@/components/panel/panel-kit";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -48,7 +55,12 @@ import {
   tagsTable,
   serviceTagsTable,
 } from "@/db/schema";
-import { logAction } from "@/lib/logger";
+import {
+  logAction,
+  getLogRetentionDays,
+  setLogRetentionDays,
+  pruneOldLogs,
+} from "@/lib/logger";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { eq } from "drizzle-orm";
 import { TAG_COLORS } from "@/components/ui/tag-input";
@@ -89,6 +101,23 @@ export default function SettingsPage() {
   );
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
+  const [logRetentionDays, setLogRetentionDaysState] = useState(() =>
+    getLogRetentionDays(),
+  );
+
+  const handleLogRetentionChange = async (value: string) => {
+    const days = Number(value);
+    setLogRetentionDaysState(days);
+    setLogRetentionDays(days);
+    await pruneOldLogs(orm, days);
+    toast({
+      title: "Retenção de logs atualizada",
+      description:
+        days > 0
+          ? `Logs com mais de ${days} dias serão removidos automaticamente.`
+          : "Logs serão mantidos indefinidamente.",
+    });
+  };
 
   const handleSaveBackupPath = () => {
     setCustomBackupPath(backupPathInput);
@@ -379,6 +408,40 @@ export default function SettingsPage() {
                 <div className="text-[10px] text-center text-muted-foreground italic">
                   O backup será salvo na rede ou baixado via navegador.
                 </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-medium">Retenção de Logs</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Apaga automaticamente registros antigos da página de Logs.
+                  </div>
+                </div>
+                <Select
+                  value={String(logRetentionDays)}
+                  onValueChange={handleLogRetentionChange}
+                >
+                  <SelectTrigger
+                    className="w-32 shrink-0"
+                    data-testid="select-log-retention"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30" data-testid="option-log-retention-30">
+                      30 dias
+                    </SelectItem>
+                    <SelectItem value="90" data-testid="option-log-retention-90">
+                      90 dias
+                    </SelectItem>
+                    <SelectItem value="180" data-testid="option-log-retention-180">
+                      180 dias
+                    </SelectItem>
+                    <SelectItem value="0" data-testid="option-log-retention-forever">
+                      Sempre
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </Card>

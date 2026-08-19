@@ -450,6 +450,8 @@ export default function ClientsPage() {
                 module: "Clientes",
                 device:
                   connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                entityType: "client",
+                entityId: client.id,
               });
               toast({
                 variant: "success",
@@ -466,6 +468,8 @@ export default function ClientsPage() {
                 module: "Clientes",
                 device:
                   connectedPeers.find((p) => p.id === myId)?.ip || undefined,
+                entityType: "client",
+                entityId: selectedClient.id,
               });
               toast({
                 variant: "success",
