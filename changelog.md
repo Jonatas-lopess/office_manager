@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.1] - 2026-08-19
+
+### Added
+
+- **Página de Restituições**: Coluna de descrição do serviço na listagem, para diferenciar restituições do mesmo cliente.
+
 ## [3.2.0] - 2026-08-18
 
 ### Added
