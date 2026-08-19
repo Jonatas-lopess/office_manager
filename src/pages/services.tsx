@@ -77,9 +77,10 @@ import {
 import { FinancialDialog } from "@/components/service/financial-dialog";
 import { ServiceListItem } from "@/components/service/service-list-item";
 import { ClientDialog } from "@/pages/clients";
-import { join } from "@tauri-apps/api/path";
-import { mkdir, exists } from "@tauri-apps/plugin-fs";
-import { openPath } from "@tauri-apps/plugin-opener";
+import {
+  openClientFolder,
+  ClientFolderNotConfiguredError,
+} from "@/lib/client-folder";
 
 export default function ServicesPage() {
   const { db, orm } = useDb();
@@ -139,14 +140,11 @@ export default function ServicesPage() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedClientData, setSelectedClientData] = useState<any | null>(null);
 
-  const sanitizeFolderName = (name: string) => {
-    return name.replace(/[\\/:*?"<>|]/g, "").trim();
-  };
-
   const handleOpenClientFolder = async (clientName: string) => {
     try {
-      const baseDir = localStorage.getItem("customClientFolderPath");
-      if (!baseDir) {
+      await openClientFolder(clientName);
+    } catch (err) {
+      if (err instanceof ClientFolderNotConfiguredError) {
         toast({
           variant: "destructive",
           title: "Pasta base não configurada",
@@ -154,16 +152,6 @@ export default function ServicesPage() {
         });
         return;
       }
-
-      const clientFolderName = sanitizeFolderName(clientName);
-      const clientDir = await join(baseDir, clientFolderName);
-
-      if (!(await exists(clientDir))) {
-        await mkdir(clientDir, { recursive: true });
-      }
-
-      await openPath(clientDir);
-    } catch (err) {
       console.error("Failed to open client folder:", err);
       toast({
         variant: "destructive",

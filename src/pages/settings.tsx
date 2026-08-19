@@ -54,11 +54,18 @@ import { eq } from "drizzle-orm";
 import { TAG_COLORS } from "@/components/ui/tag-input";
 import { Badge } from "@/components/ui/badge";
 import packageJson from "../../package.json";
-import { join } from "@tauri-apps/api/path";
-import { writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { checkInternalUpdate } from "@/lib/updater";
 import { BackupRestoreDialog } from "@/components/settings/backup-restore-dialog";
+import {
+  openClientFolderBase,
+  ClientFolderNotConfiguredError,
+} from "@/lib/client-folder";
+import {
+  openManagedFolder,
+  writeManagedFile,
+  FolderNotConfiguredError,
+} from "@/lib/managed-fs";
 
 export default function SettingsPage() {
   const { orm, db } = useDb();
@@ -80,9 +87,6 @@ export default function SettingsPage() {
   const [customClientFolderPath, setCustomClientFolderPath] = useState(
     () => localStorage.getItem("customClientFolderPath") || "",
   );
-  const [clientFolderPathInput, setClientFolderPathInput] = useState(
-    () => localStorage.getItem("customClientFolderPath") || "",
-  );
   const [resetCode, setResetCode] = useState("");
   const [resetInput, setResetInput] = useState("");
 
@@ -95,19 +99,36 @@ export default function SettingsPage() {
     });
   };
 
-  const handleSaveClientFolderPath = () => {
-    setCustomClientFolderPath(clientFolderPathInput);
-    localStorage.setItem("customClientFolderPath", clientFolderPathInput);
-    toast({
-      title: "Configuração salva",
-      description: "O caminho da pasta de clientes foi atualizado.",
-    });
+  const handlePickClientFolder = async () => {
+    try {
+      const selected = await openFolderDialog({
+        directory: true,
+        multiple: false,
+        title: "Selecione a pasta dos clientes",
+      });
+      if (typeof selected !== "string") return; // cancelled
+
+      setCustomClientFolderPath(selected);
+      localStorage.setItem("customClientFolderPath", selected);
+      toast({
+        title: "Configuração salva",
+        description: "O caminho da pasta de clientes foi atualizado.",
+      });
+    } catch (err) {
+      console.error("Failed to pick client folder:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível selecionar a pasta.",
+      });
+    }
   };
 
   const handleOpenClientFolderBase = async () => {
     try {
-      const path = customClientFolderPath;
-      if (!path) {
+      await openClientFolderBase(customClientFolderPath);
+    } catch (err) {
+      if (err instanceof ClientFolderNotConfiguredError) {
         toast({
           variant: "destructive",
           title: "Erro",
@@ -115,13 +136,6 @@ export default function SettingsPage() {
         });
         return;
       }
-
-      if (!(await exists(path))) {
-        await mkdir(path, { recursive: true });
-      }
-
-      await openPath(path);
-    } catch (err) {
       console.error("Failed to open client folder base:", err);
       toast({
         variant: "destructive",
@@ -234,12 +248,12 @@ export default function SettingsPage() {
       // 2. Try to save to network share if configured
       if (updatePath) {
         try {
-          const backupDir = await join(updatePath, "Backups");
-          if (!(await exists(backupDir))) {
-            await mkdir(backupDir, { recursive: true });
-          }
-          const backupPath = await join(backupDir, `changes_${dateStr}.json`);
-          await writeFile(backupPath, new TextEncoder().encode(data));
+          const backupPath = await writeManagedFile(
+            updatePath,
+            "Backups",
+            `changes_${dateStr}.json`,
+            data,
+          );
 
           toast({
             title: "Backup de Sincronismo Concluído",
@@ -279,7 +293,9 @@ export default function SettingsPage() {
   const handleOpenBackupDir = async () => {
     try {
       const updatePath = customBackupPath || import.meta.env.VITE_UPDATE_PATH;
-      if (!updatePath) {
+      await openManagedFolder(updatePath, "Backups");
+    } catch (err) {
+      if (err instanceof FolderNotConfiguredError) {
         toast({
           variant: "destructive",
           title: "Erro",
@@ -287,16 +303,6 @@ export default function SettingsPage() {
         });
         return;
       }
-
-      const backupDir = await join(updatePath, "Backups");
-
-      // Ensure directory exists
-      if (!(await exists(backupDir))) {
-        await mkdir(backupDir, { recursive: true });
-      }
-
-      await openPath(backupDir);
-    } catch (err) {
       console.error("Failed to open backup directory:", err);
       toast({
         variant: "destructive",
@@ -491,18 +497,26 @@ export default function SettingsPage() {
               <div className="mt-4 flex flex-col gap-2">
                 <div className="flex gap-2">
                   <Input
-                    value={clientFolderPathInput}
-                    onChange={(e) => setClientFolderPathInput(e.target.value)}
-                    onBlur={handleSaveClientFolderPath}
-                    placeholder="Ex: C:\Clientes ou \\Servidor\Clientes"
+                    value={customClientFolderPath}
+                    readOnly
+                    placeholder="Nenhuma pasta selecionada"
                     className="h-8 text-xs bg-white/50"
                     data-testid="input-custom-client-folder-path"
                   />
                 </div>
                 <Button
                   variant="outline"
+                  onClick={handlePickClientFolder}
+                  className="w-full gap-2"
+                  data-testid="button-pick-client-folder"
+                >
+                  <Folder className="h-4 w-4" />
+                  Selecionar Pasta
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleOpenClientFolderBase}
-                  className="w-full gap-2 mt-2"
+                  className="w-full gap-2"
                   data-testid="button-open-client-folder-base"
                 >
                   <Folder className="h-4 w-4" />

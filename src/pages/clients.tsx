@@ -6,9 +6,10 @@ import { Search, UserPlus, Eye, Pencil, Trash2, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { join } from "@tauri-apps/api/path";
-import { mkdir, exists } from "@tauri-apps/plugin-fs";
-import { openPath } from "@tauri-apps/plugin-opener";
+import {
+  openClientFolder,
+  ClientFolderNotConfiguredError,
+} from "@/lib/client-folder";
 import {
   Dialog,
   DialogContent,
@@ -83,10 +84,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ClientStatus = Client["status"];
 
-const sanitizeFolderName = (name: string) => {
-  return name.replace(/[\\/:*?"<>|]/g, "").trim();
-};
-
 export default function ClientsPage() {
   const { db, orm } = useDb();
   const { myId, connectedPeers } = useSync();
@@ -113,8 +110,9 @@ export default function ClientsPage() {
 
   const handleOpenClientFolder = async (clientName: string) => {
     try {
-      const baseDir = localStorage.getItem("customClientFolderPath");
-      if (!baseDir) {
+      await openClientFolder(clientName);
+    } catch (err) {
+      if (err instanceof ClientFolderNotConfiguredError) {
         toast({
           variant: "destructive",
           title: "Pasta base não configurada",
@@ -122,16 +120,6 @@ export default function ClientsPage() {
         });
         return;
       }
-
-      const clientFolderName = sanitizeFolderName(clientName);
-      const clientDir = await join(baseDir, clientFolderName);
-
-      if (!(await exists(clientDir))) {
-        await mkdir(clientDir, { recursive: true });
-      }
-
-      await openPath(clientDir);
-    } catch (err) {
       console.error("Failed to open client folder:", err);
       toast({
         variant: "destructive",

@@ -9,9 +9,10 @@ use axum::{
     Router,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use std::{collections::HashMap, net::{IpAddr, SocketAddr}, sync::{Arc, Mutex}, time::Duration};
+use std::{collections::HashMap, net::{IpAddr, SocketAddr}, path::PathBuf, sync::{Arc, Mutex}, time::Duration};
 use tokio::{net::TcpStream, sync::{broadcast, oneshot}, time::timeout};
 use tauri::{Emitter, Manager, RunEvent};
+use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 use serde_json;
 use std::sync::Mutex as StdMutex;
@@ -30,6 +31,89 @@ struct AppState {
 
 struct HubState {
     shutdown_tx: StdMutex<Option<oneshot::Sender<()>>>,
+}
+
+// Only strips path separators and reserved Windows chars, plus "." / ".."
+// segments, which would otherwise let a join() escape base_dir by one level.
+// Used for both subfolder names and filenames.
+fn sanitize_path_segment(name: &str) -> Option<String> {
+    let cleaned: String = name
+        .chars()
+        .filter(|c| !"\\/:*?\"<>|".contains(*c))
+        .collect();
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+// Resolves base_dir/sub_dir, creating it if needed, and confirms the result
+// really stays inside base_dir before returning it (defense in depth against
+// a sub_dir value that snuck a ".." segment past sanitize_path_segment).
+fn resolve_managed_dir(base_dir: &str, sub_dir: Option<&str>) -> Result<PathBuf, String> {
+    if base_dir.trim().is_empty() {
+        return Err("Pasta base não configurada.".into());
+    }
+    let base = PathBuf::from(base_dir);
+
+    let target = match sub_dir {
+        Some(name) => {
+            let sanitized = sanitize_path_segment(name)
+                .ok_or_else(|| "Nome de subpasta inválido.".to_string())?;
+            base.join(sanitized)
+        }
+        None => base.clone(),
+    };
+
+    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+
+    let canon_base = std::fs::canonicalize(&base).map_err(|e| e.to_string())?;
+    let canon_target = std::fs::canonicalize(&target).map_err(|e| e.to_string())?;
+    if !canon_target.starts_with(&canon_base) {
+        return Err("Caminho de pasta inválido.".into());
+    }
+
+    Ok(target)
+}
+
+// Ensures base_dir/sub_dir exists and opens it in the OS file explorer.
+// Runs entirely on the Rust side (bypassing the plugin-fs/plugin-opener ACL
+// scopes, which are static and can't cover a user-configurable base_dir) so
+// it works no matter what folder the user picked in Settings — client folder
+// base, per-client folder, or the network backup share.
+#[tauri::command]
+fn open_managed_folder(
+    app: tauri::AppHandle,
+    base_dir: String,
+    sub_dir: Option<String>,
+) -> Result<(), String> {
+    let target = resolve_managed_dir(&base_dir, sub_dir.as_deref())?;
+    app.opener()
+        .open_path(target.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+// Ensures base_dir/sub_dir exists and writes `contents` to `filename` inside
+// it, returning the final absolute path. Same rationale as
+// open_managed_folder: sidesteps the static plugin-fs ACL for a
+// user-configurable base_dir (e.g. the custom backup path).
+#[tauri::command]
+fn write_managed_file(
+    base_dir: String,
+    sub_dir: Option<String>,
+    filename: String,
+    contents: String,
+) -> Result<String, String> {
+    let dir = resolve_managed_dir(&base_dir, sub_dir.as_deref())?;
+    let sanitized_filename =
+        sanitize_path_segment(&filename).ok_or_else(|| "Nome de arquivo inválido.".to_string())?;
+    let file_path = dir.join(sanitized_filename);
+
+    std::fs::write(&file_path, contents).map_err(|e| e.to_string())?;
+
+    Ok(file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -179,8 +263,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(HubState { shutdown_tx: StdMutex::new(None) })
-        .invoke_handler(tauri::generate_handler![find_hub_ip, close_splashscreen, start_hub])
+        .invoke_handler(tauri::generate_handler![
+            find_hub_ip,
+            close_splashscreen,
+            start_hub,
+            open_managed_folder,
+            write_managed_file
+        ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(move |app_handle, event| {
