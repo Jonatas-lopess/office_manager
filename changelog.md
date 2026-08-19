@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2026-08-19
+
+### Added
+
+- **Vínculo de Logs com Registros**: Entradas de log de criação/edição de clientes e serviços agora linkam diretamente para o registro correspondente. Ações de restituição passam a nomear o cliente em vez de mensagem genérica.
+- **Filtro de Módulo nos Logs**: Adicionado filtro por módulo na página de Logs.
+- **Retenção de Logs**: Nova opção em Configurações para definir janela de retenção de logs (30/90/180 dias ou permanente), aplicada na inicialização e imediatamente ao alterar.
+
 ## [3.2.1] - 2026-08-19
 
 ### Added
