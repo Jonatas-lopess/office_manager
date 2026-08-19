@@ -6,6 +6,7 @@ interface RefundListItemProps {
   service: {
     id: string;
     restitution_date: number | Date | null;
+    description: string | null;
   };
   client: {
     id: string;
@@ -33,7 +34,7 @@ export function RefundListItem({
 }: RefundListItemProps) {
   return (
     <div
-      className="grid grid-cols-1 gap-2 px-4 py-3 hover:bg-muted/30 transition-colors sm:grid-cols-[1.6fr_1fr_1fr_1fr_1.4fr] sm:items-center sm:gap-3"
+      className="grid grid-cols-1 gap-2 px-4 py-3 hover:bg-muted/30 transition-colors sm:grid-cols-[1.6fr_1.4fr_1fr_1fr_1fr_1.4fr] sm:items-center sm:gap-3"
       data-testid={`row-refund-${service.id}`}
     >
       <button
@@ -44,6 +45,14 @@ export function RefundListItem({
       >
         {client.name || "Desconhecido"}
       </button>
+
+      <div
+        className="truncate text-sm text-muted-foreground"
+        title={service.description || undefined}
+        data-testid={`text-refund-description-${service.id}`}
+      >
+        {service.description || "—"}
+      </div>
 
       <div
         className="truncate text-sm text-muted-foreground"

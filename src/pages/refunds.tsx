@@ -66,6 +66,7 @@ export default function RefundsPage() {
         id: servicesTable.id,
         client_id: servicesTable.client_id,
         restitution_date: servicesTable.restitution_date,
+        description: servicesTable.description,
         client_name: sql<string>`${clientsTable.name}`.as("client_name"),
         cpf: sql<string>`${clientsTable.cpf}`.as("cpf"),
         birth_date: sql<number>`${clientsTable.birth_date}`.as("birth_date"),
@@ -143,7 +144,7 @@ export default function RefundsPage() {
 
       if (search) {
         const content = normalizeString(
-          (r.client_name || "") + (r.cpf || ""),
+          (r.client_name || "") + (r.cpf || "") + (r.description || ""),
         );
         if (!content.includes(search)) return false;
       }
@@ -351,10 +352,11 @@ export default function RefundsPage() {
         </div>
 
         <div
-          className="hidden border-y bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[1.6fr_1fr_1fr_1fr_1.4fr] sm:gap-3"
+          className="hidden border-y bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[1.6fr_1.4fr_1fr_1fr_1fr_1.4fr] sm:gap-3"
           data-testid="header-refunds"
         >
           <div>Cliente</div>
+          <div>Descrição</div>
           <div>CPF</div>
           <div>Nascimento</div>
           <div>Restituição</div>
@@ -383,7 +385,11 @@ export default function RefundsPage() {
               renderItem={(r: any) => (
                 <RefundListItem
                   key={r.id}
-                  service={{ id: r.id, restitution_date: r.restitution_date }}
+                  service={{
+                    id: r.id,
+                    restitution_date: r.restitution_date,
+                    description: r.description,
+                  }}
                   client={{
                     id: r.client_id,
                     name: r.client_name,
