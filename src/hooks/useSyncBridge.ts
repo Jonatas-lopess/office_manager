@@ -642,7 +642,7 @@ export function useSyncBridge(
 
         // Clear the global changes table and rotate site ID to ensure a fresh identity in the new epoch
         await ctx.exec(`DELETE FROM crsql_changes`);
-        await ctx.exec(`SELECT crsql_site_id(random_blob(16))`);
+        await ctx.exec(`SELECT crsql_site_id(randomblob(16))`);
 
         localStorage.setItem("sync_epoch", newEpoch);
         setEpoch(newEpoch);

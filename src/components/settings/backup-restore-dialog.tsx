@@ -392,7 +392,7 @@ export function BackupRestoreDialog({
         // Clear global changes and rotate site ID to avoid version collisions
         // with the newly restored data.
         await db.exec(`DELETE FROM crsql_changes`);
-        await db.exec(`SELECT crsql_site_id(random_blob(16))`);
+        await db.exec(`SELECT crsql_site_id(randomblob(16))`);
 
         // Generate a new sync epoch and trigger reset on all connected peers
         const newEpoch = Date.now().toString();
