@@ -9,6 +9,7 @@ type UpdateCallback = () => void;
 export class DBChangeHub {
   private listeners: Set<UpdateCallback> = new Set();
   private cleanup: (() => void) | null = null;
+  private flushScheduled = false;
 
   constructor(private db: DB) {
     this.init();
@@ -20,8 +21,17 @@ export class DBChangeHub {
     });
   }
 
+  /**
+   * onUpdate fires once per changed row, synchronously, inside the writing
+   * transaction. Coalesce same-tick calls into a single flush — otherwise a
+   * batch of N row changes schedules N independent flushes, each iterating
+   * every mounted listener (N x M amplification).
+   */
   public broadcast() {
+    if (this.flushScheduled) return;
+    this.flushScheduled = true;
     setTimeout(() => {
+      this.flushScheduled = false;
       this.listeners.forEach((cb) => {
         try {
           cb();

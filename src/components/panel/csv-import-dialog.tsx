@@ -31,7 +31,7 @@ import { logAction } from "@/lib/logger";
 import { encryptSecret } from "@/lib/crypto";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useSync } from "@/db/sync-context";
+import { useSync } from "@/sync/sync-context";
 import {
   Tooltip,
   TooltipContent,

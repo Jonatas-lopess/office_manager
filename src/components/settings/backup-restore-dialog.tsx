@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { useDb } from "@/db/context";
-import { useSync } from "@/db/sync-context";
+import { useSync } from "@/sync/sync-context";
 import { useToast } from "@/hooks/use-toast";
 import { logAction } from "@/lib/logger";
 import { cn } from "@/lib/utils";

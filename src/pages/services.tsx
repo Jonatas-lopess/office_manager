@@ -53,7 +53,7 @@ import { Label } from "@/components/ui/label";
 import { cn, normalizeString } from "@/lib/utils";
 
 import { useDb } from "@/db/context";
-import { useSync } from "@/db/sync-context";
+import { useSync } from "@/sync/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import {
   servicesTable,

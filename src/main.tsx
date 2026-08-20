@@ -5,7 +5,7 @@ import App from "./App";
 import "./index.css";
 import { DbProvider, DbContextState } from "./db/context";
 import { initDb } from "./db";
-import { SyncProvider, useSync } from "./db/sync-context";
+import { SyncProvider, useSync } from "./sync/sync-context";
 import { Loader2 } from "lucide-react";
 
 let isBooting = false;

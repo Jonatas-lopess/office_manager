@@ -44,7 +44,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useSync } from "@/db/sync-context";
+import { useSync } from "@/sync/sync-context";
 import { useDb } from "@/db/context";
 import { useToast } from "@/hooks/use-toast";
 import {

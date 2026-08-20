@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useDb } from "./context";
-import { useSyncBridge, ConnectionStatus, Peer } from "@/hooks/useSyncBridge";
+import { useDb } from "@/db/context";
+import { useSyncBridge, ConnectionStatus, Peer } from "./useSyncBridge";
 
 export interface SyncContextState {
   myId: string | null;

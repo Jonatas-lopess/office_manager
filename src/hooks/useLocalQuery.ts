@@ -3,6 +3,8 @@ import { Query } from "drizzle-orm";
 import { useSyncExternalStore, useState, useEffect, useMemo, useRef } from "react";
 import { useDb } from "@/db/context";
 
+const EMPTY_ARRAY: never[] = [];
+
 export function useLocalQuery<T>(_ctx: DB, query: Query, enabled = true) {
   const { db: ctx, hub } = useDb();
   const versionRef = useRef(0);
@@ -29,7 +31,7 @@ export function useLocalQuery<T>(_ctx: DB, query: Query, enabled = true) {
   useEffect(() => {
     if (!ctx || !enabled) {
       if (!enabled) {
-        setData([]);
+        setData(EMPTY_ARRAY);
         setLoading(false);
       }
       return;

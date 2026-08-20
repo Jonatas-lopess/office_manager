@@ -6,6 +6,11 @@ bugs to fix:
   alongside version.txt, verify it before openPath(), and validate the
   version string format before it's used to build a path.
 
+refactor:
+- Camada de sync (useSyncBridge.ts + change-hub.ts) precisa split por
+  bounded context + fix de coalescing no DBChangeHub. Diagnóstico completo
+  e plano em SYNC_REFACTOR_PLAN.md.
+
 features to add:
 - small impact
 

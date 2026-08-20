@@ -53,7 +53,7 @@ import {
   NewClient as NewClientType,
 } from "@/db/validations";
 import { useDb } from "@/db/context";
-import { useSync } from "@/db/sync-context";
+import { useSync } from "@/sync/sync-context";
 import { useLocalQuery } from "@/hooks/useLocalQuery";
 import { clientsTable } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
