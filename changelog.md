@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.3] - 2026-08-20
+
+### Fixed
+
+- **Travamento Após Wipe + Resync**: `DBChangeHub.broadcast()` agendava um `setTimeout` por linha alterada em vez de agrupar chamadas do mesmo tick, causando tempestade de re-renderizações (N x M) em lotes grandes de sincronização e travando o app (erro React #185) após reset de época com resync subsequente.
+
 ## [3.4.2] - 2026-08-20
 
 ### Fixed
