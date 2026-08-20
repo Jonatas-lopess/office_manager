@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.2] - 2026-08-20
+
+### Fixed
+
+- **Rotação de ID do Site Ainda Falhando (3.4.1)**: a correção anterior trocou `random_blob` por `randomblob`, mas `crsql_site_id()` é uma função somente leitura, compilada na extensão sem aceitar argumentos — o erro persistia como "wrong number of arguments to function crsql_site_id()". A identidade do dispositivo agora é rotacionada via `UPDATE` na tabela interna `crsql_site_id`, seguido de recarregamento do app para que a nova identidade entre em vigor (necessário porque o valor fica em cache por conexão).
+
 ## [3.4.1] - 2026-08-20
 
 ### Fixed
