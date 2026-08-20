@@ -25,4 +25,3 @@ dist-ssr
 
 # Tauri
 .env
-src-tauri/capabilities/default.json

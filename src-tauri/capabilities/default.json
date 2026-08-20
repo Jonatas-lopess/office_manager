@@ -1,0 +1,57 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\version.txt"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-copy-file",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" },
+        { "path": "$APPDATA\\**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "C:\\Users\\Agência DigiLopes\\OneDrive\\AppUpdate\\**" }
+      ]
+    }
+  ]
+}
