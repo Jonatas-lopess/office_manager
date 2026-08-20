@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.1] - 2026-08-20
+
+### Fixed
+
+- **Reset de Época de Sincronização Falhando**: erro de digitação (`random_blob` em vez de `randomblob`) fazia a limpeza local por conflito de época (e a restauração de backup) falhar silenciosamente com "no such function: random_blob", impedindo a rotação do ID do site e deixando o dispositivo preso em estado de sincronização inconsistente.
+
 ## [3.4.0] - 2026-08-20
 
 ### Added
