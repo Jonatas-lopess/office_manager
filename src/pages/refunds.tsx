@@ -52,6 +52,7 @@ export default function RefundsPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "name">("date");
 
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedClientData, setSelectedClientData] = useState<any | null>(
@@ -161,6 +162,15 @@ export default function RefundsPage() {
     dateTo,
   ]);
 
+  const sorted = useMemo(() => {
+    if (sortBy === "name") {
+      return [...filtered].sort((a: any, b: any) =>
+        (a.client_name || "").localeCompare(b.client_name || "", "pt-BR"),
+      );
+    }
+    return filtered;
+  }, [filtered, sortBy]);
+
   const loading = refundsLoading || tagsLoading;
 
   const hasActiveFilters =
@@ -263,6 +273,22 @@ export default function RefundsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={sortBy}
+                onValueChange={(v) => setSortBy(v as any)}
+              >
+                <SelectTrigger
+                  className="w-40"
+                  data-testid="select-refund-sort"
+                >
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Restituição</SelectItem>
+                  <SelectItem value="name">Nome (A-Z)</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Select
                 value={restitutionStatus}
                 onValueChange={(v) => setRestitutionStatus(v as any)}
@@ -372,7 +398,7 @@ export default function RefundsPage() {
         <ScrollArea className="flex-1">
           <div className="divide-y" data-testid="list-refunds">
             <InfiniteList
-              data={filtered}
+              data={sorted}
               loading={loading}
               emptyState={
                 <Empty className="py-12">

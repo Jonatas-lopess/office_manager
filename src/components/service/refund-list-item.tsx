@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { TagInput, type TagOption } from "@/components/ui/tag-input";
+import ClickToCopy from "@/components/ui/click-to-copy";
 
 interface RefundListItemProps {
   service: {
@@ -54,12 +55,15 @@ export function RefundListItem({
         {service.description || "—"}
       </div>
 
-      <div
+      <ClickToCopy
+        enabled={!!client.cpf}
+        value={client.cpf || ""}
+        label="CPF"
         className="truncate text-sm text-muted-foreground"
         data-testid={`text-refund-cpf-${service.id}`}
       >
         {client.cpf || "—"}
-      </div>
+      </ClickToCopy>
 
       <div
         className="truncate text-sm text-muted-foreground"
