@@ -48,7 +48,6 @@ export interface Peer {
 }
 
 import { DBChangeHub } from "@/db/change-hub";
-import { getSiteMetadata } from "@/lib/utils";
 
 const parseEpoch = (str: string): number => {
   if (str && /^\d+$/.test(str)) {
@@ -137,22 +136,6 @@ export function useSyncBridge(
     setIsInitialSyncFinished(finished);
     isInitialSyncFinishedRef.current = finished;
   }, []);
-
-  const initLocalState = useCallback(async () => {
-    if (!ctx) return;
-    try {
-      // Initialize site identification and local version tracker
-      const { siteId, siteIdHex, version } = await getSiteMetadata(ctx);
-      mySiteIdRef.current = siteId;
-      mySiteIdHexRef.current = siteIdHex;
-      console.log(
-        `📑 [Init] Site ID: ${siteIdHex}, version tracker: ${version}`,
-      );
-      lastVersionRef.current = version;
-    } catch (err) {
-      console.error(`❌ [Init] Failed to initialize sync parameters:`, err);
-    }
-  }, [ctx]);
 
   // ==========================================
   // EFFECT 1: MANAGE THE NETWORK CONNECTION
@@ -640,24 +623,21 @@ export function useSyncBridge(
           }
         }
 
-        // Clear the global changes table and rotate site ID to ensure a fresh identity in the new epoch
+        // Clear the global changes table and rotate site ID to ensure a fresh identity in the new epoch.
+        // crsql_site_id() is read-only (fixed argc=0 in the extension) and its value is cached
+        // in-memory per connection from this table's ordinal=0 row at connection-open time — updating
+        // the row only takes effect on the NEXT fresh connection, hence the reload below.
         await ctx.exec(`DELETE FROM crsql_changes`);
-        await ctx.exec(`SELECT crsql_site_id(randomblob(16))`);
+        await ctx.exec(
+          `UPDATE crsql_site_id SET site_id = randomblob(16) WHERE ordinal = 0`,
+        );
 
         localStorage.setItem("sync_epoch", newEpoch);
-        setEpoch(newEpoch);
-        epochRef.current = newEpoch;
-
-        // Reset local version tracker and identity refs
-        await initLocalState();
-
-        // Notify UI that tables are empty
-        hub.broadcast();
 
         console.log(
-          `✅ [Sync] Clean wipe complete. Reconnecting under new epoch: ${newEpoch}`,
+          `✅ [Sync] Clean wipe complete. Reloading to adopt new identity under epoch: ${newEpoch}`,
         );
-        connect();
+        window.location.reload();
       } catch (err) {
         console.error(
           "❌ [Sync] Failed to perform local wipe on epoch mismatch:",
@@ -667,7 +647,7 @@ export function useSyncBridge(
         isWipingRef.current = false;
       }
     },
-    [ctx, connect, setSyncFinished, initLocalState, hub],
+    [ctx, setSyncFinished],
   );
 
   useEffect(() => {

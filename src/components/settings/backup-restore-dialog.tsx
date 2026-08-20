@@ -390,9 +390,14 @@ export function BackupRestoreDialog({
         }
 
         // Clear global changes and rotate site ID to avoid version collisions
-        // with the newly restored data.
+        // with the newly restored data. crsql_site_id() is read-only (fixed argc=0
+        // in the extension); the value is cached per-connection from this table's
+        // ordinal=0 row at connection-open time, so a reload is required below for
+        // the new identity to actually take effect.
         await db.exec(`DELETE FROM crsql_changes`);
-        await db.exec(`SELECT crsql_site_id(randomblob(16))`);
+        await db.exec(
+          `UPDATE crsql_site_id SET site_id = randomblob(16) WHERE ordinal = 0`,
+        );
 
         // Generate a new sync epoch and trigger reset on all connected peers
         const newEpoch = Date.now().toString();
@@ -470,7 +475,15 @@ export function BackupRestoreDialog({
         });
       }
 
-      setTimeout(() => onOpenChange(false), 1500);
+      // A rotated site ID (see clearBeforeRestore above) only takes effect on a
+      // fresh connection, so force one instead of just closing the dialog.
+      setTimeout(() => {
+        if (clearBeforeRestore) {
+          window.location.reload();
+        } else {
+          onOpenChange(false);
+        }
+      }, 1500);
     } catch (err: any) {
       console.error("[Restore] Fatal:", err);
       setRestoreError(err.message || "Falha ao aplicar o backup.");
