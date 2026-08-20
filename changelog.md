@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.1] - 2026-08-20
+
+### Fixed
+
+- **Build sem Token de Sincronização**: `pnpm build` agora falha caso `VITE_SYNC_TOKEN` não esteja definido, evitando gerar um instalador com o token de sincronização vazio (que impede o Hub de aceitar até a própria conexão).
+
 ## [3.3.0] - 2026-08-19
 
 ### Added
