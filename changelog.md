@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.0] - 2026-08-20
+
+### Added
+
+- **Restituições**: Ordenação por nome e cópia rápida do CPF (clique) na página de Restituições.
+
+### Fixed
+
+- **Instalador sem Permissão de Diálogo**: `src-tauri/capabilities/default.json` estava no `.gitignore`, então builds de release feitos em máquinas sem cópia local do arquivo saíam sem a permissão `dialog:default`, causando erro "plugin:dialog|open not allowed by ACL".
+
 ## [3.3.1] - 2026-08-20
 
 ### Fixed
